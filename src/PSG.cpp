@@ -4,6 +4,7 @@
 #include <string>
 #include <stdexcept>
 
+#include <visa.h>
 
 
 PSG::PSG(int gpibAddress) {
@@ -34,8 +35,18 @@ PSG::~PSG() {
 
 
 void PSG::onOff(bool on) {
-    // Implement the logic to turn on/off the PSG
-    // Example code using viPrintf to send a command
+    int num;
+    
+    // std::string command = on ? "OUTPUT 1" : "OUTPUT 0";
+    // ViStatus status = viPrintf(vi, "%s", command.c_str());
+
+    viPrintf(vi, "OUTP:STAT ON\n"); // Turn source RF state on
+    viPrintf(vi, "OUTP?\n"); // Query the signal generator’s RF state
+    viScanf(vi, "%1i", &num); // Read the response (integer value) 
+
+    // if (status != VI_SUCCESS) {
+    //     throw std::runtime_error("Failed to set PSG on/off state.");
+    // }
 }
 
 
