@@ -2,6 +2,7 @@ project(lab_control)
 
 set(SOURCES
     control_tests.cpp
+    PSG.cpp
 )
 
 message(STATUS ${SOURCES})
