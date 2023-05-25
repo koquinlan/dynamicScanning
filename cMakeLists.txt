@@ -5,4 +5,5 @@ project(lab_control)
 set(VISA_LIBRARY "C:/Program Files/IVI Foundation/VISA/Win64/Lib_x64/msc/visa64.lib") # Replace with the actual path to the VISA library
 set(VISA_INCLUDE_DIR "C:/Program Files/IVI Foundation/VISA/Win64/Include") # Replace with the actual path to the VISA include directory
 
+include_directories(include)
 add_subdirectory(src)

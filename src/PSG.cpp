@@ -1,23 +1,25 @@
 #include "PSG.hpp"
-#include <iostream>
 
-PSG::PSG(const char* deviceAddress) {
+#include <iostream>
+#include <string>
+#include <stdexcept>
+
+
+
+PSG::PSG(int gpibAddress) {
     ViSession defaultRM;
     ViStatus status;
 
     status = viOpenDefaultRM(&defaultRM);
     if (status != VI_SUCCESS) {
-        std::cout << "Failed to initialize VISA." << std::endl;
-        // Handle the error or throw an exception
-        return;
+        throw std::runtime_error("Failed to initialize VISA.");
     }
 
-    status = viOpen(defaultRM, deviceAddress, VI_NULL, VI_NULL, &vi);
+    std::string deviceAddress = "GPIB0::" + std::to_string(gpibAddress) + "::INSTR";
+    status = viOpen(defaultRM, (ViRsrc)deviceAddress.c_str(), VI_NULL, VI_NULL, &vi);
     if (status != VI_SUCCESS) {
-        std::cout << "Failed to open a connection to the PSG." << std::endl;
         viClose(defaultRM);
-        // Handle the error or throw an exception
-        return;
+        throw std::runtime_error("Failed to open a connection to the PSG.");
     }
 
     viClose(defaultRM);

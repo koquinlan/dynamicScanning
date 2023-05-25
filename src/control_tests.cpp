@@ -1,4 +1,5 @@
 #include <iostream>
+#include <string>
 #include <visa.h>
 
 void printAvailableResources(ViSession session) {
@@ -26,6 +27,8 @@ void printAvailableResources(ViSession session) {
 }
 
 int main() {
+    int gpibAddress = 21;
+
     ViSession defaultRM;
     ViStatus status;
 
@@ -42,8 +45,8 @@ int main() {
     ViSession vi;
 
     // Open a connection to the GPIB device
-    ViRsrc deviceAddress = "GPIB0::21::INSTR";  // Replace with your device's address
-    status = viOpen(defaultRM, deviceAddress, VI_NULL, VI_NULL, &vi);
+    std::string deviceAddress = "GPIB0::" + std::to_string(gpibAddress) + "::INSTR";
+    status = viOpen(defaultRM, (ViRsrc)deviceAddress.c_str(), VI_NULL, VI_NULL, &vi);
     if (status != VI_SUCCESS) {
         std::cout << "Failed to open a connection to the device." << std::endl;
         viClose(defaultRM);

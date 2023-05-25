@@ -5,7 +5,7 @@
 
 class PSG {
 public:
-    PSG(const char* deviceAddress);
+    PSG(int gpibAddress);
     ~PSG();
 
     void onOff(bool on);

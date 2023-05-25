@@ -7,8 +7,6 @@ set(SOURCES
 
 message(STATUS ${SOURCES})
 
-include_directories(include)
-
 add_executable(lab_control ${SOURCES})
 
 # Include the VISA header file
