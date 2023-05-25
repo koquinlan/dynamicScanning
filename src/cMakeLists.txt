@@ -1,0 +1,17 @@
+project(lab_control)
+
+set(SOURCES
+    control_tests.cpp
+)
+
+message(STATUS ${SOURCES})
+
+include_directories(include)
+
+add_executable(lab_control ${SOURCES})
+
+# Include the VISA header file
+target_include_directories(lab_control PRIVATE ${VISA_INCLUDE_DIR})
+
+# Link against the VISA library
+target_link_libraries(lab_control PRIVATE ${VISA_LIBRARY})
