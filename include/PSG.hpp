@@ -9,8 +9,12 @@ public:
     ~PSG();
 
     void onOff(bool on);
+
     void setFreq(double frequency);
     void setPow(double pow);
+
+    void setFreqModDev(double dev);
+    void freqModOnOff(bool on);
 
 private:
     ViSession defaultRM;

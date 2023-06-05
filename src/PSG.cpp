@@ -65,9 +65,32 @@ void PSG::setFreq(double frequency) {
 void PSG::setPow(double pow) {
     std::string command = "POW " + std::to_string(pow) + "dBm";
     ViStatus status = viPrintf(vi, "%s\n", command.c_str());
-    
+
     if (status != VI_SUCCESS) {
         throw std::runtime_error("Failed to set PSG power.");
     }
 }
 
+
+
+void PSG::freqModOnOff(bool on) {
+    std::string command = on ? "FM:STATE 1" : "FM:STATE 0";
+    ViStatus status = viPrintf(vi, "%s\n", command.c_str());
+
+    if (status != VI_SUCCESS) {
+        throw std::runtime_error("Failed to set PSG FM on/off state.");
+    }
+}
+
+
+
+
+void PSG::setFreqModDev(double dev) {
+    std::string command = "FM:DEV " + std::to_string(dev) + "kHz";
+
+    ViStatus status = viPrintf(vi, "%s\n", command.c_str());
+
+    if (status != VI_SUCCESS) {
+        throw std::runtime_error("Failed to set FM modulation path deviation");
+    }
+}

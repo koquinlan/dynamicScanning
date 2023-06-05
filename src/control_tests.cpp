@@ -52,21 +52,38 @@ int main() {
 
     try
     {
+        /** ON/OFF TOGGLE TEST **/
         psg3.onOff(true);
         std::this_thread::sleep_for(std::chrono::seconds(1));  // Delay for 1 second
         psg3.onOff(false);
 
         std::this_thread::sleep_for(std::chrono::seconds(1));
 
+        /** FREQUENCY SETTING TEST **/
         psg3.setFreq(3.141592653);
         std::this_thread::sleep_for(std::chrono::seconds(2));
         psg3.setFreq(40);
 
         std::this_thread::sleep_for(std::chrono::seconds(1));
 
+        /** POWER SETTING TEST **/
         psg3.setPow(-21.212121);
         std::this_thread::sleep_for(std::chrono::seconds(2));
         psg3.setPow(-105);
+
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+
+        /** MOD TOGGLE TEST **/
+        psg3.freqModOnOff(true);
+        std::this_thread::sleep_for(std::chrono::seconds(2));
+        psg3.freqModOnOff(false);
+
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+
+        /** MOD PATH DEVIATION SETTING TEST **/
+        psg3.setFreqModDev(30);
+        std::this_thread::sleep_for(std::chrono::seconds(2));
+        psg3.setFreqModDev(1);
     }
     catch(const std::exception& e)
     {
