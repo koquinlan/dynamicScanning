@@ -12,6 +12,7 @@ public:
     void setFreq(double frequency);
 
 private:
+    ViSession defaultRM;
     ViSession vi;
 };
 

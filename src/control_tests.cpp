@@ -1,8 +1,13 @@
 #include <iostream>
 #include <string>
+
+#include <chrono>
+#include <thread>
+
 #include <visa.h>
 
 #include "PSG.hpp"
+
 
 void printAvailableResources(ViSession session) {
     ViFindList findList;
@@ -43,10 +48,24 @@ int main() {
     printAvailableResources(defaultRM);
 
 
-    PSG psg3(21);
+    PSG psg3(gpibAddress);
 
-    psg3.onOff(true);
+    try
+    {
+        psg3.onOff(true);
+        std::this_thread::sleep_for(std::chrono::seconds(1));  // Delay for 1 second
+        psg3.onOff(false);
 
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+
+        psg3.setFreq(3.141592653);
+        std::this_thread::sleep_for(std::chrono::seconds(2));
+        psg3.setFreq(40);
+    }
+    catch(const std::exception& e)
+    {
+        std::cerr << e.what() << '\n';
+    }
 
     viClose(defaultRM);
     return 0;
