@@ -10,6 +10,7 @@ public:
 
     void onOff(bool on);
     void setFreq(double frequency);
+    void setPow(double pow);
 
 private:
     ViSession defaultRM;

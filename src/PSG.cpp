@@ -54,8 +54,20 @@ void PSG::onOff(bool on) {
 void PSG::setFreq(double frequency) {
     std::string command = "FREQ " + std::to_string(frequency) + "GHz";
     ViStatus status = viPrintf(vi, "%s\n", command.c_str());
-    
+
     if (status != VI_SUCCESS) {
         throw std::runtime_error("Failed to set PSG frequency.");
     }
 }
+
+
+
+void PSG::setPow(double pow) {
+    std::string command = "POW " + std::to_string(pow) + "dBm";
+    ViStatus status = viPrintf(vi, "%s\n", command.c_str());
+    
+    if (status != VI_SUCCESS) {
+        throw std::runtime_error("Failed to set PSG power.");
+    }
+}
+

@@ -61,6 +61,12 @@ int main() {
         psg3.setFreq(3.141592653);
         std::this_thread::sleep_for(std::chrono::seconds(2));
         psg3.setFreq(40);
+
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+
+        psg3.setPow(-21.212121);
+        std::this_thread::sleep_for(std::chrono::seconds(2));
+        psg3.setPow(-105);
     }
     catch(const std::exception& e)
     {
