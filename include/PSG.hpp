@@ -3,12 +3,12 @@
 
 #include <visa.h>
 
-class PSG {
+#include "instrument.hpp"
+
+class PSG : public Instrument{
 public:
     PSG(int gpibAddress);
     ~PSG();
-
-    void onOff(bool on);
 
     void setFreq(double frequency);
     void setPow(double pow);
@@ -17,10 +17,6 @@ public:
     void setFreqModDev(double dev);
     void freqModOnOff(bool on);
     void setFreqModSrc(bool ext, int src);
-
-private:
-    ViSession defaultRM;
-    ViSession vi;
 };
 
 #endif // PSG_H

@@ -54,7 +54,7 @@ int main() {
     {
         /** ON/OFF TOGGLE TEST **/
         psg3.onOff(true);
-        std::this_thread::sleep_for(std::chrono::seconds(1));  // Delay for 1 second
+        std::this_thread::sleep_for(std::chrono::seconds(2));  // Delay for 1 second
         psg3.onOff(false);
 
         std::this_thread::sleep_for(std::chrono::seconds(1));
