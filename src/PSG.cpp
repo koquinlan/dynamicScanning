@@ -73,6 +73,17 @@ void PSG::setPow(double pow) {
 
 
 
+void PSG::modOnOff(bool on) {
+    std::string command = on ? "OUTPUT:MOD 1" : "OUTPUT:MOD 0";
+    ViStatus status = viPrintf(vi, "%s\n", command.c_str());
+
+    if (status != VI_SUCCESS) {
+        throw std::runtime_error("Failed to set PSG overall modulation on/off state.");
+    }
+}
+
+
+
 void PSG::freqModOnOff(bool on) {
     std::string command = on ? "FM:STATE 1" : "FM:STATE 0";
     ViStatus status = viPrintf(vi, "%s\n", command.c_str());

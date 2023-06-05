@@ -13,6 +13,7 @@ public:
     void setFreq(double frequency);
     void setPow(double pow);
 
+    void modOnOff(bool on);
     void setFreqModDev(double dev);
     void freqModOnOff(bool on);
 
