@@ -16,6 +16,7 @@ public:
     void modOnOff(bool on);
     void setFreqModDev(double dev);
     void freqModOnOff(bool on);
+    void setFreqModSrc(bool ext, int src);
 
 private:
     ViSession defaultRM;

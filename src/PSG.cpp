@@ -95,9 +95,23 @@ void PSG::freqModOnOff(bool on) {
 
 
 
-
 void PSG::setFreqModDev(double dev) {
     std::string command = "FM:DEV " + std::to_string(dev) + "kHz";
+
+    ViStatus status = viPrintf(vi, "%s\n", command.c_str());
+
+    if (status != VI_SUCCESS) {
+        throw std::runtime_error("Failed to set FM modulation path deviation");
+    }
+}
+
+
+
+
+void PSG::setFreqModSrc(bool ext, int src) {
+    std::string command = "FM:SOURCE ";
+    command += ext ? "EXT" : "INT";
+    command += std::to_string(src);
 
     ViStatus status = viPrintf(vi, "%s\n", command.c_str());
 

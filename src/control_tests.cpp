@@ -73,17 +73,16 @@ int main() {
 
         std::this_thread::sleep_for(std::chrono::seconds(1));
 
-        /** MOD TOGGLE TEST **/
+        /** MODULATION TEST **/
+        psg3.modOnOff(true);
         psg3.freqModOnOff(true);
-        std::this_thread::sleep_for(std::chrono::seconds(2));
-        psg3.freqModOnOff(false);
-
-        std::this_thread::sleep_for(std::chrono::seconds(1));
-
-        /** MOD PATH DEVIATION SETTING TEST **/
         psg3.setFreqModDev(30);
+        psg3.setFreqModSrc(true, 1);
         std::this_thread::sleep_for(std::chrono::seconds(2));
+        psg3.modOnOff(false);
+        psg3.freqModOnOff(false);
         psg3.setFreqModDev(1);
+        psg3.setFreqModSrc(false, 1);
     }
     catch(const std::exception& e)
     {
