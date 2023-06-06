@@ -50,13 +50,42 @@ public:
         instrumentSession = VI_NULL;
     }
 
-    void onOff(bool on) {
+    void reset(){
+        std::string command = "*RST";
+        status = viPrintf(instrumentSession, "%s\n", command.c_str());
+
+        if (status != VI_SUCCESS) {
+            throw std::runtime_error("Failed to reset instrument");
+        }
+
+        queryError();
+    }
+
+    virtual void onOff(bool on) {
         std::string command = on ? "OUTPUT 1" : "OUTPUT 0";
         status = viPrintf(instrumentSession, "%s\n", command.c_str());
 
         if (status != VI_SUCCESS) {
             throw std::runtime_error("Failed to set instrument on/off state.");
         }
+    }
+
+    std::string queryError() {
+        const int bufferSize = 256;
+        char errorBuffer[bufferSize] = {0};
+        ViUInt32 retCount = 0;
+
+        status = viQueryf(instrumentSession, "SYST:ERR?", "%t", errorBuffer, bufferSize, &retCount);
+        if (status != VI_SUCCESS) {
+            throw std::runtime_error("Failed to query instrument error.");
+        }
+
+        std::string errorString(errorBuffer);
+        if (errorString.substr(0, 2) != "+0") {
+            throw std::runtime_error("Instrument reported an error: " + errorString);
+        }
+
+        return errorString;
     }
 };
 
