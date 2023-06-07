@@ -2,6 +2,8 @@ project(lab_control)
 
 set(SOURCES
     control_tests.cpp
+
+    instrument.cpp
     PSG.cpp
     AWG.cpp
 )
