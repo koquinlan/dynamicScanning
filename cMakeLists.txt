@@ -1,9 +1,12 @@
 cmake_minimum_required(VERSION 3.0)
 project(lab_control)
 
-# Set the path to the VISA library and include directory
-set(VISA_LIBRARY "C:/Program Files/IVI Foundation/VISA/Win64/Lib_x64/msc/visa64.lib") # Replace with the actual path to the VISA library
-set(VISA_INCLUDE_DIR "C:/Program Files/IVI Foundation/VISA/Win64/Include") # Replace with the actual path to the VISA include directory
+# Set the path to the VISA and ATS library and include directory
+set(VISA_LIBRARY ${CMAKE_CURRENT_SOURCE_DIR}/libs/visa64.lib) # Replace with the actual path to the VISA library
+set(VISA_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include/VISA) # Replace with the actual path to the VISA include directory
+
+set(ALAZAR_LIBRARY ${CMAKE_CURRENT_SOURCE_DIR}/libs/AtsApi.lib)
+set(ALAZAR_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include/ALAZAR) # Replace with the actual path to the VISA include directory
 
 include_directories(include)
 add_subdirectory(src)
