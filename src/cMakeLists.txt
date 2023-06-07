@@ -3,6 +3,7 @@ project(lab_control)
 set(SOURCES
     control_tests.cpp
     PSG.cpp
+    AWG.cpp
 )
 
 message(STATUS ${SOURCES})
