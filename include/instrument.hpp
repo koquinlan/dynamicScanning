@@ -61,6 +61,29 @@ public:
         queryError();
     }
 
+    void sendCustomCommand(const std::string& command) {
+        status = viPrintf(instrumentSession, "%s\n", command.c_str());
+
+        if (status != VI_SUCCESS) {
+            throw std::runtime_error("Failed to send custom command: " + command);
+        }
+        queryError();
+    }
+
+    std::string sendCustomQuery(std::string query) {
+        query += "\n";
+
+        char idnBuffer[256];
+        status = viQueryf(instrumentSession, const_cast<ViString>(query.c_str()), "%t", idnBuffer);
+        if (status != VI_SUCCESS) {
+            throw std::runtime_error("Failed to send custom query.");
+        }
+        queryError();
+
+        std::string idn(idnBuffer);
+        return idn;
+    }
+
     virtual void onOff(bool on) {
         std::string command = on ? "OUTPUT 1" : "OUTPUT 0";
         status = viPrintf(instrumentSession, "%s\n", command.c_str());
@@ -75,7 +98,7 @@ public:
         char errorBuffer[bufferSize] = {0};
         ViUInt32 retCount = 0;
 
-        status = viQueryf(instrumentSession, "SYST:ERR?", "%t", errorBuffer, bufferSize, &retCount);
+        status = viQueryf(instrumentSession, "SYST:ERR?\n", "%t", errorBuffer, bufferSize, &retCount);
         if (status != VI_SUCCESS) {
             throw std::runtime_error("Failed to query instrument error.");
         }
