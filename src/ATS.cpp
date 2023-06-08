@@ -105,15 +105,8 @@ double ATS::setExternalSampleClock(double requestedSampleRate) {
  * @param inputImpedance    50 or 1e6 ohms          - input impedance
  */
 void ATS::setInputParameters(char channel, std::string coupling, double inputRange, double inputImpedance) {
-    channel = std::toupper(channel);
-
     // Get the channel ID
-    int channelID;
-    if      (channel == 'A') { channelID = CHANNEL_A; } 
-    else if (channel == 'B') { channelID = CHANNEL_B; } 
-    else {
-        throw std::runtime_error("Invalid channel selection. Select channel 'A' or 'B'");
-    }
+    int channelID = getChannelID(channel);
 
     // Get the coupling mode
     int couplingMode;
@@ -167,3 +160,36 @@ void ATS::setInputParameters(char channel, std::string coupling, double inputRan
         throw std::runtime_error(std::string("Error: AlazarInputControl failed -- ") + AlazarErrorToText(retCode) + "\n");
     }
 }
+
+
+
+void ATS::setBandwidthLimit(char channel, bool limit) {
+    int channelID = getChannelID(channel);
+
+    retCode = AlazarSetBWLimit(
+        boardHandle,			// HANDLE -- board handle
+        channelID,				// U8 -- channel identifier
+        limit					// U32 -- 0 = disable, 1 = enable
+    );
+    if (retCode != ApiSuccess) {
+        throw std::runtime_error(std::string("Error: AlazarSetBWLimit failed -- ") + AlazarErrorToText(retCode) + "\n");
+    }
+}
+
+
+
+int ATS::getChannelID(char channel){
+    int channelID;
+    channel = std::toupper(channel);
+    
+    if      (channel == 'A') { channelID = CHANNEL_A; } 
+    else if (channel == 'B') { channelID = CHANNEL_B; } 
+    else {
+        throw std::runtime_error("Invalid channel selection. Select channel 'A' or 'B'");
+    }
+
+    return channelID;
+}
+
+
+

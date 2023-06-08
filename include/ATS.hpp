@@ -14,10 +14,13 @@ public:
 
     double setExternalSampleClock(double requestedSampleRate);
     void setInputParameters(char channel, std::string coupling, double inputRange=0.8, double inputImpedance=50);
+    void setBandwidthLimit(char channel, bool limit);
 
 private:
     HANDLE boardHandle;
     RETURN_CODE retCode;
+
+    int getChannelID(char channel);
 };
 
 
