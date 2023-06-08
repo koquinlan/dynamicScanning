@@ -20,6 +20,7 @@ int main() {
         ATS alazarCard(1, 1);
 
         alazarCard.setExternalSampleClock(10e6);
+        alazarCard.setInputParameters('a', "dc", 0.8);
     }
     catch(const std::exception& e)
     {

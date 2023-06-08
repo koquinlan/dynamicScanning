@@ -1,6 +1,8 @@
 #ifndef ATS_H
 #define ATS_H
 
+#include <string>
+
 #include "AlazarError.h"
 #include "AlazarApi.h"
 #include "AlazarCmd.h"
@@ -11,9 +13,11 @@ public:
     ~ATS();
 
     double setExternalSampleClock(double requestedSampleRate);
+    void setInputParameters(char channel, std::string coupling, double inputRange=0.8, double inputImpedance=50);
 
 private:
-    HANDLE systemHandle;
+    HANDLE boardHandle;
+    RETURN_CODE retCode;
 };
 
 
