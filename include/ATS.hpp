@@ -10,7 +10,7 @@ public:
     ATS(int systemId = 1, int boardId = 1);
     ~ATS();
 
-    // Other member functions...
+    double setExternalSampleClock(double requestedSampleRate);
 
 private:
     HANDLE systemHandle;

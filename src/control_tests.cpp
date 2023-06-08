@@ -13,11 +13,13 @@
 int main() {
     printAvailableResources();
 
-    psgTesting(21);
-    awgTesting(10);
+    // psgTesting(21);
+    // awgTesting(10);
 
     try{
         ATS alazarCard(1, 1);
+
+        alazarCard.setExternalSampleClock(10e6);
     }
     catch(const std::exception& e)
     {
