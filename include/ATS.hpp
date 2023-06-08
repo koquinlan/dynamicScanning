@@ -7,15 +7,8 @@
 
 class ATS {
 public:
-    ATS() : systemHandle(nullptr) {}
-    ~ATS() { 
-        if (systemHandle != nullptr) {
-            AlazarClose(systemHandle);
-            systemHandle = nullptr;
-        }
-    }
-
-    void InitializeBoard(int systemId = 1, int boardId = 1);
+    ATS(int systemId = 1, int boardId = 1);
+    ~ATS();
 
     // Other member functions...
 

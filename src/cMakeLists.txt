@@ -6,6 +6,7 @@ set(SOURCES
     instrument.cpp
     PSG.cpp
     AWG.cpp
+    ATS.cpp
 )
 
 message(STATUS ${SOURCES})

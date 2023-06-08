@@ -1,5 +1,14 @@
 #include "PSG.hpp"
 #include "AWG.hpp"
+#include "ATS.hpp"
+
+#include <stdexcept>
+#include <chrono>
+#include <thread>
+
+#include <iostream>
+#include <string>
+#include <vector>
 
 
 void printAvailableResources() {
