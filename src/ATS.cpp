@@ -210,18 +210,19 @@ void ATS::AcquireData() {
 	}
 
     // Set parameters for acquisition (should be input to function)
+    U32 sampleRate = (U32)30e6;                  // Sample rate in Hz                - freq span = sampleRate/2
+    U32 samplesPerRecord = (U32)15e4;          // Samples per single shot of ATS
+    U32 buffersPerAcquisition = 64;
+    U32 recordsPerAcquisition = 64;       
+    U32 recordsPerBuffer = 1;
     double inputRange = 0.4;
-	double freqBinWidth = 200;              // Width in Hz of each bin in post-FFT data     - RBW = sampleRate/sampleNum
-    double sampleRate = 30e6;               // Sample rate in Hz                            - freq span = sampleRate/2
-    int totalRecordsPerAcquisition = 64;    // Records per single shot of ATS               - each record has RBW as given above
-    int recordsPerBuffer = 1;               // Number of records in each DMA buffer         - must be set to 1 in continuous streaming DMA
+    
 
     // Calculate remaining parameters
-    U32 samplesPerBuffer = (U32)(sampleRate/freqBinWidth*recordsPerBuffer);
+    U32 samplesPerBuffer = samplesPerRecord*recordsPerBuffer;
     U32 bytesPerSample = (bitsPerSample + 7) / 8;
 	U32 bytesPerBuffer = bytesPerSample * samplesPerBuffer * channelCount;
 
-    U32 buffersPerAcquisition = (U32) (totalRecordsPerAcquisition/recordsPerBuffer);
     INT64 samplesPerAcquisition = (INT64) (samplesPerBuffer * buffersPerAcquisition + 0.5);
 	
 
@@ -251,8 +252,9 @@ void ATS::AcquireData() {
 
 
     // Configure the board to make an AutoDMA acquisition
-    U32 admaFlags = ADMA_EXTERNAL_STARTCAPTURE |	// Start acquisition when AlazarStartCapture is called
-                    ADMA_CONTINUOUS_MODE;			// Acquire a continuous stream of sample data without trigger
+    U32 admaFlags = ADMA_EXTERNAL_STARTCAPTURE;         // Start acquisition when AlazarStartCapture is called
+    // U32 admaFlags = ADMA_EXTERNAL_STARTCAPTURE |	
+    //                 ADMA_CONTINUOUS_MODE;			// Acquire a continuous stream of sample data without trigger
 
     retCode = AlazarBeforeAsyncRead(
         boardHandle,			// HANDLE -- board handle
@@ -260,7 +262,7 @@ void ATS::AcquireData() {
         0,						// long -- offset from trigger in samples
         samplesPerBuffer,		// U32 -- samples per buffer
         recordsPerBuffer,		// U32 -- records per buffer (must be 1)
-        buffersPerAcquisition,	// U32 -- records per acquisition 
+        recordsPerAcquisition,	// U32 -- records per acquisition 
         admaFlags				// U32 -- AutoDMA flags
     ); 
     if (retCode != ApiSuccess) {
@@ -279,13 +281,12 @@ void ATS::AcquireData() {
 			success = FALSE;
 		}
 		else {
-			retCode = AlazarAsyncRead(
+			retCode = AlazarPostAsyncBuffer(
                 boardHandle,					// HANDLE -- board handle
                 pIoBuffer->pBuffer,				// void* -- buffer
-                pIoBuffer->uBufferLength_bytes,	// U32 -- buffer length in bytes
-                &pIoBuffer->overlapped			// OVERLAPPED* 
+                pIoBuffer->uBufferLength_bytes	// U32 -- buffer length in bytes
             );				
-			if (retCode != ApiDmaPending) {
+			if (retCode != ApiSuccess) {
                 throw std::runtime_error(std::string("Error: AlazarAsyncRead ") + std::to_string(bufferIndex) + 
                                                      " failed -- " + AlazarErrorToText(retCode) + "\n");
 			}
@@ -301,6 +302,8 @@ void ATS::AcquireData() {
             success = false;
 		}
 	}
+
+    // pause(0.05);
 
 
 	// Wait for each buffer to be filled, process the buffer, and re-post it to the board.
@@ -325,41 +328,13 @@ void ATS::AcquireData() {
 			// Wait for the buffer at the head of the list of available buffers to be filled by the board.
 			bufferIndex = buffersCompleted % BUFFER_COUNT;
 			IO_BUFFER *pIoBuffer = IoBufferArray[bufferIndex];
-			DWORD result = WaitForSingleObject(pIoBuffer->hEvent, timeout_ms);
-			if (result == WAIT_OBJECT_0) {
-				// The wait succeeded
-				DWORD bytesTransferred;
-				success = GetOverlappedResult(boardHandle, &pIoBuffer->overlapped, &bytesTransferred, FALSE);
-
-				if (!success) {
-					// The transfer completed with an error
-					DWORD error = GetLastError();
-					if (error != ERROR_OPERATION_ABORTED)
-						printf("Error: The transfer failed with error %lu\n", error);
-				}
-			}
-			else {
-				// The wait failed
-				success = FALSE;
-
-				switch (result)
-				{
-				case WAIT_TIMEOUT:
-					printf("Error: Wait timeout after %lu ms\n", timeout_ms);
-					break;
-
-				case WAIT_ABANDONED:
-					printf("Error: Wait abandoned\n");
-					break;
-
-				default:
-					printf("Error: Wait failed with error %lu -- %s\n", GetLastError());
-					break;
-				}
-			}
-
-			if (success) {
-				// This buffer is full and has been removed from the list
+			retCode = AlazarWaitAsyncBufferComplete(
+                boardHandle, 
+                pIoBuffer->pBuffer, 
+                timeout_ms
+            );
+			if (retCode == ApiSuccess) {
+                // This buffer is full and has been removed from the list
 				// of buffers available to the board.
 
 				buffersCompleted++;
@@ -391,6 +366,33 @@ void ATS::AcquireData() {
 						success = FALSE;
 					}
 				}
+            }
+			else {
+				// The wait failed
+				success = FALSE;
+
+				switch (retCode)
+				{
+				case ApiWaitTimeout:
+					printf("Error: Wait timeout after %lu ms\n", timeout_ms);
+					break;
+
+				case ApiBufferOverflow:
+					printf("Error: Board overflowed on-board memory\n");
+					break;
+
+                case ApiBufferNotReady:
+					printf("Error: Buffer not found in list of available\n");
+					break;
+
+                case ApiDmaInProgress:
+					printf("Error: Buffer not at the head of available buffers\n");
+					break;
+
+				default:
+					printf("Error: Wait failed with error %lu -- %s\n", GetLastError());
+					break;
+				}
 			}
 
 
@@ -401,14 +403,13 @@ void ATS::AcquireData() {
 					success = FALSE;
 				}
 				else {
-					retCode = AlazarAsyncRead(
+                    retCode = AlazarPostAsyncBuffer(
                         boardHandle,					// HANDLE -- board handle
                         pIoBuffer->pBuffer,				// void* -- buffer
-                        pIoBuffer->uBufferLength_bytes,	// U32 -- buffer length in bytes
-                        &pIoBuffer->overlapped			// OVERLAPPED* 
-                    );				
-					if (retCode != ApiDmaPending) {
-						printf("Error: AlazarAsyncRead failed -- %s\n", AlazarErrorToText(retCode));
+                        pIoBuffer->uBufferLength_bytes	// U32 -- buffer length in bytes
+                    );		
+					if (retCode != ApiSuccess) {
+						printf("Error: AlazarPostAsyncBuffer failed -- %s\n", AlazarErrorToText(retCode));
 						success = FALSE;
 					}
 				}
@@ -432,7 +433,7 @@ void ATS::AcquireData() {
 
 		// Display results
 		double transferTime_sec = (GetTickCount() - startTickCount) / 1000.;
-		printf("Capture completed in %.2lf sec\n", transferTime_sec);
+		printf("Capture completed in %.3lf sec\n", transferTime_sec);
 
 		double buffersPerSec;
 		double bytesPerSec;
@@ -494,10 +495,17 @@ void ATS::AcquireData() {
 
 
 std::vector<double> ATS::processData() {
+    // Set parameters for acquisition (should be input to function)
     double inputRange = 0.4;
+	double freqBinWidth = 200;              // Width in Hz of each bin in post-FFT data     - RBW = sampleRate/sampleNum
+    double sampleRate = 30e6;               // Sample rate in Hz                            - freq span = sampleRate/2
+    int totalRecordsPerAcquisition = 64;    // Records per single shot of ATS               - each record has RBW as given above
+    int recordsPerBuffer = 1;               // Number of records in each DMA buffer         - must be set to 1 in continuous streaming DMA
+
+    // Calculate remaining parameters
+    U32 samplesPerBuffer = (U32)(sampleRate/freqBinWidth*recordsPerBuffer);
 
     std::string filename = "data.bin";
-    std::vector<double> voltageData;
 
     // Open the binary file
     std::ifstream file(filename, std::ios::binary);
@@ -520,11 +528,18 @@ std::vector<double> ATS::processData() {
     }
 
     // Convert the sample data to voltage values
-    voltageData.reserve(sampleCount);
-    for (std::size_t i = 0; i < sampleCount; ++i) {
-        double voltage = (sampleData[i] / 0xFFFF) * 2 * inputRange; // Assuming fullScaleRange is known
-        voltageData.push_back(voltage - inputRange);
+    std::vector<double> voltageDataA;
+    std::vector<double> voltageDataB;
+
+    voltageDataA.reserve(sampleCount);
+    voltageDataB.reserve(sampleCount);
+    for (std::size_t i = 0; i < sampleCount/2; ++i) {
+        double voltageA = (sampleData[2*i]   / (double)0xFFFF) * 2 * inputRange;
+        double voltageB = (sampleData[2*i+1] / (double)0xFFFF) * 2 * inputRange;
+
+        voltageDataA.push_back(voltageA - inputRange);
+        voltageDataB.push_back(voltageB - inputRange);
     }
 
-    return voltageData;
+    return voltageDataA;
 }

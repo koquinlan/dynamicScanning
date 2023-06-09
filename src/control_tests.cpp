@@ -1,5 +1,9 @@
+#include "matplotlibcpp.h"
+namespace plt = matplotlibcpp;
+
 #include <iostream>
 #include <string>
+#include <vector>
 
 #include <chrono>
 #include <thread>
@@ -28,6 +32,11 @@ int main() {
         alazarCard.setBandwidthLimit('b', 1);
 
         alazarCard.AcquireData();
+        std::vector<double> fullData = alazarCard.processData();
+        std::vector<double> recordData(fullData.begin(), fullData.begin() + fullData.size()/2);
+
+        plt::plot(recordData);
+        plt::show();
     }
     catch(const std::exception& e)
     {
