@@ -1,7 +1,10 @@
 #include "ATS.hpp"
 
 #include <iostream>
+#include <fstream>
 #include <stdexcept>
+#include <stdio.h>
+#include <conio.h>
 
 #include <string>
 #include <vector>
@@ -193,3 +196,335 @@ int ATS::getChannelID(char channel){
 
 
 
+void ATS::AcquireData() {
+    // Set which channels to capture over
+    U32 channelMask = CHANNEL_A | CHANNEL_B;
+    int channelCount = 2; 
+
+    // Get the sample size in bits, and the on-board memory size in samples per channel
+	U8 bitsPerSample;
+	U32 maxSamplesPerChannel;
+	RETURN_CODE retCode = AlazarGetChannelInfo(boardHandle, &maxSamplesPerChannel, &bitsPerSample);
+	if (retCode != ApiSuccess) {
+        throw std::runtime_error(std::string("Error: AlazarGetChannelInfo failed -- ") + AlazarErrorToText(retCode) + "\n");
+	}
+
+    // Set parameters for acquisition (should be input to function)
+    double inputRange = 0.4;
+	double freqBinWidth = 200;              // Width in Hz of each bin in post-FFT data     - RBW = sampleRate/sampleNum
+    double sampleRate = 30e6;               // Sample rate in Hz                            - freq span = sampleRate/2
+    int totalRecordsPerAcquisition = 64;    // Records per single shot of ATS               - each record has RBW as given above
+    int recordsPerBuffer = 1;               // Number of records in each DMA buffer         - must be set to 1 in continuous streaming DMA
+
+    // Calculate remaining parameters
+    U32 samplesPerBuffer = (U32)(sampleRate/freqBinWidth*recordsPerBuffer);
+    U32 bytesPerSample = (bitsPerSample + 7) / 8;
+	U32 bytesPerBuffer = bytesPerSample * samplesPerBuffer * channelCount;
+
+    U32 buffersPerAcquisition = (U32) (totalRecordsPerAcquisition/recordsPerBuffer);
+    INT64 samplesPerAcquisition = (INT64) (samplesPerBuffer * buffersPerAcquisition + 0.5);
+	
+
+    // Allocate memory for DMA buffers
+	int bufferIndex;
+	for (bufferIndex = 0; bufferIndex < BUFFER_COUNT; bufferIndex++)
+	{
+		IoBufferArray[bufferIndex] = CreateIoBuffer(bytesPerBuffer);
+		if (IoBufferArray[bufferIndex] == NULL) {
+            throw std::runtime_error(std::string("Error: Alloc ") + AlazarErrorToText(retCode) +  "bytes failed\n");
+		}
+	}
+
+
+	// Create a data file if required
+    BOOL saveData = TRUE;
+	FILE *fpData = NULL;
+
+	if (saveData)
+	{
+		fpData = fopen("data.bin", "wb");
+		if (fpData == NULL)
+		{
+			printf("Error: Unable to create data file -- %u\n", GetLastError());
+		}
+	}
+
+
+    // Configure the board to make an AutoDMA acquisition
+    U32 admaFlags = ADMA_EXTERNAL_STARTCAPTURE |	// Start acquisition when AlazarStartCapture is called
+                    ADMA_CONTINUOUS_MODE;			// Acquire a continuous stream of sample data without trigger
+
+    retCode = AlazarBeforeAsyncRead(
+        boardHandle,			// HANDLE -- board handle
+        channelMask,			// U32 -- enabled channel mask
+        0,						// long -- offset from trigger in samples
+        samplesPerBuffer,		// U32 -- samples per buffer
+        recordsPerBuffer,		// U32 -- records per buffer (must be 1)
+        buffersPerAcquisition,	// U32 -- records per acquisition 
+        admaFlags				// U32 -- AutoDMA flags
+    ); 
+    if (retCode != ApiSuccess) {
+        throw std::runtime_error(std::string("Error: AlazarBeforeAsyncRead failed -- ") + AlazarErrorToText(retCode) + "\n");
+    }
+	
+
+
+	// Add the buffers to a list of buffers available to be filled by the board
+    bool success = TRUE;
+
+	for (bufferIndex = 0; (bufferIndex < BUFFER_COUNT) && (success == TRUE); bufferIndex++)
+	{
+		IO_BUFFER *pIoBuffer = IoBufferArray[bufferIndex];
+		if (!ResetIoBuffer(pIoBuffer)) {
+			success = FALSE;
+		}
+		else {
+			retCode = AlazarAsyncRead(
+                boardHandle,					// HANDLE -- board handle
+                pIoBuffer->pBuffer,				// void* -- buffer
+                pIoBuffer->uBufferLength_bytes,	// U32 -- buffer length in bytes
+                &pIoBuffer->overlapped			// OVERLAPPED* 
+            );				
+			if (retCode != ApiDmaPending) {
+                throw std::runtime_error(std::string("Error: AlazarAsyncRead ") + std::to_string(bufferIndex) + 
+                                                     " failed -- " + AlazarErrorToText(retCode) + "\n");
+			}
+		}
+	}
+
+
+	// Arm the board to begin the acquisition 
+	if (success) {
+		retCode = AlazarStartCapture(boardHandle);
+		if (retCode != ApiSuccess) {
+			throw std::runtime_error(std::string("Error: AlazarStartCapture failed -- ") + AlazarErrorToText(retCode) + "\n");
+            success = false;
+		}
+	}
+
+
+	// Wait for each buffer to be filled, process the buffer, and re-post it to the board.
+	if (success) {
+		printf("Capturing %d buffers ... press any key to abort\n", buffersPerAcquisition);
+
+		DWORD startTickCount = GetTickCount();
+		U32 buffersCompleted = 0;
+		INT64 bytesTransferred = 0;
+		
+		while (buffersCompleted < buffersPerAcquisition) {
+            // Send a software trigger to begin acquisition (in theory unnecessary...)
+            retCode = AlazarForceTrigger(boardHandle);
+            if (retCode != ApiSuccess) {
+                throw std::runtime_error(std::string("Error: Trigger failed to send -- ") + AlazarErrorToText(retCode) + "\n");
+            }
+
+
+            // Timeout after 10x the expected time for 1 buffer
+			DWORD timeout_ms = (DWORD)(10*1e3*samplesPerBuffer/sampleRate); 
+
+			// Wait for the buffer at the head of the list of available buffers to be filled by the board.
+			bufferIndex = buffersCompleted % BUFFER_COUNT;
+			IO_BUFFER *pIoBuffer = IoBufferArray[bufferIndex];
+			DWORD result = WaitForSingleObject(pIoBuffer->hEvent, timeout_ms);
+			if (result == WAIT_OBJECT_0) {
+				// The wait succeeded
+				DWORD bytesTransferred;
+				success = GetOverlappedResult(boardHandle, &pIoBuffer->overlapped, &bytesTransferred, FALSE);
+
+				if (!success) {
+					// The transfer completed with an error
+					DWORD error = GetLastError();
+					if (error != ERROR_OPERATION_ABORTED)
+						printf("Error: The transfer failed with error %lu\n", error);
+				}
+			}
+			else {
+				// The wait failed
+				success = FALSE;
+
+				switch (result)
+				{
+				case WAIT_TIMEOUT:
+					printf("Error: Wait timeout after %lu ms\n", timeout_ms);
+					break;
+
+				case WAIT_ABANDONED:
+					printf("Error: Wait abandoned\n");
+					break;
+
+				default:
+					printf("Error: Wait failed with error %lu -- %s\n", GetLastError());
+					break;
+				}
+			}
+
+			if (success) {
+				// This buffer is full and has been removed from the list
+				// of buffers available to the board.
+
+				buffersCompleted++;
+				bytesTransferred += bytesPerBuffer;
+
+				// While you are processing this buffer, the board is 
+				// filling the next available buffer(s). You must finish 
+				// processing this buffer and make it available to the 
+				// board before the board fills all available buffer(s). 
+				// 
+				// Records in the buffer are arranged as follows: R0A, R0B,
+				// where Rxy is a segment of a single record.
+				//
+				// Sample values for ecah enabled channel are arranged 
+				// contiguously in the buffer, with a 16-bit sample code in
+				// in each 16-bit sample value.
+				//
+				// Sample codes are unsigned by default so that:
+				// - a sample code of 0x0000 represents a negative full scale input signal;
+				// - a sample code of 0x8000 represents a 0V signal;
+				// - a sample code of 0xFFFF represents a positive full scale input signal;
+
+				if (saveData) {
+					// Write buffer to file
+					size_t bytesWritten = fwrite(pIoBuffer->pBuffer, sizeof(BYTE), bytesPerBuffer, fpData);
+					if (bytesWritten != bytesPerBuffer)
+					{
+						printf("Error: Write buffer %d failed -- %u\n", buffersCompleted, GetLastError());
+						success = FALSE;
+					}
+				}
+			}
+
+
+			// Add the buffer to the end of the list of available buffers so that 
+			// the board can fill it with data from another segment of the acquisition.
+			if (success) {
+				if (!ResetIoBuffer (pIoBuffer)) {
+					success = FALSE;
+				}
+				else {
+					retCode = AlazarAsyncRead(
+                        boardHandle,					// HANDLE -- board handle
+                        pIoBuffer->pBuffer,				// void* -- buffer
+                        pIoBuffer->uBufferLength_bytes,	// U32 -- buffer length in bytes
+                        &pIoBuffer->overlapped			// OVERLAPPED* 
+                    );				
+					if (retCode != ApiDmaPending) {
+						printf("Error: AlazarAsyncRead failed -- %s\n", AlazarErrorToText(retCode));
+						success = FALSE;
+					}
+				}
+			}
+
+
+			// If the acquisition failed, exit the acquisition loop
+			if (!success) {
+				break;
+            }
+	
+			// If a key was pressed, exit the acquisition loop					
+			if (_kbhit()) {
+				printf("Aborted...\n");
+				break;
+			}
+
+			// Display progress
+			printf("Completed %u buffers\r", buffersCompleted);
+		}
+
+		// Display results
+		double transferTime_sec = (GetTickCount() - startTickCount) / 1000.;
+		printf("Capture completed in %.2lf sec\n", transferTime_sec);
+
+		double buffersPerSec;
+		double bytesPerSec;
+		if (transferTime_sec > 0.)
+		{
+			buffersPerSec = buffersCompleted / transferTime_sec;
+			bytesPerSec = bytesTransferred / transferTime_sec;
+		}
+		else
+		{
+			buffersPerSec = 0.;
+			bytesPerSec = 0.;
+		}
+
+		printf("Captured %d buffers (%.4g buffers per sec)\n", buffersCompleted, buffersPerSec);
+		printf("Transferred %I64d bytes (%.4g bytes per sec)\n", bytesTransferred, bytesPerSec);
+	}
+
+	// Abort the acquisition
+	retCode = AlazarAbortAsyncRead(boardHandle);
+	if (retCode != ApiSuccess) {
+		printf("Error: AlazarAbortAsyncRead failed -- %s\n", AlazarErrorToText(retCode));
+		success = FALSE;
+	}
+
+	// Free all memory allocated
+
+	for (bufferIndex = 0; bufferIndex < BUFFER_COUNT; bufferIndex++) {
+		if (IoBufferArray[bufferIndex] != NULL)
+			DestroyIoBuffer(IoBufferArray[bufferIndex]);
+	}
+
+	// Close the data file
+	if (fpData != NULL)
+		fclose(fpData);
+}
+
+
+// std::vector<double> channel1Data;
+// std::vector<double> channel2Data;
+
+// for (int sampleIndex = 0; sampleIndex < (int)samplesPerBuffer; sampleIndex++) {
+//     // Calculate the index of the sample for each channel
+//     int channelASampleIndex = sampleIndex * channelCount;
+//     int channelBSampleIndex = channelASampleIndex + 1;
+
+//     // Get the sample values for each channel
+//     unsigned short channelASample = reinterpret_cast<unsigned short*>(pIoBuffer->pBuffer)[channelASampleIndex];
+//     unsigned short channelBSample = reinterpret_cast<unsigned short*>(pIoBuffer->pBuffer)[channelBSampleIndex];
+
+//     // Convert the sample values to voltages
+//     double channelAVoltage = (channelASample/0xFFFF) * 2 * inputRange;
+//     double channelBVoltage = (channelBSample/0xFFFF) * 2 * inputRange;
+
+//     // Store the voltage values in the corresponding vectors
+//     channel1Data.push_back(channelAVoltage - inputRange);
+//     channel2Data.push_back(channelBVoltage - inputRange);
+// }
+
+
+std::vector<double> ATS::processData() {
+    double inputRange = 0.4;
+
+    std::string filename = "data.bin";
+    std::vector<double> voltageData;
+
+    // Open the binary file
+    std::ifstream file(filename, std::ios::binary);
+    if (!file) {
+        throw std::runtime_error("Error: Failed to open file");
+    }
+
+    // Get the file size
+    file.seekg(0, std::ios::end);
+    std::streampos fileSize = file.tellg();
+    file.seekg(0, std::ios::beg);
+
+    // Calculate the number of samples
+    std::size_t sampleCount = fileSize / sizeof(unsigned short);
+
+    // Read the sample data
+    std::vector<unsigned short> sampleData(sampleCount);
+    if (!file.read(reinterpret_cast<char*>(sampleData.data()), fileSize)) {
+        throw std::runtime_error("Error: Failed to read sample data");
+    }
+
+    // Convert the sample data to voltage values
+    voltageData.reserve(sampleCount);
+    for (std::size_t i = 0; i < sampleCount; ++i) {
+        double voltage = (sampleData[i] / 0xFFFF) * 2 * inputRange; // Assuming fullScaleRange is known
+        voltageData.push_back(voltage - inputRange);
+    }
+
+    return voltageData;
+}

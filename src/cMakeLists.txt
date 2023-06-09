@@ -7,6 +7,8 @@ set(SOURCES
     PSG.cpp
     AWG.cpp
     ATS.cpp
+
+    IoBuffer.cpp
 )
 
 message(STATUS ${SOURCES})
