@@ -16,7 +16,7 @@ message(STATUS ${SOURCES})
 add_executable(lab_control ${SOURCES})
 
 # Include the VISA header file
-target_include_directories(lab_control PRIVATE ${VISA_INCLUDE_DIR} ${ALAZAR_INCLUDE_DIR})
+target_include_directories(lab_control PRIVATE ${VISA_INCLUDE_DIR} ${ALAZAR_INCLUDE_DIR} ${Python3_INCLUDE_DIRS} ${Python3_NumPy_INCLUDE_DIRS})
 
 # Link against the VISA library
-target_link_libraries(lab_control PRIVATE ${VISA_LIBRARY} ${ALAZAR_LIBRARY})
+target_link_libraries(lab_control PRIVATE ${VISA_LIBRARY} ${ALAZAR_LIBRARY} ${Python3_LIBRARIES} Python3::NumPy)
