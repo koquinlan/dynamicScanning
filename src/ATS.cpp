@@ -209,22 +209,67 @@ void ATS::AcquireData() {
         throw std::runtime_error(std::string("Error: AlazarGetChannelInfo failed -- ") + AlazarErrorToText(retCode) + "\n");
 	}
 
-    // Set parameters for acquisition (should be input to function)
-    U32 sampleRate = (U32)30e6;                  // Sample rate in Hz                - freq span = sampleRate/2
-    U32 samplesPerRecord = (U32)15e4;          // Samples per single shot of ATS
-    U32 buffersPerAcquisition = 64;
-    U32 recordsPerAcquisition = 64;       
-    U32 recordsPerBuffer = 1;
-    double inputRange = 0.4;
-    
 
-    // Calculate remaining parameters
+    // Passed in to matlab function
+    U32 sampleRate = (U32)30e6;                  // Sample rate in Hz                - freq span = sampleRate/2
+    U32 samplesPerRecord = (U32)150e3;          // Samples per single shot of ATS
+    U32 recordsPerAcquisition = 64;   
+    U32 buffersPerAcquisition = 1;
+
+    // Done inside matlab function
+    U32 recordsPerBuffer = std::round(recordsPerAcquisition/buffersPerAcquisition);
     U32 samplesPerBuffer = samplesPerRecord*recordsPerBuffer;
     U32 bytesPerSample = (bitsPerSample + 7) / 8;
 	U32 bytesPerBuffer = bytesPerSample * samplesPerBuffer * channelCount;
 
-    INT64 samplesPerAcquisition = (INT64) (samplesPerBuffer * buffersPerAcquisition + 0.5);
-	
+    U32 realRecordsPerBuffer = 1;                                              
+    U32 realRecordsPerAcquisition = buffersPerAcquisition;
+    U32 realSamplesPerRecord = samplesPerBuffer;
+
+
+    setExternalSampleClock(sampleRate);
+
+    setInputParameters('a', "dc", 0.8);
+    setBandwidthLimit('a', 1);
+
+    setInputParameters('b', "dc", 0.8);
+    setBandwidthLimit('b', 1);
+
+    // // Set parameters for acquisition (should be input to function)
+    // U32 sampleRate = (U32)30e6;                  // Sample rate in Hz                - freq span = sampleRate/2
+    // U32 samplesPerRecord = (U32)15e4;          // Samples per single shot of ATS
+    // U32 buffersPerAcquisition = 64;
+    // U32 recordsPerAcquisition = 64;       
+    // U32 recordsPerBuffer = 1;
+    // double inputRange = 0.4;
+    
+
+    // Calculate remaining parameters
+    // U32 samplesPerBuffer = samplesPerRecord*recordsPerBuffer;
+    // U32 bytesPerSample = (bitsPerSample + 7) / 8;
+	// U32 bytesPerBuffer = bytesPerSample * samplesPerBuffer * channelCount;
+
+    // INT64 samplesPerAcquisition = (INT64) (samplesPerBuffer * buffersPerAcquisition + 0.5);
+
+
+    retCode = AlazarSetRecordSize(
+        boardHandle,			    // HANDLE -- board handle
+        0,
+        samplesPerRecord*(recordsPerAcquisition)/buffersPerAcquisition
+    );
+    if (retCode != ApiSuccess) {
+        throw std::runtime_error(std::string("Error: AlazarSetRecordSize failed -- ") + AlazarErrorToText(retCode) + "\n");
+    }
+
+
+    retCode = AlazarSetRecordCount(
+        boardHandle,			    // HANDLE -- board handle
+        buffersPerAcquisition			    
+    );
+    if (retCode != ApiSuccess) {
+        throw std::runtime_error(std::string("Error: AlazarSetRecordCount failed -- ") + AlazarErrorToText(retCode) + "\n");
+    }
+
 
     // Allocate memory for DMA buffers
 	int bufferIndex;
@@ -257,13 +302,13 @@ void ATS::AcquireData() {
     //                 ADMA_CONTINUOUS_MODE;			// Acquire a continuous stream of sample data without trigger
 
     retCode = AlazarBeforeAsyncRead(
-        boardHandle,			// HANDLE -- board handle
-        channelMask,			// U32 -- enabled channel mask
-        0,						// long -- offset from trigger in samples
-        samplesPerBuffer,		// U32 -- samples per buffer
-        recordsPerBuffer,		// U32 -- records per buffer (must be 1)
-        recordsPerAcquisition,	// U32 -- records per acquisition 
-        admaFlags				// U32 -- AutoDMA flags
+        boardHandle,			    // HANDLE -- board handle
+        channelMask,			    // U32 -- enabled channel mask
+        0,						    // long -- offset from trigger in samples
+        realSamplesPerRecord,		// U32 -- samples per buffer
+        realRecordsPerBuffer,		// U32 -- records per buffer (must be 1)
+        realRecordsPerAcquisition,	// U32 -- records per acquisition 
+        admaFlags				    // U32 -- AutoDMA flags
     ); 
     if (retCode != ApiSuccess) {
         throw std::runtime_error(std::string("Error: AlazarBeforeAsyncRead failed -- ") + AlazarErrorToText(retCode) + "\n");
@@ -323,7 +368,8 @@ void ATS::AcquireData() {
 
 
             // Timeout after 10x the expected time for 1 buffer
-			DWORD timeout_ms = (DWORD)(10*1e3*samplesPerBuffer/sampleRate); 
+            DWORD timeout_ms = (DWORD)5000; 
+			// DWORD timeout_ms = (DWORD)(10*1e3*samplesPerBuffer/sampleRate); 
 
 			// Wait for the buffer at the head of the list of available buffers to be filled by the board.
 			bufferIndex = buffersCompleted % BUFFER_COUNT;
@@ -333,6 +379,7 @@ void ATS::AcquireData() {
                 pIoBuffer->pBuffer, 
                 timeout_ms
             );
+
 			if (retCode == ApiSuccess) {
                 // This buffer is full and has been removed from the list
 				// of buffers available to the board.
