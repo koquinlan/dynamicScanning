@@ -23,11 +23,14 @@ int main() {
     try{
         ATS alazarCard(1, 1);
 
-        alazarCard.AcquireData();
-        std::vector<double> fullData = alazarCard.processData();
-        std::vector<double> recordData(fullData.begin(), fullData.begin() + fullData.size());
+        alazarCard.AcquireData((U32)30e6, (U32)7.5e6, 4);
+        std::pair<std::vector<double>, std::vector<double>> fullData = alazarCard.processData();
 
-        plt::plot(recordData);
+        std::vector<double> channelDataA = fullData.first;
+        std::vector<double> channelDataB = fullData.second;
+
+        plt::plot(channelDataA);
+        plt::plot(channelDataB);
         plt::show();
     }
     catch(const std::exception& e)

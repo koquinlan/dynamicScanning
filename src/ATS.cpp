@@ -196,7 +196,7 @@ int ATS::getChannelID(char channel){
 
 
 
-void ATS::AcquireData() {
+void ATS::AcquireData(U32 sampleRate, U32 samplesPerAcquisition, U32 buffersPerAcquisition, double inputRange) {
     // Set which channels to capture over
     U32 channelMask = CHANNEL_A | CHANNEL_B;
     int channelCount = 2; 
@@ -210,57 +210,48 @@ void ATS::AcquireData() {
 	}
 
 
-    // Passed in to matlab function
-    U32 sampleRate = (U32)30e6;                  // Sample rate in Hz                - freq span = sampleRate/2
-    U32 samplesPerRecord = (U32)150e3;          // Samples per single shot of ATS
-    U32 recordsPerAcquisition = 64;   
-    U32 buffersPerAcquisition = 1;
+    // Calculate remaining parameters
+    U32 recordsPerBuffer = 1;   
+    U32 recordsPerAcquisition = recordsPerBuffer*buffersPerAcquisition;
 
-    // Done inside matlab function
-    U32 recordsPerBuffer = std::round(recordsPerAcquisition/buffersPerAcquisition);
-    U32 samplesPerBuffer = samplesPerRecord*recordsPerBuffer;
+    U32 samplesPerBuffer = samplesPerAcquisition/buffersPerAcquisition;
     U32 bytesPerSample = (bitsPerSample + 7) / 8;
-	U32 bytesPerBuffer = bytesPerSample * samplesPerBuffer * channelCount;
-
-    U32 realRecordsPerBuffer = 1;                                              
-    U32 realRecordsPerAcquisition = buffersPerAcquisition;
-    U32 realSamplesPerRecord = samplesPerBuffer;
+	U32 bytesPerBuffer = bytesPerSample * samplesPerBuffer * channelCount; 
 
 
-    setExternalSampleClock(sampleRate);
+    // Save parameters for use in other methods
+    acquisitionParams.sampleRate = sampleRate;
+    acquisitionParams.samplesPerAcquisition = samplesPerAcquisition;
+    acquisitionParams.buffersPerAcquisition = buffersPerAcquisition;
+    acquisitionParams.inputRange = inputRange;
+    acquisitionParams.samplesPerBuffer = samplesPerBuffer;
+    acquisitionParams.bytesPerSample = bytesPerSample;
+
+    acquisitionParams.filename = "data.bin";
+
+
+
+    // Send parameters to board
+    double realSampleRate = setExternalSampleClock(sampleRate);
+    if (realSampleRate != sampleRate){
+        std::cout << "Sample rate adjusted from requsted " << std::to_string(sampleRate/1e6) << " MHz to " 
+        << std::to_string(realSampleRate/1e6) << " MHz." << std::endl;
+    }
 
     setInputParameters('a', "dc", 0.8);
     setBandwidthLimit('a', 1);
 
     setInputParameters('b', "dc", 0.8);
-    setBandwidthLimit('b', 1);
-
-    // // Set parameters for acquisition (should be input to function)
-    // U32 sampleRate = (U32)30e6;                  // Sample rate in Hz                - freq span = sampleRate/2
-    // U32 samplesPerRecord = (U32)15e4;          // Samples per single shot of ATS
-    // U32 buffersPerAcquisition = 64;
-    // U32 recordsPerAcquisition = 64;       
-    // U32 recordsPerBuffer = 1;
-    // double inputRange = 0.4;
-    
-
-    // Calculate remaining parameters
-    // U32 samplesPerBuffer = samplesPerRecord*recordsPerBuffer;
-    // U32 bytesPerSample = (bitsPerSample + 7) / 8;
-	// U32 bytesPerBuffer = bytesPerSample * samplesPerBuffer * channelCount;
-
-    // INT64 samplesPerAcquisition = (INT64) (samplesPerBuffer * buffersPerAcquisition + 0.5);
-
+    setBandwidthLimit('b', 1);                                   
 
     retCode = AlazarSetRecordSize(
         boardHandle,			    // HANDLE -- board handle
         0,
-        samplesPerRecord*(recordsPerAcquisition)/buffersPerAcquisition
+        samplesPerBuffer
     );
     if (retCode != ApiSuccess) {
         throw std::runtime_error(std::string("Error: AlazarSetRecordSize failed -- ") + AlazarErrorToText(retCode) + "\n");
     }
-
 
     retCode = AlazarSetRecordCount(
         boardHandle,			    // HANDLE -- board handle
@@ -288,7 +279,7 @@ void ATS::AcquireData() {
 
 	if (saveData)
 	{
-		fpData = fopen("data.bin", "wb");
+		fpData = fopen(acquisitionParams.filename.c_str(), "wb");
 		if (fpData == NULL)
 		{
 			printf("Error: Unable to create data file -- %u\n", GetLastError());
@@ -298,16 +289,14 @@ void ATS::AcquireData() {
 
     // Configure the board to make an AutoDMA acquisition
     U32 admaFlags = ADMA_EXTERNAL_STARTCAPTURE;         // Start acquisition when AlazarStartCapture is called
-    // U32 admaFlags = ADMA_EXTERNAL_STARTCAPTURE |	
-    //                 ADMA_CONTINUOUS_MODE;			// Acquire a continuous stream of sample data without trigger
 
     retCode = AlazarBeforeAsyncRead(
         boardHandle,			    // HANDLE -- board handle
         channelMask,			    // U32 -- enabled channel mask
         0,						    // long -- offset from trigger in samples
-        realSamplesPerRecord,		// U32 -- samples per buffer
-        realRecordsPerBuffer,		// U32 -- records per buffer (must be 1)
-        realRecordsPerAcquisition,	// U32 -- records per acquisition 
+        samplesPerBuffer,		    // U32 -- samples per buffer
+        recordsPerBuffer,		    // U32 -- records per buffer (must be 1)
+        recordsPerAcquisition,	    // U32 -- records per acquisition 
         admaFlags				    // U32 -- AutoDMA flags
     ); 
     if (retCode != ApiSuccess) {
@@ -358,9 +347,9 @@ void ATS::AcquireData() {
 		DWORD startTickCount = GetTickCount();
 		U32 buffersCompleted = 0;
 		INT64 bytesTransferred = 0;
-		
+
 		while (buffersCompleted < buffersPerAcquisition) {
-            // Send a software trigger to begin acquisition (in theory unnecessary...)
+            // Send a software trigger to begin acquisition
             retCode = AlazarForceTrigger(boardHandle);
             if (retCode != ApiSuccess) {
                 throw std::runtime_error(std::string("Error: Trigger failed to send -- ") + AlazarErrorToText(retCode) + "\n");
@@ -368,8 +357,7 @@ void ATS::AcquireData() {
 
 
             // Timeout after 10x the expected time for 1 buffer
-            DWORD timeout_ms = (DWORD)5000; 
-			// DWORD timeout_ms = (DWORD)(10*1e3*samplesPerBuffer/sampleRate); 
+			DWORD timeout_ms = (DWORD)(10*1e3*samplesPerBuffer/sampleRate); 
 
 			// Wait for the buffer at the head of the list of available buffers to be filled by the board.
 			bufferIndex = buffersCompleted % BUFFER_COUNT;
@@ -541,18 +529,15 @@ void ATS::AcquireData() {
 // }
 
 
-std::vector<double> ATS::processData() {
-    // Set parameters for acquisition (should be input to function)
-    double inputRange = 0.4;
-	double freqBinWidth = 200;              // Width in Hz of each bin in post-FFT data     - RBW = sampleRate/sampleNum
-    double sampleRate = 30e6;               // Sample rate in Hz                            - freq span = sampleRate/2
-    int totalRecordsPerAcquisition = 64;    // Records per single shot of ATS               - each record has RBW as given above
-    int recordsPerBuffer = 1;               // Number of records in each DMA buffer         - must be set to 1 in continuous streaming DMA
-
-    // Calculate remaining parameters
-    U32 samplesPerBuffer = (U32)(sampleRate/freqBinWidth*recordsPerBuffer);
-
-    std::string filename = "data.bin";
+std::pair<std::vector<double>, std::vector<double>> ATS::processData() {
+    // Retrieve parameters used to acquire data
+    double sampleRate = acquisitionParams.sampleRate;
+    int samplesPerAcquisition = acquisitionParams.samplesPerAcquisition;
+    int buffersPerAcquisition = acquisitionParams.buffersPerAcquisition;
+    double inputRange = acquisitionParams.inputRange;
+    int samplesPerBuffer = acquisitionParams.samplesPerBuffer;
+    int bytesPerSample = acquisitionParams.bytesPerSample;
+    std::string filename = acquisitionParams.filename;
 
     // Open the binary file
     std::ifstream file(filename, std::ios::binary);
@@ -580,13 +565,15 @@ std::vector<double> ATS::processData() {
 
     voltageDataA.reserve(sampleCount);
     voltageDataB.reserve(sampleCount);
-    for (std::size_t i = 0; i < sampleCount/2; ++i) {
-        double voltageA = (sampleData[2*i]   / (double)0xFFFF) * 2 * inputRange;
-        double voltageB = (sampleData[2*i+1] / (double)0xFFFF) * 2 * inputRange;
+    for (int i = 0; i < buffersPerAcquisition; i++) {
+        for (int j=0; j < samplesPerBuffer; j++) {
+            double voltageA = (sampleData[(2*i)*samplesPerBuffer + j]   / (double)0xFFFF) * 2 * inputRange;
+            double voltageB = (sampleData[(2*i+1)*samplesPerBuffer + j] / (double)0xFFFF) * 2 * inputRange;
 
-        voltageDataA.push_back(voltageA - inputRange);
-        voltageDataB.push_back(voltageB - inputRange);
+            voltageDataA.push_back(voltageA - inputRange);
+            voltageDataB.push_back(voltageB - inputRange);
+        }
     }
 
-    return voltageDataA;
+    return std::make_pair(voltageDataA, voltageDataB);
 }
