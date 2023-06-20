@@ -8,6 +8,10 @@ set(VISA_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include/VISA) # Replace with th
 set(ALAZAR_LIBRARY ${CMAKE_CURRENT_SOURCE_DIR}/libs/AtsApi.lib)
 set(ALAZAR_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include/ALAZAR) # Replace with the actual path to the VISA include directory
 
+# Set compiler flags
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Ot")
+message(STATUS "Compiler flags set to: ${CMAKE_CXX_FLAGS}")
+
 # Find Python Packages
 find_package(Python3 3.7 EXACT COMPONENTS Interpreter NumPy Development REQUIRED)
 message(STATUS "Found Python version: ${Python3_VERSION}")
