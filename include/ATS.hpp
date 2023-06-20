@@ -9,7 +9,7 @@
 #include "AlazarCmd.h"
 #include "IoBuffer.h"
 
-#define BUFFER_COUNT 4
+#define BUFFER_COUNT 8
 
 struct AcquisitionParameters {
     U32 sampleRate;
@@ -34,6 +34,8 @@ public:
 
     void AcquireData(U32 sampleRate, U32 samplesPerAcquisition, U32 buffersPerAcquisition=1, double inputRange=0.8);
     std::pair<std::vector<double>, std::vector<double>> processData();
+
+    U32 suggestBufferNumber(U32 sampleRate, U32 samplesPerAcquisition);
 
 private:
     HANDLE boardHandle;

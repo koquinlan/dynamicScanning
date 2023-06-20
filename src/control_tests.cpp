@@ -23,7 +23,7 @@ int main() {
     try{
         ATS alazarCard(1, 1);
 
-        alazarCard.AcquireData((U32)30e6, (U32)7.5e6, 4);
+        alazarCard.AcquireData((U32)30e6, (U32)7.5e6, 0);
         std::pair<std::vector<double>, std::vector<double>> fullData = alazarCard.processData();
 
         std::vector<double> channelDataA = fullData.first;

@@ -88,7 +88,7 @@ double ATS::setExternalSampleClock(double requestedSampleRate) {
         EXTERNAL_CLOCK_10MHz_REF,		// U32 -- clock source id
         bareSampleRates[bestIndex],		// U32 -- sample rate id
         CLOCK_EDGE_RISING,		        // U32 -- clock edge id
-        decimationFactors[bestIndex]    // U32 -- clock decimation 
+        decimationFactors[bestIndex]-1  // U32 -- clock decimation 
     );
 	if (retCode != ApiSuccess) {
 		throw std::runtime_error(std::string("Error: AlazarSetCaptureClock failed -- ") + AlazarErrorToText(retCode) + "\n");
@@ -197,6 +197,12 @@ int ATS::getChannelID(char channel){
 
 
 void ATS::AcquireData(U32 sampleRate, U32 samplesPerAcquisition, U32 buffersPerAcquisition, double inputRange) {
+    // 
+    if (buffersPerAcquisition <= 0){
+        buffersPerAcquisition = suggestBufferNumber(sampleRate, samplesPerAcquisition);
+    }
+
+
     // Set which channels to capture over
     U32 channelMask = CHANNEL_A | CHANNEL_B;
     int channelCount = 2; 
@@ -288,7 +294,7 @@ void ATS::AcquireData(U32 sampleRate, U32 samplesPerAcquisition, U32 buffersPerA
 
 
     // Configure the board to make an AutoDMA acquisition
-    U32 admaFlags = ADMA_EXTERNAL_STARTCAPTURE;         // Start acquisition when AlazarStartCapture is called
+    U32 admaFlags = ADMA_TRIGGERED_STREAMING | ADMA_EXTERNAL_STARTCAPTURE;         // Start acquisition when AlazarStartCapture is called
 
     retCode = AlazarBeforeAsyncRead(
         boardHandle,			    // HANDLE -- board handle
@@ -425,7 +431,7 @@ void ATS::AcquireData(U32 sampleRate, U32 samplesPerAcquisition, U32 buffersPerA
 					break;
 
 				default:
-					printf("Error: Wait failed with error %lu -- %s\n", GetLastError());
+					printf("Error: Wait failed with error -- %u\n", GetLastError());
 					break;
 				}
 			}
@@ -530,6 +536,8 @@ void ATS::AcquireData(U32 sampleRate, U32 samplesPerAcquisition, U32 buffersPerA
 
 
 std::pair<std::vector<double>, std::vector<double>> ATS::processData() {
+    DWORD startTickCount = GetTickCount();
+
     // Retrieve parameters used to acquire data
     double sampleRate = acquisitionParams.sampleRate;
     int samplesPerAcquisition = acquisitionParams.samplesPerAcquisition;
@@ -575,5 +583,33 @@ std::pair<std::vector<double>, std::vector<double>> ATS::processData() {
         }
     }
 
+    double transferTime_sec = (GetTickCount() - startTickCount) / 1000.;
+	printf("Processing completed in %.3lf sec\n", transferTime_sec);
+
     return std::make_pair(voltageDataA, voltageDataB);
+}
+
+
+
+U32 ATS::suggestBufferNumber(U32 sampleRate, U32 samplesPerAcquisition){
+    // For optimal performance buffer sizes should be between 1MB and 16MB. Absolute maximum is 64MB
+    // As per https://docs.alazartech.com/ats-sdk-user-guide/latest/reference/AlazarBeforeAsyncRead.html
+
+    int channelCount = 2; 
+    int desiredBytesPerBuffer = (int)4e6; // Shoot for 4MB buffer sizes
+
+    // Get the sample size in bits, and the on-board memory size in samples per channel
+	U8 bitsPerSample;
+	U32 maxSamplesPerChannel;
+	RETURN_CODE retCode = AlazarGetChannelInfo(boardHandle, &maxSamplesPerChannel, &bitsPerSample);
+	if (retCode != ApiSuccess) {
+        throw std::runtime_error(std::string("Error: AlazarGetChannelInfo failed -- ") + AlazarErrorToText(retCode) + "\n");
+	}
+
+
+    // Calculate remaining parameters
+    U32 bytesPerSample = (bitsPerSample + 7) / 8;
+	U32 buffersPerAcquisition = (U32)std::round(bytesPerSample * samplesPerAcquisition * channelCount / desiredBytesPerBuffer); 
+
+    return max(1, buffersPerAcquisition);
 }
