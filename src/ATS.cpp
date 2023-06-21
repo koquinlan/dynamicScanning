@@ -196,16 +196,12 @@ int ATS::getChannelID(char channel){
 
 
 
-void ATS::AcquireData(U32 sampleRate, U32 samplesPerAcquisition, U32 buffersPerAcquisition, double inputRange) {
+void ATS::setAcquisitionParameters(U32 sampleRate, U32 samplesPerAcquisition, U32 buffersPerAcquisition, double inputRange){
     // 
     if (buffersPerAcquisition <= 0){
         buffersPerAcquisition = suggestBufferNumber(sampleRate, samplesPerAcquisition);
     }
 
-
-    // Set which channels to capture over
-    U32 channelMask = CHANNEL_A | CHANNEL_B;
-    int channelCount = 2; 
 
     // Get the sample size in bits, and the on-board memory size in samples per channel
 	U8 bitsPerSample;
@@ -216,44 +212,38 @@ void ATS::AcquireData(U32 sampleRate, U32 samplesPerAcquisition, U32 buffersPerA
 	}
 
 
-    // Calculate remaining parameters
+    // Calculate and save remaining parameters
+    int channelCount = 2;
     U32 recordsPerBuffer = 1;   
-    U32 recordsPerAcquisition = recordsPerBuffer*buffersPerAcquisition;
-
-    U32 samplesPerBuffer = samplesPerAcquisition/buffersPerAcquisition;
-    U32 bytesPerSample = (bitsPerSample + 7) / 8;
-	U32 bytesPerBuffer = bytesPerSample * samplesPerBuffer * channelCount; 
-
-
-    // Save parameters for use in other methods
+    
     acquisitionParams.sampleRate = sampleRate;
     acquisitionParams.samplesPerAcquisition = samplesPerAcquisition;
     acquisitionParams.buffersPerAcquisition = buffersPerAcquisition;
     acquisitionParams.inputRange = inputRange;
-    acquisitionParams.samplesPerBuffer = samplesPerBuffer;
-    acquisitionParams.bytesPerSample = bytesPerSample;
+    acquisitionParams.recordsPerAcquisition = recordsPerBuffer*buffersPerAcquisition; 
 
-    acquisitionParams.filename = "data.bin";
-
+    acquisitionParams.samplesPerBuffer = samplesPerAcquisition/buffersPerAcquisition;;
+    acquisitionParams.bytesPerSample = (bitsPerSample + 7) / 8;
+    acquisitionParams.bytesPerBuffer = acquisitionParams.bytesPerSample * acquisitionParams.samplesPerBuffer * channelCount;
 
 
     // Send parameters to board
-    double realSampleRate = setExternalSampleClock(sampleRate);
-    if (realSampleRate != sampleRate){
-        std::cout << "Sample rate adjusted from requsted " << std::to_string(sampleRate/1e6) << " MHz to " 
+    double realSampleRate = setExternalSampleClock(acquisitionParams.sampleRate);
+    if (realSampleRate != acquisitionParams.sampleRate){
+        std::cout << "Sample rate adjusted from requsted " << std::to_string(acquisitionParams.sampleRate/1e6) << " MHz to " 
         << std::to_string(realSampleRate/1e6) << " MHz." << std::endl;
     }
 
-    setInputParameters('a', "dc", 0.8);
+    setInputParameters('a', "dc", acquisitionParams.inputRange);
     setBandwidthLimit('a', 1);
 
-    setInputParameters('b', "dc", 0.8);
+    setInputParameters('b', "dc", acquisitionParams.inputRange);
     setBandwidthLimit('b', 1);                                   
 
     retCode = AlazarSetRecordSize(
         boardHandle,			    // HANDLE -- board handle
         0,
-        samplesPerBuffer
+        acquisitionParams.samplesPerBuffer
     );
     if (retCode != ApiSuccess) {
         throw std::runtime_error(std::string("Error: AlazarSetRecordSize failed -- ") + AlazarErrorToText(retCode) + "\n");
@@ -261,57 +251,45 @@ void ATS::AcquireData(U32 sampleRate, U32 samplesPerAcquisition, U32 buffersPerA
 
     retCode = AlazarSetRecordCount(
         boardHandle,			    // HANDLE -- board handle
-        buffersPerAcquisition			    
+        acquisitionParams.buffersPerAcquisition			    
     );
     if (retCode != ApiSuccess) {
         throw std::runtime_error(std::string("Error: AlazarSetRecordCount failed -- ") + AlazarErrorToText(retCode) + "\n");
     }
+}
 
 
-    // Allocate memory for DMA buffers
-	int bufferIndex;
-	for (bufferIndex = 0; bufferIndex < BUFFER_COUNT; bufferIndex++)
-	{
-		IoBufferArray[bufferIndex] = CreateIoBuffer(bytesPerBuffer);
-		if (IoBufferArray[bufferIndex] == NULL) {
-            throw std::runtime_error(std::string("Error: Alloc ") + AlazarErrorToText(retCode) +  "bytes failed\n");
-		}
-	}
-
-
-	// Create a data file if required
-    BOOL saveData = TRUE;
-	FILE *fpData = NULL;
-
-	if (saveData)
-	{
-		fpData = fopen(acquisitionParams.filename.c_str(), "wb");
-		if (fpData == NULL)
-		{
-			printf("Error: Unable to create data file -- %u\n", GetLastError());
-		}
-	}
-
-
-    // Configure the board to make an AutoDMA acquisition
+void ATS::AcquireData(FILE *fpData) {
+    // Set basic flags
+    U32 channelMask = CHANNEL_A | CHANNEL_B;
     U32 admaFlags = ADMA_TRIGGERED_STREAMING | ADMA_EXTERNAL_STARTCAPTURE;         // Start acquisition when AlazarStartCapture is called
+    int channelCount = 2; 
 
+
+    // Prime board for acquisition
     retCode = AlazarBeforeAsyncRead(
-        boardHandle,			    // HANDLE -- board handle
-        channelMask,			    // U32 -- enabled channel mask
-        0,						    // long -- offset from trigger in samples
-        samplesPerBuffer,		    // U32 -- samples per buffer
-        recordsPerBuffer,		    // U32 -- records per buffer (must be 1)
-        recordsPerAcquisition,	    // U32 -- records per acquisition 
-        admaFlags				    // U32 -- AutoDMA flags
+        boardHandle,			                    // HANDLE -- board handle
+        channelMask,			                    // U32 -- enabled channel mask
+        0,						                    // long -- offset from trigger in samples
+        acquisitionParams.samplesPerBuffer,		    // U32 -- samples per buffer
+        1,		                                    // U32 -- records per buffer (must be 1)
+        acquisitionParams.recordsPerAcquisition,    // U32 -- records per acquisition 
+        admaFlags				                    // U32 -- AutoDMA flags
     ); 
     if (retCode != ApiSuccess) {
         throw std::runtime_error(std::string("Error: AlazarBeforeAsyncRead failed -- ") + AlazarErrorToText(retCode) + "\n");
     }
-	
 
 
-	// Add the buffers to a list of buffers available to be filled by the board
+    // Allocate and post memory for DMA buffers
+	int bufferIndex;
+	for (bufferIndex = 0; bufferIndex < BUFFER_COUNT; bufferIndex++)
+	{
+		IoBufferArray[bufferIndex] = CreateIoBuffer(acquisitionParams.bytesPerBuffer);
+		if (IoBufferArray[bufferIndex] == NULL) {
+            throw std::runtime_error(std::string("Error: Alloc ") + AlazarErrorToText(retCode) +  "bytes failed\n");
+		}
+	}
     bool success = TRUE;
 
 	for (bufferIndex = 0; (bufferIndex < BUFFER_COUNT) && (success == TRUE); bufferIndex++)
@@ -343,18 +321,16 @@ void ATS::AcquireData(U32 sampleRate, U32 samplesPerAcquisition, U32 buffersPerA
 		}
 	}
 
-    // pause(0.05);
-
 
 	// Wait for each buffer to be filled, process the buffer, and re-post it to the board.
 	if (success) {
-		printf("Capturing %d buffers ... press any key to abort\n", buffersPerAcquisition);
+		printf("Capturing %d buffers ... press any key to abort\n", acquisitionParams.buffersPerAcquisition);
 
 		DWORD startTickCount = GetTickCount();
 		U32 buffersCompleted = 0;
 		INT64 bytesTransferred = 0;
 
-		while (buffersCompleted < buffersPerAcquisition) {
+		while (buffersCompleted < acquisitionParams.buffersPerAcquisition) {
             // Send a software trigger to begin acquisition
             retCode = AlazarForceTrigger(boardHandle);
             if (retCode != ApiSuccess) {
@@ -363,7 +339,7 @@ void ATS::AcquireData(U32 sampleRate, U32 samplesPerAcquisition, U32 buffersPerA
 
 
             // Timeout after 10x the expected time for 1 buffer
-			DWORD timeout_ms = (DWORD)(10*1e3*samplesPerBuffer/sampleRate); 
+			DWORD timeout_ms = (DWORD)(10*1e3*acquisitionParams.samplesPerBuffer/acquisitionParams.sampleRate); 
 
 			// Wait for the buffer at the head of the list of available buffers to be filled by the board.
 			bufferIndex = buffersCompleted % BUFFER_COUNT;
@@ -379,7 +355,7 @@ void ATS::AcquireData(U32 sampleRate, U32 samplesPerAcquisition, U32 buffersPerA
 				// of buffers available to the board.
 
 				buffersCompleted++;
-				bytesTransferred += bytesPerBuffer;
+				bytesTransferred += acquisitionParams.bytesPerBuffer;
 
 				// While you are processing this buffer, the board is 
 				// filling the next available buffer(s). You must finish 
@@ -398,15 +374,13 @@ void ATS::AcquireData(U32 sampleRate, U32 samplesPerAcquisition, U32 buffersPerA
 				// - a sample code of 0x8000 represents a 0V signal;
 				// - a sample code of 0xFFFF represents a positive full scale input signal;
 
-				if (saveData) {
-					// Write buffer to file
-					size_t bytesWritten = fwrite(pIoBuffer->pBuffer, sizeof(BYTE), bytesPerBuffer, fpData);
-					if (bytesWritten != bytesPerBuffer)
-					{
-						printf("Error: Write buffer %d failed -- %u\n", buffersCompleted, GetLastError());
-						success = FALSE;
-					}
-				}
+                // Write buffer to file
+                size_t bytesWritten = fwrite(pIoBuffer->pBuffer, sizeof(BYTE), acquisitionParams.bytesPerBuffer, fpData);
+                if (bytesWritten != acquisitionParams.bytesPerBuffer)
+                {
+                    printf("Error: Write buffer %d failed -- %u\n", buffersCompleted, GetLastError());
+                    success = FALSE;
+                }
             }
 			else {
 				// The wait failed
@@ -501,51 +475,16 @@ void ATS::AcquireData(U32 sampleRate, U32 samplesPerAcquisition, U32 buffersPerA
 	}
 
 	// Free all memory allocated
-
 	for (bufferIndex = 0; bufferIndex < BUFFER_COUNT; bufferIndex++) {
 		if (IoBufferArray[bufferIndex] != NULL)
 			DestroyIoBuffer(IoBufferArray[bufferIndex]);
 	}
-
-	// Close the data file
-	if (fpData != NULL)
-		fclose(fpData);
 }
 
 
-// std::vector<double> channel1Data;
-// std::vector<double> channel2Data;
 
-// for (int sampleIndex = 0; sampleIndex < (int)samplesPerBuffer; sampleIndex++) {
-//     // Calculate the index of the sample for each channel
-//     int channelASampleIndex = sampleIndex * channelCount;
-//     int channelBSampleIndex = channelASampleIndex + 1;
-
-//     // Get the sample values for each channel
-//     unsigned short channelASample = reinterpret_cast<unsigned short*>(pIoBuffer->pBuffer)[channelASampleIndex];
-//     unsigned short channelBSample = reinterpret_cast<unsigned short*>(pIoBuffer->pBuffer)[channelBSampleIndex];
-
-//     // Convert the sample values to voltages
-//     double channelAVoltage = (channelASample/0xFFFF) * 2 * inputRange;
-//     double channelBVoltage = (channelBSample/0xFFFF) * 2 * inputRange;
-
-//     // Store the voltage values in the corresponding vectors
-//     channel1Data.push_back(channelAVoltage - inputRange);
-//     channel2Data.push_back(channelBVoltage - inputRange);
-// }
-
-
-std::pair<std::vector<double>, std::vector<double>> ATS::processData() {
+std::pair<std::vector<double>, std::vector<double>> ATS::processData(std::string filename) {
     DWORD startTickCount = GetTickCount();
-
-    // Retrieve parameters used to acquire data
-    double sampleRate = acquisitionParams.sampleRate;
-    int samplesPerAcquisition = acquisitionParams.samplesPerAcquisition;
-    int buffersPerAcquisition = acquisitionParams.buffersPerAcquisition;
-    double inputRange = acquisitionParams.inputRange;
-    int samplesPerBuffer = acquisitionParams.samplesPerBuffer;
-    int bytesPerSample = acquisitionParams.bytesPerSample;
-    std::string filename = acquisitionParams.filename;
 
     // Open the binary file
     std::ifstream file(filename, std::ios::binary);
@@ -573,18 +512,18 @@ std::pair<std::vector<double>, std::vector<double>> ATS::processData() {
 
     voltageDataA.reserve(sampleCount);
     voltageDataB.reserve(sampleCount);
-    for (int i = 0; i < buffersPerAcquisition; i++) {
-        for (int j=0; j < samplesPerBuffer; j++) {
-            double voltageA = (sampleData[(2*i)*samplesPerBuffer + j]   / (double)0xFFFF) * 2 * inputRange;
-            double voltageB = (sampleData[(2*i+1)*samplesPerBuffer + j] / (double)0xFFFF) * 2 * inputRange;
+    for (int i = 0; i < acquisitionParams.buffersPerAcquisition; i++) {
+        for (int j=0; j < acquisitionParams.samplesPerBuffer; j++) {
+            double voltageA = (sampleData[(2*i)*acquisitionParams.samplesPerBuffer + j]   / (double)0xFFFF) * 2 * acquisitionParams.inputRange;
+            double voltageB = (sampleData[(2*i+1)*acquisitionParams.samplesPerBuffer + j] / (double)0xFFFF) * 2 * acquisitionParams.inputRange;
 
-            voltageDataA.push_back(voltageA - inputRange);
-            voltageDataB.push_back(voltageB - inputRange);
+            voltageDataA.push_back(voltageA - acquisitionParams.inputRange);
+            voltageDataB.push_back(voltageB - acquisitionParams.inputRange);
         }
     }
 
     double transferTime_sec = (GetTickCount() - startTickCount) / 1000.;
-	printf("Processing completed in %.3lf sec\n", transferTime_sec);
+	printf("\nProcessing completed in %.3lf sec\n\n", transferTime_sec);
 
     return std::make_pair(voltageDataA, voltageDataB);
 }

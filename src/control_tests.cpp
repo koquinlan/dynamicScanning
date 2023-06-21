@@ -23,9 +23,17 @@ int main() {
     try{
         ATS alazarCard(1, 1);
 
-        alazarCard.AcquireData((U32)30e6, (U32)7.5e6, 0);
-        std::pair<std::vector<double>, std::vector<double>> fullData = alazarCard.processData();
+        alazarCard.setAcquisitionParameters((U32)30e6, (U32)7.5e6, 0);
 
+        FILE *fpData = fopen("data.bin", "wb");
+
+        alazarCard.AcquireData(fpData);
+
+        if (fpData != NULL)
+            fclose(fpData);
+        
+
+        std::pair<std::vector<double>, std::vector<double>> fullData = alazarCard.processData("data.bin");
         std::vector<double> channelDataA = fullData.first;
         std::vector<double> channelDataB = fullData.second;
 
