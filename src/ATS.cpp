@@ -259,7 +259,7 @@ void ATS::setAcquisitionParameters(U32 sampleRate, U32 samplesPerAcquisition, U3
 }
 
 
-std::vector<unsigned short> ATS::AcquireData() {
+std::pair<std::vector<unsigned short>, std::vector<unsigned short>> ATS::AcquireData() {
     // Set basic flags
     U32 channelMask = CHANNEL_A | CHANNEL_B;
     U32 admaFlags = ADMA_TRIGGERED_STREAMING | ADMA_EXTERNAL_STARTCAPTURE;         // Start acquisition when AlazarStartCapture is called
@@ -321,7 +321,8 @@ std::vector<unsigned short> ATS::AcquireData() {
 		}
 	}
 
-    std::vector<unsigned short> fullData;
+    std::vector<unsigned short> fullDataA;
+    std::vector<unsigned short> fullDataB;
 
 	// Wait for each buffer to be filled, process the buffer, and re-post it to the board.
 	if (success) {
@@ -362,7 +363,8 @@ std::vector<unsigned short> ATS::AcquireData() {
                 std::vector<unsigned short> bufferData(reinterpret_cast<unsigned short*>(pIoBuffer->pBuffer),
                                       reinterpret_cast<unsigned short*>(pIoBuffer->pBuffer) + (acquisitionParams.bytesPerBuffer / sizeof(unsigned short)));
 
-                fullData.insert(fullData.end(), bufferData.begin(), bufferData.end());
+                fullDataA.insert(fullDataA.end(), bufferData.begin(), bufferData.begin() + bufferData.size()/2);
+                fullDataB.insert(fullDataB.end(), bufferData.begin() + bufferData.size()/2, bufferData.end());
             }
 			else {
 				// The wait failed
@@ -462,7 +464,7 @@ std::vector<unsigned short> ATS::AcquireData() {
 			DestroyIoBuffer(IoBufferArray[bufferIndex]);
 	}
 
-    return fullData;
+    return std::make_pair(fullDataA, fullDataB);
 }
 
 
@@ -492,11 +494,13 @@ U32 ATS::suggestBufferNumber(U32 sampleRate, U32 samplesPerAcquisition){
 
 
 
-std::pair<std::vector<double>, std::vector<double>> processData(std::vector<unsigned short> sampleData, AcquisitionParameters acquisitionParams) {
+std::pair<std::vector<double>, std::vector<double>> processData(std::pair<std::vector<unsigned short>, std::vector<unsigned short>> sampleData, AcquisitionParameters acquisitionParams) {
     // Sample codes are unsigned by default so that:
     // - a sample code of 0x0000 represents a negative full scale input signal;
     // - a sample code of 0x8000 represents a 0V signal;
     // - a sample code of 0xFFFF represents a positive full scale input signal;
+
+    DWORD startTickCount = GetTickCount();
 
     // Convert the sample data to voltage values
     std::vector<double> voltageDataA;
@@ -504,16 +508,17 @@ std::pair<std::vector<double>, std::vector<double>> processData(std::vector<unsi
 
     voltageDataA.reserve(acquisitionParams.samplesPerAcquisition);
     voltageDataB.reserve(acquisitionParams.samplesPerAcquisition);
-    
-    for (unsigned int i = 0; i < acquisitionParams.buffersPerAcquisition; i++) {
-        for (unsigned int j=0; j < acquisitionParams.samplesPerBuffer; j++) {
-            double voltageA = (sampleData[(2*i)*acquisitionParams.samplesPerBuffer + j]   / (double)0xFFFF) * 2 * acquisitionParams.inputRange;
-            double voltageB = (sampleData[(2*i+1)*acquisitionParams.samplesPerBuffer + j] / (double)0xFFFF) * 2 * acquisitionParams.inputRange;
 
-            voltageDataA.push_back(voltageA - acquisitionParams.inputRange);
-            voltageDataB.push_back(voltageB - acquisitionParams.inputRange);
-        }
+    for (unsigned int i=0; i < sampleData.first.size(); i++) {
+        double voltageA = (sampleData.first[i]   / (double)0xFFFF) * 2 * acquisitionParams.inputRange;
+        double voltageB = (sampleData.second[i]  / (double)0xFFFF) * 2 * acquisitionParams.inputRange;
+
+        voltageDataA.push_back(voltageA - acquisitionParams.inputRange);
+        voltageDataB.push_back(voltageB - acquisitionParams.inputRange);
     }
+
+    double processTime_sec = (GetTickCount() - startTickCount) / 1000.;
+    printf("Processing completed in %.3lf sec\n", processTime_sec);
 
     return std::make_pair(voltageDataA, voltageDataB);
 }

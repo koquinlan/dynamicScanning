@@ -37,7 +37,7 @@ public:
     void setInputParameters(char channel, std::string coupling, double inputRange, double inputImpedance=50);
     void setBandwidthLimit(char channel, bool limit);
 
-    std::vector<unsigned short> AcquireData();
+    std::pair<std::vector<unsigned short>, std::vector<unsigned short>> AcquireData();
 
     U32 suggestBufferNumber(U32 sampleRate, U32 samplesPerAcquisition);
 
@@ -52,6 +52,6 @@ private:
     int getChannelID(char channel);
 };
 
-std::pair<std::vector<double>, std::vector<double>> processData(std::vector<unsigned short> sampleData, AcquisitionParameters acquisitionParams);
+std::pair<std::vector<double>, std::vector<double>> processData(std::pair<std::vector<unsigned short>, std::vector<unsigned short>> sampleData, AcquisitionParameters acquisitionParams);
 
 #endif // ATS_H

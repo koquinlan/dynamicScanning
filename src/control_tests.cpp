@@ -23,11 +23,13 @@ int main() {
     try{
         ATS alazarCard(1, 1);
 
-        alazarCard.setAcquisitionParameters((U32)30e6, (U32)7.5e6, 0);
+        alazarCard.setAcquisitionParameters((U32)32e6, (U32)1e6, 0);
 
-        std::pair<std::vector<double>, std::vector<double>> fullData = processData(alazarCard.AcquireData(), alazarCard.acquisitionParams);
-        std::vector<double> channelDataA = fullData.first;
-        std::vector<double> channelDataB = fullData.second;
+        std::pair<std::vector<unsigned short>, std::vector<unsigned short>> rawData = alazarCard.AcquireData();
+
+        std::pair<std::vector<double>, std::vector<double>> procData = processData(rawData, alazarCard.acquisitionParams);
+        std::vector<double> channelDataA = procData.first;
+        std::vector<double> channelDataB = procData.second;
 
         plt::plot(channelDataA);
         plt::plot(channelDataB);
