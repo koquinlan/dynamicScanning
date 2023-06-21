@@ -38,19 +38,20 @@ public:
     void setBandwidthLimit(char channel, bool limit);
 
     void AcquireData(FILE *fpData);
-    std::pair<std::vector<double>, std::vector<double>> processData(std::string filename);
 
     U32 suggestBufferNumber(U32 sampleRate, U32 samplesPerAcquisition);
+
+    AcquisitionParameters acquisitionParams;
 
 private:
     HANDLE boardHandle;
     RETURN_CODE retCode;
 
     IO_BUFFER *IoBufferArray[BUFFER_COUNT] = { NULL };
-    AcquisitionParameters acquisitionParams;
 
     int getChannelID(char channel);
 };
 
+std::pair<std::vector<double>, std::vector<double>> processData(std::string filename, AcquisitionParameters acquisitionParams);
 
 #endif // ATS_H

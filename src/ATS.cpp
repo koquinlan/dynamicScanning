@@ -483,7 +483,32 @@ void ATS::AcquireData(FILE *fpData) {
 
 
 
-std::pair<std::vector<double>, std::vector<double>> ATS::processData(std::string filename) {
+U32 ATS::suggestBufferNumber(U32 sampleRate, U32 samplesPerAcquisition){
+    // For optimal performance buffer sizes should be between 1MB and 16MB. Absolute maximum is 64MB
+    // As per https://docs.alazartech.com/ats-sdk-user-guide/latest/reference/AlazarBeforeAsyncRead.html
+
+    int channelCount = 2; 
+    int desiredBytesPerBuffer = (int)4e6; // Shoot for 4MB buffer sizes
+
+    // Get the sample size in bits, and the on-board memory size in samples per channel
+	U8 bitsPerSample;
+	U32 maxSamplesPerChannel;
+	RETURN_CODE retCode = AlazarGetChannelInfo(boardHandle, &maxSamplesPerChannel, &bitsPerSample);
+	if (retCode != ApiSuccess) {
+        throw std::runtime_error(std::string("Error: AlazarGetChannelInfo failed -- ") + AlazarErrorToText(retCode) + "\n");
+	}
+
+
+    // Calculate remaining parameters
+    U32 bytesPerSample = (bitsPerSample + 7) / 8;
+	U32 buffersPerAcquisition = (U32)std::round(bytesPerSample * samplesPerAcquisition * channelCount / desiredBytesPerBuffer); 
+
+    return max(1, buffersPerAcquisition);
+}
+
+
+
+std::pair<std::vector<double>, std::vector<double>> processData(std::string filename, AcquisitionParameters acquisitionParams) {
     DWORD startTickCount = GetTickCount();
 
     // Open the binary file
@@ -526,29 +551,4 @@ std::pair<std::vector<double>, std::vector<double>> ATS::processData(std::string
 	printf("\nProcessing completed in %.3lf sec\n\n", transferTime_sec);
 
     return std::make_pair(voltageDataA, voltageDataB);
-}
-
-
-
-U32 ATS::suggestBufferNumber(U32 sampleRate, U32 samplesPerAcquisition){
-    // For optimal performance buffer sizes should be between 1MB and 16MB. Absolute maximum is 64MB
-    // As per https://docs.alazartech.com/ats-sdk-user-guide/latest/reference/AlazarBeforeAsyncRead.html
-
-    int channelCount = 2; 
-    int desiredBytesPerBuffer = (int)4e6; // Shoot for 4MB buffer sizes
-
-    // Get the sample size in bits, and the on-board memory size in samples per channel
-	U8 bitsPerSample;
-	U32 maxSamplesPerChannel;
-	RETURN_CODE retCode = AlazarGetChannelInfo(boardHandle, &maxSamplesPerChannel, &bitsPerSample);
-	if (retCode != ApiSuccess) {
-        throw std::runtime_error(std::string("Error: AlazarGetChannelInfo failed -- ") + AlazarErrorToText(retCode) + "\n");
-	}
-
-
-    // Calculate remaining parameters
-    U32 bytesPerSample = (bitsPerSample + 7) / 8;
-	U32 buffersPerAcquisition = (U32)std::round(bytesPerSample * samplesPerAcquisition * channelCount / desiredBytesPerBuffer); 
-
-    return max(1, buffersPerAcquisition);
 }

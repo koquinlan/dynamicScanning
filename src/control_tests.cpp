@@ -33,7 +33,7 @@ int main() {
             fclose(fpData);
         
 
-        std::pair<std::vector<double>, std::vector<double>> fullData = alazarCard.processData("data.bin");
+        std::pair<std::vector<double>, std::vector<double>> fullData = processData("data.bin", alazarCard.acquisitionParams);
         std::vector<double> channelDataA = fullData.first;
         std::vector<double> channelDataB = fullData.second;
 
