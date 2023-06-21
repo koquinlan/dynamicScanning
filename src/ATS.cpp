@@ -500,8 +500,6 @@ std::pair<std::vector<double>, std::vector<double>> processData(std::pair<std::v
     // - a sample code of 0x8000 represents a 0V signal;
     // - a sample code of 0xFFFF represents a positive full scale input signal;
 
-    DWORD startTickCount = GetTickCount();
-
     // Convert the sample data to voltage values
     std::vector<double> voltageDataA;
     std::vector<double> voltageDataB;
@@ -516,9 +514,6 @@ std::pair<std::vector<double>, std::vector<double>> processData(std::pair<std::v
         voltageDataA.push_back(voltageA - acquisitionParams.inputRange);
         voltageDataB.push_back(voltageB - acquisitionParams.inputRange);
     }
-
-    double processTime_sec = (GetTickCount() - startTickCount) / 1000.;
-    printf("Processing completed in %.3lf sec\n", processTime_sec);
 
     return std::make_pair(voltageDataA, voltageDataB);
 }

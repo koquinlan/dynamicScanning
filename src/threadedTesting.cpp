@@ -4,77 +4,59 @@ namespace plt = matplotlibcpp;
 #include <iostream>
 #include <string>
 #include <vector>
-#include <mutex>
 
 #include <chrono>
 #include <thread>
-#include <future>
 #include <stdexcept>
+#include <future>
 
 #include "PSG.hpp"
 #include "AWG.hpp"
 #include "ATS.hpp"
 #include "tests.hpp"
 
-struct ThreadData {
-    std::vector<double> channelDataA;
-    std::vector<double> channelDataB;
-    std::mutex mutex;
-};
-
-void processDataThread(const std::string& filename, const AcquisitionParameters& acquisitionParams, ThreadData& threadData) {
-    DWORD startTickCount = GetTickCount();
-
-    std::pair<std::vector<double>, std::vector<double>> fullData = processData(filename, acquisitionParams);
-    std::vector<double> channelDataA = fullData.first;
-    std::vector<double> channelDataB = fullData.second;
-
-    // Lock the mutex before accessing the shared data structure
-    std::lock_guard<std::mutex> lock(threadData.mutex);
-    // Store the data in the shared data structure
-    threadData.channelDataA = channelDataA;
-    threadData.channelDataB = channelDataB;
-
-    // Store processing time for this shot
-    double processTime_sec = (GetTickCount() - startTickCount) / 1000.;
-}
 
 int main() {
+    int numShots = 8;
+
     printAvailableResources();
 
     ATS alazarCard(1, 1);
     alazarCard.setAcquisitionParameters((U32)30e6, (U32)7.5e6, 0);
 
-    const int numAcquisitions = 10;
-    std::vector<std::future<void>> futures;
-    std::vector<ThreadData> threadDataList(numAcquisitions); // Shared data structure for each thread
+    std::vector<std::future<std::pair<std::vector<double>, std::vector<double>>>> futures;
 
-    // Start the data acquisition
-    for (int i = 0; i < numAcquisitions; i++) {
-        std::string filename = "data_" + std::to_string(i) + ".bin";
-        FILE* fpData = fopen(filename.c_str(), "wb");
-        alazarCard.AcquireData(fpData);
-        if (fpData != nullptr)
-            fclose(fpData);
 
-        // Start processing the data in a separate thread
-        futures.push_back(std::async(std::launch::async, processDataThread, std::cref(filename), std::cref(alazarCard.acquisitionParams), std::ref(threadDataList[i])));
+    // Main acquisition and processing logic
+    DWORD startTickCount = GetTickCount();
+    for (int i = 0; i < numShots; i++) {
+        std::pair<std::vector<unsigned short>, std::vector<unsigned short>> rawData = alazarCard.AcquireData();
+
+        // Start a new async thread for processing each acquisition
+        futures.push_back(std::async(std::launch::async, processData, rawData, alazarCard.acquisitionParams));
     }
 
-    // Wait for all processing threads to finish
+    // Wait for all asynchronous tasks to complete
     for (auto& future : futures) {
-        future.wait();
+        std::pair<std::vector<double>, std::vector<double>> procData = future.get();
     }
 
-    // Access the processed data from the main thread
-    for (int i = 0; i < numAcquisitions; i++) {
-        // Lock the mutex before accessing the shared data structure
-        std::lock_guard<std::mutex> lock(threadDataList[i].mutex);
-        std::vector<double> channelDataA = threadDataList[i].channelDataA;
-        std::vector<double> channelDataB = threadDataList[i].channelDataB;
+    double fullTime_sec = (GetTickCount() - startTickCount) / 1000.;
+    printf("\nMultithreaded run completed in %.3lf sec\n\n", fullTime_sec);
 
-        std::cout << std::endl << channelDataA.size() << std::endl;
+
+
+    // Normal acquisition and processing logic
+    startTickCount = GetTickCount();
+    for (int i = 0; i < numShots; i++) {
+        std::pair<std::vector<unsigned short>, std::vector<unsigned short>> rawData = alazarCard.AcquireData();
+
+        // Start a new async thread for processing each acquisition
+        std::pair<std::vector<double>, std::vector<double>> procData = processData(rawData, alazarCard.acquisitionParams);
     }
+
+    fullTime_sec = (GetTickCount() - startTickCount) / 1000.;
+    printf("\nSingle threaded run completed in %.3lf sec\n\n", fullTime_sec);
 
     return 0;
 }
