@@ -69,6 +69,15 @@
         "numeric": "cpp",
         "unordered_map": "cpp",
         "xhash": "cpp",
-        "xtree": "cpp"
+        "xtree": "cpp",
+        "condition_variable": "cpp",
+        "future": "cpp",
+        "complex": "cpp",
+        "deque": "cpp",
+        "queue": "cpp",
+        "random": "cpp",
+        "ranges": "cpp",
+        "set": "cpp",
+        "span": "cpp"
     }
 }

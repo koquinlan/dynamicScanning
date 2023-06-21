@@ -1,8 +1,6 @@
 project(lab_control)
 
 set(SOURCES
-    control_tests.cpp
-
     instrument.cpp
     PSG.cpp
     AWG.cpp
@@ -13,10 +11,20 @@ set(SOURCES
 
 message(STATUS ${SOURCES})
 
-add_executable(lab_control ${SOURCES})
+add_executable(lab_control ${SOURCES} control_tests.cpp)
 
 # Include the VISA header file
 target_include_directories(lab_control PRIVATE ${VISA_INCLUDE_DIR} ${ALAZAR_INCLUDE_DIR} ${Python3_INCLUDE_DIRS} ${Python3_NumPy_INCLUDE_DIRS})
 
 # Link against the VISA library
-target_link_libraries(lab_control PRIVATE ${VISA_LIBRARY} ${ALAZAR_LIBRARY} ${Python3_LIBRARIES} Python3::NumPy)
+target_link_libraries(lab_control PRIVATE ${VISA_LIBRARY} ${ALAZAR_LIBRARY} ${Python3_LIBRARIES} Python3::NumPy Eigen3::Eigen)
+
+#
+#
+add_executable(thread_test ${SOURCES} threadedTesting.cpp)
+
+# Include the VISA header file
+target_include_directories(thread_test PRIVATE ${VISA_INCLUDE_DIR} ${ALAZAR_INCLUDE_DIR} ${Python3_INCLUDE_DIRS} ${Python3_NumPy_INCLUDE_DIRS})
+
+# Link against the VISA library
+target_link_libraries(thread_test PRIVATE ${VISA_LIBRARY} ${ALAZAR_LIBRARY} ${Python3_LIBRARIES} Python3::NumPy Eigen3::Eigen)
