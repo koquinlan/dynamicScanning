@@ -259,7 +259,7 @@ void ATS::setAcquisitionParameters(U32 sampleRate, U32 samplesPerAcquisition, U3
 }
 
 
-void ATS::AcquireData(FILE *fpData) {
+std::vector<unsigned short> ATS::AcquireData() {
     // Set basic flags
     U32 channelMask = CHANNEL_A | CHANNEL_B;
     U32 admaFlags = ADMA_TRIGGERED_STREAMING | ADMA_EXTERNAL_STARTCAPTURE;         // Start acquisition when AlazarStartCapture is called
@@ -321,6 +321,7 @@ void ATS::AcquireData(FILE *fpData) {
 		}
 	}
 
+    std::vector<unsigned short> fullData;
 
 	// Wait for each buffer to be filled, process the buffer, and re-post it to the board.
 	if (success) {
@@ -329,6 +330,8 @@ void ATS::AcquireData(FILE *fpData) {
 		DWORD startTickCount = GetTickCount();
 		U32 buffersCompleted = 0;
 		INT64 bytesTransferred = 0;
+
+        
 
 		while (buffersCompleted < acquisitionParams.buffersPerAcquisition) {
             // Send a software trigger to begin acquisition
@@ -351,36 +354,15 @@ void ATS::AcquireData(FILE *fpData) {
             );
 
 			if (retCode == ApiSuccess) {
-                // This buffer is full and has been removed from the list
-				// of buffers available to the board.
+                // This buffer is full and has been removed from the list of buffers available to the board.
 
 				buffersCompleted++;
-				bytesTransferred += acquisitionParams.bytesPerBuffer;
+				bytesTransferred += acquisitionParams.bytesPerBuffer;	
 
-				// While you are processing this buffer, the board is 
-				// filling the next available buffer(s). You must finish 
-				// processing this buffer and make it available to the 
-				// board before the board fills all available buffer(s). 
-				// 
-				// Records in the buffer are arranged as follows: R0A, R0B,
-				// where Rxy is a segment of a single record.
-				//
-				// Sample values for ecah enabled channel are arranged 
-				// contiguously in the buffer, with a 16-bit sample code in
-				// in each 16-bit sample value.
-				//
-				// Sample codes are unsigned by default so that:
-				// - a sample code of 0x0000 represents a negative full scale input signal;
-				// - a sample code of 0x8000 represents a 0V signal;
-				// - a sample code of 0xFFFF represents a positive full scale input signal;
+                std::vector<unsigned short> bufferData(reinterpret_cast<unsigned short*>(pIoBuffer->pBuffer),
+                                      reinterpret_cast<unsigned short*>(pIoBuffer->pBuffer) + (acquisitionParams.bytesPerBuffer / sizeof(unsigned short)));
 
-                // Write buffer to file
-                size_t bytesWritten = fwrite(pIoBuffer->pBuffer, sizeof(BYTE), acquisitionParams.bytesPerBuffer, fpData);
-                if (bytesWritten != acquisitionParams.bytesPerBuffer)
-                {
-                    printf("Error: Write buffer %d failed -- %u\n", buffersCompleted, GetLastError());
-                    success = FALSE;
-                }
+                fullData.insert(fullData.end(), bufferData.begin(), bufferData.end());
             }
 			else {
 				// The wait failed
@@ -479,6 +461,8 @@ void ATS::AcquireData(FILE *fpData) {
 		if (IoBufferArray[bufferIndex] != NULL)
 			DestroyIoBuffer(IoBufferArray[bufferIndex]);
 	}
+
+    return fullData;
 }
 
 
@@ -508,37 +492,21 @@ U32 ATS::suggestBufferNumber(U32 sampleRate, U32 samplesPerAcquisition){
 
 
 
-std::pair<std::vector<double>, std::vector<double>> processData(std::string filename, AcquisitionParameters acquisitionParams) {
-    DWORD startTickCount = GetTickCount();
-
-    // Open the binary file
-    std::ifstream file(filename, std::ios::binary);
-    if (!file) {
-        throw std::runtime_error("Error: Failed to open file");
-    }
-
-    // Get the file size
-    file.seekg(0, std::ios::end);
-    std::streampos fileSize = file.tellg();
-    file.seekg(0, std::ios::beg);
-
-    // Calculate the number of samples
-    std::size_t sampleCount = fileSize / sizeof(unsigned short);
-
-    // Read the sample data
-    std::vector<unsigned short> sampleData(sampleCount);
-    if (!file.read(reinterpret_cast<char*>(sampleData.data()), fileSize)) {
-        throw std::runtime_error("Error: Failed to read sample data");
-    }
+std::pair<std::vector<double>, std::vector<double>> processData(std::vector<unsigned short> sampleData, AcquisitionParameters acquisitionParams) {
+    // Sample codes are unsigned by default so that:
+    // - a sample code of 0x0000 represents a negative full scale input signal;
+    // - a sample code of 0x8000 represents a 0V signal;
+    // - a sample code of 0xFFFF represents a positive full scale input signal;
 
     // Convert the sample data to voltage values
     std::vector<double> voltageDataA;
     std::vector<double> voltageDataB;
 
-    voltageDataA.reserve(sampleCount);
-    voltageDataB.reserve(sampleCount);
-    for (int i = 0; i < acquisitionParams.buffersPerAcquisition; i++) {
-        for (int j=0; j < acquisitionParams.samplesPerBuffer; j++) {
+    voltageDataA.reserve(acquisitionParams.samplesPerAcquisition);
+    voltageDataB.reserve(acquisitionParams.samplesPerAcquisition);
+    
+    for (unsigned int i = 0; i < acquisitionParams.buffersPerAcquisition; i++) {
+        for (unsigned int j=0; j < acquisitionParams.samplesPerBuffer; j++) {
             double voltageA = (sampleData[(2*i)*acquisitionParams.samplesPerBuffer + j]   / (double)0xFFFF) * 2 * acquisitionParams.inputRange;
             double voltageB = (sampleData[(2*i+1)*acquisitionParams.samplesPerBuffer + j] / (double)0xFFFF) * 2 * acquisitionParams.inputRange;
 
@@ -546,9 +514,6 @@ std::pair<std::vector<double>, std::vector<double>> processData(std::string file
             voltageDataB.push_back(voltageB - acquisitionParams.inputRange);
         }
     }
-
-    double transferTime_sec = (GetTickCount() - startTickCount) / 1000.;
-	printf("\nProcessing completed in %.3lf sec\n\n", transferTime_sec);
 
     return std::make_pair(voltageDataA, voltageDataB);
 }

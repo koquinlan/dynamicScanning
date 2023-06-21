@@ -25,15 +25,7 @@ int main() {
 
         alazarCard.setAcquisitionParameters((U32)30e6, (U32)7.5e6, 0);
 
-        FILE *fpData = fopen("data.bin", "wb");
-
-        alazarCard.AcquireData(fpData);
-
-        if (fpData != NULL)
-            fclose(fpData);
-        
-
-        std::pair<std::vector<double>, std::vector<double>> fullData = processData("data.bin", alazarCard.acquisitionParams);
+        std::pair<std::vector<double>, std::vector<double>> fullData = processData(alazarCard.AcquireData(), alazarCard.acquisitionParams);
         std::vector<double> channelDataA = fullData.first;
         std::vector<double> channelDataB = fullData.second;
 
