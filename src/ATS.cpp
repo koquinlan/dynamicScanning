@@ -12,6 +12,8 @@
 #include <cmath>
 #include <algorithm>
 
+#include <fftw3.h>
+
 
 ATS::ATS(int systemId, int boardId) {
     boardHandle = AlazarGetBoardBySystemID(systemId, boardId);
@@ -516,4 +518,29 @@ std::pair<std::vector<double>, std::vector<double>> processData(std::pair<std::v
     }
 
     return std::make_pair(voltageDataA, voltageDataB);
+}
+
+
+
+void processDataFFT(std::pair<std::vector<unsigned short>, std::vector<unsigned short>> sampleData, 
+                                                                   AcquisitionParameters acquisitionParams, 
+                                                                   fftw_plan plan, 
+                                                                   fftw_complex* fftwInput) {
+    // Sample codes are unsigned by default so that:
+    // - a sample code of 0x0000 represents a negative full scale input signal;
+    // - a sample code of 0x8000 represents a 0V signal;
+    // - a sample code of 0xFFFF represents a positive full scale input signal;
+    DWORD startTickCount = GetTickCount();
+
+    // Convert the sample data to voltage values and store in the input
+    for (unsigned int i=0; i < sampleData.first.size(); i++) {
+        fftwInput[i][0] = (sampleData.first[i]   / (double)0xFFFF) * 2 * acquisitionParams.inputRange - acquisitionParams.inputRange;
+        fftwInput[i][1] = 0;
+        // fftwInput[i][1] = (sampleData.second[i]  / (double)0xFFFF) * 2 * acquisitionParams.inputRange - acquisitionParams.inputRange;
+    }
+
+    fftw_execute(plan);
+
+    double transferTime_sec = (GetTickCount() - startTickCount) / 1000.;
+	printf("\nProcessing and FFT completed in %.3lf sec\n\n", transferTime_sec);
 }

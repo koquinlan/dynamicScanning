@@ -12,13 +12,19 @@ set(ALAZAR_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include/ALAZAR) # Replace wit
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Ot")
 message(STATUS "Compiler flags set to: ${CMAKE_CXX_FLAGS}")
 
-#
+# Find various external libraries to link against
 if(NOT DEFINED ENV{LIBS})
     message(FATAL_ERROR "Error: The LIBS environment variable is not set. Please set the LIBS environment variable to the path of the directory containing the required libraries.")
 endif()
 
+# Set the path to the FFTW3 library installation
+set(FFTW3_DIR $ENV{LIBS}/fftw3)
+
+set(FFTW3_LIBRARIES ${FFTW3_DIR}/lib/libfftw3-3.lib ${FFTW3_DIR}/lib/libfftw3f-3.lib ${FFTW3_DIR}/lib/libfftw3l-3.lib)
+set(FFTW3_INCLUDE_DIR ${FFTW3_DIR}/include)
+
 #
-set(CMAKE_PREFIX_PATH $ENV{LIBS}\\eigen-3.3.9)
+set(CMAKE_PREFIX_PATH $ENV{LIBS}/eigen-3.3.9)
 message(STATUS "Prefix path set to ${CMAKE_PREFIX_PATH}")
 
 #

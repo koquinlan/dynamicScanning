@@ -4,6 +4,8 @@
 #include <string>
 #include <vector>
 
+#include <fftw3.h>
+
 #include "AlazarError.h"
 #include "AlazarApi.h"
 #include "AlazarCmd.h"
@@ -53,5 +55,7 @@ private:
 };
 
 std::pair<std::vector<double>, std::vector<double>> processData(std::pair<std::vector<unsigned short>, std::vector<unsigned short>> sampleData, AcquisitionParameters acquisitionParams);
+
+void processDataFFT(std::pair<std::vector<unsigned short>, std::vector<unsigned short>> sampleData, AcquisitionParameters acquisitionParams, fftw_plan plan, fftw_complex* fftwInput);
 
 #endif // ATS_H
