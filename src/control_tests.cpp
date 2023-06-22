@@ -2,6 +2,8 @@
 namespace plt = matplotlibcpp;
 
 #include <iostream>
+#include <cmath>
+
 #include <string>
 #include <vector>
 
@@ -33,27 +35,35 @@ int main() {
 
         ATS alazarCard(1, 1);
 
-        alazarCard.setAcquisitionParameters((U32)32e6, (U32)32e6, 0);
+        alazarCard.setAcquisitionParameters((U32)32e6, (U32)16e4, 0);
 
-        std::pair<std::vector<unsigned short>, std::vector<unsigned short>> rawData = alazarCard.AcquireData();
+        fftw_complex* rawData = alazarCard.AcquireData();
 
         // Create an FFTW plan
-        int N = (int)rawData.first.size();
-        fftw_complex* fftwInput = reinterpret_cast<fftw_complex*>(fftw_malloc(sizeof(fftw_complex) * N));
-        fftw_plan plan = fftw_plan_dft_1d(N, fftwInput, fftwInput, FFTW_FORWARD, FFTW_MEASURE);
+        int N = (int)alazarCard.acquisitionParams.samplesPerAcquisition;
 
-        processDataFFT(rawData, alazarCard.acquisitionParams, plan, fftwInput);
+        std::cout << "Creating plan for N = " << std::to_string(N) << std::endl;
+        fftw_complex* fftwInput = reinterpret_cast<fftw_complex*>(fftw_malloc(sizeof(fftw_complex) * N));
+        fftw_complex* fftwOutput = reinterpret_cast<fftw_complex*>(fftw_malloc(sizeof(fftw_complex) * N));
+        fftw_plan plan = fftw_plan_dft_1d(N, fftwInput, fftwOutput, FFTW_FORWARD, FFTW_MEASURE);
+        std::cout << "Plan created!" << std::endl;
+
+        fftw_complex* procData = processDataFFT(rawData, plan, N);
 
         // Plot the real and imaginary components of the FFT output
         std::vector<double> freq(N);
-        std::vector<double> fftMag(N);
+        std::vector<double> fftVoltage(N);
+        std::vector<double> fftPower(N);
 
         for (int i = 0; i < N; ++i) {
-            freq[i] = static_cast<double>(i);
-            fftMag[i] = fftwInput[i][0]*fftwInput[i][0] + fftwInput[i][1]*fftwInput[i][1];
+            freq[i] = (static_cast<double>(i)-static_cast<double>(N)/2)*alazarCard.acquisitionParams.sampleRate/N;
+            fftVoltage[i] = std::sqrt((procData[i][0]*procData[i][0] + procData[i][1]*procData[i][1]))/(double)N;
+
+            fftPower[i] = fftVoltage[i]*fftVoltage[i]/alazarCard.acquisitionParams.inputImpedance;
         }
 
-        plt::plot(freq, fftMag, "b");
+        plt::plot(freq, fftVoltage, "b");
+        plt::plot(freq, fftPower, "r");
         plt::show();
 
 

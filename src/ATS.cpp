@@ -198,7 +198,7 @@ int ATS::getChannelID(char channel){
 
 
 
-void ATS::setAcquisitionParameters(U32 sampleRate, U32 samplesPerAcquisition, U32 buffersPerAcquisition, double inputRange){
+void ATS::setAcquisitionParameters(U32 sampleRate, U32 samplesPerAcquisition, U32 buffersPerAcquisition, double inputRange, double inputImpedance){
     // 
     if (buffersPerAcquisition <= 0){
         buffersPerAcquisition = suggestBufferNumber(sampleRate, samplesPerAcquisition);
@@ -219,15 +219,17 @@ void ATS::setAcquisitionParameters(U32 sampleRate, U32 samplesPerAcquisition, U3
     U32 recordsPerBuffer = 1;   
     
     acquisitionParams.sampleRate = sampleRate;
-    acquisitionParams.samplesPerAcquisition = samplesPerAcquisition;
     acquisitionParams.buffersPerAcquisition = buffersPerAcquisition;
     acquisitionParams.inputRange = inputRange;
+    acquisitionParams.inputImpedance = inputImpedance;
     acquisitionParams.recordsPerAcquisition = recordsPerBuffer*buffersPerAcquisition; 
 
-    acquisitionParams.samplesPerBuffer = samplesPerAcquisition/buffersPerAcquisition;;
+    acquisitionParams.samplesPerBuffer = samplesPerAcquisition/buffersPerAcquisition;
     acquisitionParams.bytesPerSample = (bitsPerSample + 7) / 8;
     acquisitionParams.bytesPerBuffer = acquisitionParams.bytesPerSample * acquisitionParams.samplesPerBuffer * channelCount;
 
+    // This is calculated from the above parameters since rounding could cause the actual samples to be different than requested
+    acquisitionParams.samplesPerAcquisition = acquisitionParams.samplesPerBuffer*acquisitionParams.buffersPerAcquisition;
 
     // Send parameters to board
     double realSampleRate = setExternalSampleClock(acquisitionParams.sampleRate);
@@ -236,10 +238,10 @@ void ATS::setAcquisitionParameters(U32 sampleRate, U32 samplesPerAcquisition, U3
         << std::to_string(realSampleRate/1e6) << " MHz." << std::endl;
     }
 
-    setInputParameters('a', "dc", acquisitionParams.inputRange);
+    setInputParameters('a', "dc", acquisitionParams.inputRange, acquisitionParams.inputImpedance);
     setBandwidthLimit('a', 1);
 
-    setInputParameters('b', "dc", acquisitionParams.inputRange);
+    setInputParameters('b', "dc", acquisitionParams.inputRange, acquisitionParams.inputImpedance);
     setBandwidthLimit('b', 1);                                   
 
     retCode = AlazarSetRecordSize(
@@ -261,7 +263,7 @@ void ATS::setAcquisitionParameters(U32 sampleRate, U32 samplesPerAcquisition, U3
 }
 
 
-std::pair<std::vector<unsigned short>, std::vector<unsigned short>> ATS::AcquireData() {
+fftw_complex* ATS::AcquireData() {
     // Set basic flags
     U32 channelMask = CHANNEL_A | CHANNEL_B;
     U32 admaFlags = ADMA_TRIGGERED_STREAMING | ADMA_EXTERNAL_STARTCAPTURE;         // Start acquisition when AlazarStartCapture is called
@@ -326,6 +328,8 @@ std::pair<std::vector<unsigned short>, std::vector<unsigned short>> ATS::Acquire
     std::vector<unsigned short> fullDataA;
     std::vector<unsigned short> fullDataB;
 
+    fftw_complex* complexOutput = reinterpret_cast<fftw_complex*>(fftw_malloc(sizeof(fftw_complex) * acquisitionParams.samplesPerAcquisition));
+
 	// Wait for each buffer to be filled, process the buffer, and re-post it to the board.
 	if (success) {
 		printf("Capturing %d buffers ... press any key to abort\n", acquisitionParams.buffersPerAcquisition);
@@ -358,15 +362,32 @@ std::pair<std::vector<unsigned short>, std::vector<unsigned short>> ATS::Acquire
 
 			if (retCode == ApiSuccess) {
                 // This buffer is full and has been removed from the list of buffers available to the board.
-
-				buffersCompleted++;
-				bytesTransferred += acquisitionParams.bytesPerBuffer;	
+                // DWORD startProcTickCount = GetTickCount();
 
                 std::vector<unsigned short> bufferData(reinterpret_cast<unsigned short*>(pIoBuffer->pBuffer),
                                       reinterpret_cast<unsigned short*>(pIoBuffer->pBuffer) + (acquisitionParams.bytesPerBuffer / sizeof(unsigned short)));
 
                 fullDataA.insert(fullDataA.end(), bufferData.begin(), bufferData.begin() + bufferData.size()/2);
                 fullDataB.insert(fullDataB.end(), bufferData.begin() + bufferData.size()/2, bufferData.end());
+
+                for (unsigned int i=0; i < bufferData.size()/2; i++) {
+                    int index = buffersCompleted*acquisitionParams.samplesPerBuffer + i;
+
+                    complexOutput[index][0] = (bufferData[i]   / (double)0xFFFF) * 2 * acquisitionParams.inputRange - acquisitionParams.inputRange;
+                    complexOutput[index][1] = (bufferData[bufferData.size()/2 + i]  / (double)0xFFFF) * 2 * acquisitionParams.inputRange - acquisitionParams.inputRange;
+
+                    // Trick to 0-center the dft
+                    if (index % 2 == 1) {
+                        complexOutput[index][0] *= -1;
+                        complexOutput[index][1] *= -1;
+                    }
+                }
+
+                // double bufferProcTime_sec = (GetTickCount() - startProcTickCount) / 1000.;
+	            // std::cout << "Buffer processed in " << bufferProcTime_sec << " sec" << std::endl;
+
+                buffersCompleted++;
+				bytesTransferred += acquisitionParams.bytesPerBuffer;	
             }
 			else {
 				// The wait failed
@@ -466,7 +487,7 @@ std::pair<std::vector<unsigned short>, std::vector<unsigned short>> ATS::Acquire
 			DestroyIoBuffer(IoBufferArray[bufferIndex]);
 	}
 
-    return std::make_pair(fullDataA, fullDataB);
+    return complexOutput;
 }
 
 
@@ -489,9 +510,22 @@ U32 ATS::suggestBufferNumber(U32 sampleRate, U32 samplesPerAcquisition){
 
     // Calculate remaining parameters
     U32 bytesPerSample = (bitsPerSample + 7) / 8;
-	U32 buffersPerAcquisition = (U32)std::round(bytesPerSample * samplesPerAcquisition * channelCount / desiredBytesPerBuffer); 
+	U32 buffersPerAcquisition = max(1, (U32)std::round(bytesPerSample * samplesPerAcquisition * channelCount / desiredBytesPerBuffer)); 
 
-    return max(1, buffersPerAcquisition);
+    // Make sure the number of buffers evenly divides the number of samples
+    int spread = 1;
+    while((samplesPerAcquisition % buffersPerAcquisition != 0)) {
+        if (samplesPerAcquisition % (buffersPerAcquisition + spread) == 0) {
+            buffersPerAcquisition = buffersPerAcquisition + spread;
+        } 
+        else if (samplesPerAcquisition % (buffersPerAcquisition - spread) == 0) {
+            buffersPerAcquisition = buffersPerAcquisition - spread;
+        }
+        spread++;
+    }
+
+
+    return buffersPerAcquisition;
 }
 
 
@@ -522,25 +556,19 @@ std::pair<std::vector<double>, std::vector<double>> processData(std::pair<std::v
 
 
 
-void processDataFFT(std::pair<std::vector<unsigned short>, std::vector<unsigned short>> sampleData, 
-                                                                   AcquisitionParameters acquisitionParams, 
-                                                                   fftw_plan plan, 
-                                                                   fftw_complex* fftwInput) {
+fftw_complex* processDataFFT(fftw_complex* sampleData, fftw_plan plan, int N) {
     // Sample codes are unsigned by default so that:
     // - a sample code of 0x0000 represents a negative full scale input signal;
     // - a sample code of 0x8000 represents a 0V signal;
     // - a sample code of 0xFFFF represents a positive full scale input signal;
     DWORD startTickCount = GetTickCount();
 
-    // Convert the sample data to voltage values and store in the input
-    for (unsigned int i=0; i < sampleData.first.size(); i++) {
-        fftwInput[i][0] = (sampleData.first[i]   / (double)0xFFFF) * 2 * acquisitionParams.inputRange - acquisitionParams.inputRange;
-        fftwInput[i][1] = 0;
-        // fftwInput[i][1] = (sampleData.second[i]  / (double)0xFFFF) * 2 * acquisitionParams.inputRange - acquisitionParams.inputRange;
-    }
-
+    fftw_complex *FFTData = reinterpret_cast<fftw_complex*>(fftw_malloc(sizeof(fftw_complex) * 2 * N));
+    fftw_execute_dft(plan, sampleData, FFTData);
     fftw_execute(plan);
 
     double transferTime_sec = (GetTickCount() - startTickCount) / 1000.;
 	printf("\nProcessing and FFT completed in %.3lf sec\n\n", transferTime_sec);
+
+    return FFTData;
 }
