@@ -35,7 +35,7 @@ int main() {
 
         ATS alazarCard(1, 1);
 
-        alazarCard.setAcquisitionParameters((U32)32e6, (U32)16e4, 0);
+        alazarCard.setAcquisitionParameters((U32)32e6, (U32)16e7, 0);
 
         fftw_complex* rawData = alazarCard.AcquireData();
 
@@ -45,7 +45,7 @@ int main() {
         std::cout << "Creating plan for N = " << std::to_string(N) << std::endl;
         fftw_complex* fftwInput = reinterpret_cast<fftw_complex*>(fftw_malloc(sizeof(fftw_complex) * N));
         fftw_complex* fftwOutput = reinterpret_cast<fftw_complex*>(fftw_malloc(sizeof(fftw_complex) * N));
-        fftw_plan plan = fftw_plan_dft_1d(N, fftwInput, fftwOutput, FFTW_FORWARD, FFTW_MEASURE);
+        fftw_plan plan = fftw_plan_dft_1d(N, fftwInput, fftwOutput, FFTW_FORWARD, FFTW_ESTIMATE);
         std::cout << "Plan created!" << std::endl;
 
         fftw_complex* procData = processDataFFT(rawData, plan, N);
@@ -82,6 +82,7 @@ int main() {
         // Cleanup
         fftw_destroy_plan(plan);
         fftw_free(fftwInput);
+        fftw_free(fftwOutput);
 
         /*
         std::pair<std::vector<double>, std::vector<double>> procData = processData(rawData, alazarCard.acquisitionParams);

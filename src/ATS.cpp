@@ -14,6 +14,8 @@
 
 #include <fftw3.h>
 
+#define VERBOSE_OUTPUT (1)
+
 
 ATS::ATS(int systemId, int boardId) {
     boardHandle = AlazarGetBoardBySystemID(systemId, boardId);
@@ -332,7 +334,9 @@ fftw_complex* ATS::AcquireData() {
 
 	// Wait for each buffer to be filled, process the buffer, and re-post it to the board.
 	if (success) {
+        #ifdef VERBOSE_OUTPUT
 		printf("Capturing %d buffers ... press any key to abort\n", acquisitionParams.buffersPerAcquisition);
+        #endif
 
 		DWORD startTickCount = GetTickCount();
 		U32 buffersCompleted = 0;
@@ -449,10 +453,13 @@ fftw_complex* ATS::AcquireData() {
 				break;
 			}
 
+            #ifdef VERBOSE_OUTPUT
 			// Display progress
 			printf("Completed %u buffers\r", buffersCompleted);
+            #endif
 		}
 
+        #ifdef VERBOSE_OUTPUT
 		// Display results
 		double transferTime_sec = (GetTickCount() - startTickCount) / 1000.;
 		printf("Capture completed in %.3lf sec\n", transferTime_sec);
@@ -472,6 +479,7 @@ fftw_complex* ATS::AcquireData() {
 
 		printf("Captured %d buffers (%.4g buffers per sec)\n", buffersCompleted, buffersPerSec);
 		printf("Transferred %I64d bytes (%.4g bytes per sec)\n", bytesTransferred, bytesPerSec);
+        #endif
 	}
 
 	// Abort the acquisition
@@ -561,14 +569,17 @@ fftw_complex* processDataFFT(fftw_complex* sampleData, fftw_plan plan, int N) {
     // - a sample code of 0x0000 represents a negative full scale input signal;
     // - a sample code of 0x8000 represents a 0V signal;
     // - a sample code of 0xFFFF represents a positive full scale input signal;
+    #ifdef VERBOSE_OUTPUT
     DWORD startTickCount = GetTickCount();
+    #endif
 
     fftw_complex *FFTData = reinterpret_cast<fftw_complex*>(fftw_malloc(sizeof(fftw_complex) * 2 * N));
     fftw_execute_dft(plan, sampleData, FFTData);
-    fftw_execute(plan);
 
+    #ifdef VERBOSE_OUTPUT
     double transferTime_sec = (GetTickCount() - startTickCount) / 1000.;
-	printf("\nProcessing and FFT completed in %.3lf sec\n\n", transferTime_sec);
+	printf("\nProcessing and FFT completed in %.4lf sec\n\n", transferTime_sec);
+    #endif
 
     return FFTData;
 }
