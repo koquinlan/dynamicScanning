@@ -6,9 +6,6 @@
 #include <stdio.h>
 #include <conio.h>
 
-#include <string>
-#include <vector>
-
 #include <cmath>
 #include <algorithm>
 
@@ -569,17 +566,277 @@ fftw_complex* processDataFFT(fftw_complex* sampleData, fftw_plan plan, int N) {
     // - a sample code of 0x0000 represents a negative full scale input signal;
     // - a sample code of 0x8000 represents a 0V signal;
     // - a sample code of 0xFFFF represents a positive full scale input signal;
-    #ifdef VERBOSE_OUTPUT
-    DWORD startTickCount = GetTickCount();
-    #endif
+    // #ifdef VERBOSE_OUTPUT
+    // DWORD startTickCount = GetTickCount();
+    // #endif
 
     fftw_complex *FFTData = reinterpret_cast<fftw_complex*>(fftw_malloc(sizeof(fftw_complex) * 2 * N));
     fftw_execute_dft(plan, sampleData, FFTData);
 
-    #ifdef VERBOSE_OUTPUT
-    double transferTime_sec = (GetTickCount() - startTickCount) / 1000.;
-	printf("\nProcessing and FFT completed in %.4lf sec\n\n", transferTime_sec);
-    #endif
+    // #ifdef VERBOSE_OUTPUT
+    // double transferTime_sec = (GetTickCount() - startTickCount) / 1000.;
+	// printf("\nProcessing and FFT completed in %.4lf sec\n\n", transferTime_sec);
+    // #endif
 
     return FFTData;
+}
+
+
+// // Define the shared data structure
+// struct SharedData {
+//     std::queue<fftw_complex*> dataQueue;
+//     std::condition_variable dataReadyCondition;
+//     std::mutex mutex;
+//     bool pauseDataCollection;
+// };
+
+
+void ATS::AcquireDataMultithreadedContinuous(SharedData& sharedData, SynchronizationFlags& syncFlags) {
+    // Set basic flags
+    U32 channelMask = CHANNEL_A | CHANNEL_B;
+    U32 admaFlags = ADMA_TRIGGERED_STREAMING | ADMA_EXTERNAL_STARTCAPTURE;         // Start acquisition when AlazarStartCapture is called
+    int channelCount = 2; 
+
+
+    // Prime board for acquisition
+    retCode = AlazarBeforeAsyncRead(
+        boardHandle,			                    // HANDLE -- board handle
+        channelMask,			                    // U32 -- enabled channel mask
+        0,						                    // long -- offset from trigger in samples
+        acquisitionParams.samplesPerBuffer,		    // U32 -- samples per buffer
+        1,		                                    // U32 -- records per buffer (must be 1)
+        acquisitionParams.recordsPerAcquisition,    // U32 -- records per acquisition 
+        admaFlags				                    // U32 -- AutoDMA flags
+    ); 
+    if (retCode != ApiSuccess) {
+        throw std::runtime_error(std::string("Error: AlazarBeforeAsyncRead failed -- ") + AlazarErrorToText(retCode) + "\n");
+    }
+
+
+    // Allocate and post memory for DMA buffers
+	int bufferIndex;
+	for (bufferIndex = 0; bufferIndex < BUFFER_COUNT; bufferIndex++)
+	{
+		IoBufferArray[bufferIndex] = CreateIoBuffer(acquisitionParams.bytesPerBuffer);
+		if (IoBufferArray[bufferIndex] == NULL) {
+            throw std::runtime_error(std::string("Error: Alloc ") + AlazarErrorToText(retCode) +  "bytes failed\n");
+		}
+	}
+    bool success = TRUE;
+
+	for (bufferIndex = 0; (bufferIndex < BUFFER_COUNT) && (success == TRUE); bufferIndex++)
+	{
+		IO_BUFFER *pIoBuffer = IoBufferArray[bufferIndex];
+		if (!ResetIoBuffer(pIoBuffer)) {
+			success = FALSE;
+		}
+		else {
+			retCode = AlazarPostAsyncBuffer(
+                boardHandle,					// HANDLE -- board handle
+                pIoBuffer->pBuffer,				// void* -- buffer
+                pIoBuffer->uBufferLength_bytes	// U32 -- buffer length in bytes
+            );				
+			if (retCode != ApiSuccess) {
+                throw std::runtime_error(std::string("Error: AlazarAsyncRead ") + std::to_string(bufferIndex) + 
+                                                     " failed -- " + AlazarErrorToText(retCode) + "\n");
+			}
+		}
+	}
+
+
+	// Arm the board to begin the acquisition 
+	if (success) {
+		retCode = AlazarStartCapture(boardHandle);
+		if (retCode != ApiSuccess) {
+			throw std::runtime_error(std::string("Error: AlazarStartCapture failed -- ") + AlazarErrorToText(retCode) + "\n");
+            success = false;
+		}
+	}
+
+
+	// Wait for each buffer to be filled, process the buffer, and re-post it to the board.
+	if (success) {
+        #ifdef VERBOSE_OUTPUT
+		printf("Capturing %d buffers ... press any key to abort\n", acquisitionParams.buffersPerAcquisition);
+        #endif
+
+		DWORD startTickCount = GetTickCount();
+		U32 buffersCompleted = 0;
+		INT64 bytesTransferred = 0;
+
+
+		while (buffersCompleted < acquisitionParams.buffersPerAcquisition) {
+            // Check the pause flag within the lock
+            {
+                std::lock_guard<std::mutex> lock(syncFlags.mutex);
+                if (syncFlags.pauseDataCollection) {
+                    std::cout << "Received pause signal" << std::endl;
+                    break;
+                }
+            }
+
+            // Send a software trigger to begin acquisition
+            retCode = AlazarForceTrigger(boardHandle);
+            if (retCode != ApiSuccess) {
+                throw std::runtime_error(std::string("Error: Trigger failed to send -- ") + AlazarErrorToText(retCode) + "\n");
+            }
+
+
+            // Timeout after 10x the expected time for 1 buffer
+			DWORD timeout_ms = (DWORD)(10*1e3*acquisitionParams.samplesPerBuffer/acquisitionParams.sampleRate); 
+
+			// Wait for the buffer at the head of the list of available buffers to be filled by the board.
+			bufferIndex = buffersCompleted % BUFFER_COUNT;
+			IO_BUFFER *pIoBuffer = IoBufferArray[bufferIndex];
+			retCode = AlazarWaitAsyncBufferComplete(
+                boardHandle, 
+                pIoBuffer->pBuffer, 
+                timeout_ms
+            );
+
+			if (retCode == ApiSuccess) {
+                // This buffer is full and has been removed from the list of buffers available to the board.
+                // DWORD startProcTickCount = GetTickCount();
+                fftw_complex* complexOutput = reinterpret_cast<fftw_complex*>(fftw_malloc(sizeof(fftw_complex) * acquisitionParams.samplesPerBuffer));
+
+                std::vector<unsigned short> bufferData(reinterpret_cast<unsigned short*>(pIoBuffer->pBuffer),
+                                      reinterpret_cast<unsigned short*>(pIoBuffer->pBuffer) + (acquisitionParams.bytesPerBuffer / sizeof(unsigned short)));
+
+
+                for (unsigned int i=0; i < bufferData.size()/2; i++) {
+                    complexOutput[i][0] = (bufferData[i]   / (double)0xFFFF) * 2 * acquisitionParams.inputRange - acquisitionParams.inputRange;
+                    complexOutput[i][1] = (bufferData[bufferData.size()/2 + i]  / (double)0xFFFF) * 2 * acquisitionParams.inputRange - acquisitionParams.inputRange;
+
+                    // Trick to 0-center the dft
+                    if (i % 2 == 1) {
+                        complexOutput[i][0] *= -1;
+                        complexOutput[i][1] *= -1;
+                    }
+                }
+
+
+                // Push the data to the shared data queue and notify the processing thread that data is ready
+                {
+                    std::lock_guard<std::mutex> lock(sharedData.mutex);
+                    sharedData.dataQueue.push(complexOutput);
+                    complexOutput = nullptr;
+                }
+                sharedData.dataReadyCondition.notify_one();
+
+                buffersCompleted++;
+				bytesTransferred += acquisitionParams.bytesPerBuffer;	
+
+                // std::cout << "Acquired " << buffersCompleted << " buffers." << std::endl;
+
+                // double bufferProcTime_sec = (GetTickCount() - startProcTickCount) / 1000.;
+	            // std::cout << "Buffer processed in " << bufferProcTime_sec << " sec" << std::endl;
+            }
+			else {
+				// The wait failed
+				success = FALSE;
+
+				switch (retCode)
+				{
+				case ApiWaitTimeout:
+					printf("Error: Wait timeout after %lu ms\n", timeout_ms);
+					break;
+
+				case ApiBufferOverflow:
+					printf("Error: Board overflowed on-board memory\n");
+					break;
+
+                case ApiBufferNotReady:
+					printf("Error: Buffer not found in list of available\n");
+					break;
+
+                case ApiDmaInProgress:
+					printf("Error: Buffer not at the head of available buffers\n");
+					break;
+
+				default:
+					printf("Error: Wait failed with error -- %u\n", GetLastError());
+					break;
+				}
+			}
+
+
+			// Add the buffer to the end of the list of available buffers so that 
+			// the board can fill it with data from another segment of the acquisition.
+			if (success) {
+				if (!ResetIoBuffer (pIoBuffer)) {
+					success = FALSE;
+				}
+				else {
+                    retCode = AlazarPostAsyncBuffer(
+                        boardHandle,					// HANDLE -- board handle
+                        pIoBuffer->pBuffer,				// void* -- buffer
+                        pIoBuffer->uBufferLength_bytes	// U32 -- buffer length in bytes
+                    );		
+					if (retCode != ApiSuccess) {
+						printf("Error: AlazarPostAsyncBuffer failed -- %s\n", AlazarErrorToText(retCode));
+						success = FALSE;
+					}
+				}
+			}
+
+
+			// If the acquisition failed, exit the acquisition loop
+			if (!success) {
+				break;
+            }
+	
+			// If a key was pressed, exit the acquisition loop					
+			if (_kbhit()) {
+				printf("Aborted...\n");
+				break;
+			}
+
+            #ifdef VERBOSE_OUTPUT
+			// Display progress
+			printf("Completed %u buffers\r", buffersCompleted);
+            #endif
+		}
+
+        #ifdef VERBOSE_OUTPUT
+		double buffersPerSec;
+		double bytesPerSec;
+
+        double transferTime_sec = (GetTickCount() - startTickCount) / 1000.;
+        double minTime = (double)acquisitionParams.samplesPerBuffer/acquisitionParams.sampleRate*buffersCompleted;
+        
+		if (transferTime_sec > 0.)
+		{
+			buffersPerSec = buffersCompleted / transferTime_sec;
+			bytesPerSec = bytesTransferred / transferTime_sec;
+		}
+		else
+		{
+			buffersPerSec = 0.;
+			bytesPerSec = 0.;
+		}
+
+        // Display results
+        printf("Captured %d buffers (%.4g buffers per sec)\n", buffersCompleted, buffersPerSec);
+
+		printf("Capture completed in %.3lf sec\n", transferTime_sec);
+        printf("Minimum possible time was %.3lf sec for a duty cycle of %.3lf\n", minTime, minTime/transferTime_sec);
+		
+		printf("Transferred %I64d bytes (%.4g bytes per sec)\n", bytesTransferred, bytesPerSec);
+        #endif
+	}
+
+	// Abort the acquisition
+	retCode = AlazarAbortAsyncRead(boardHandle);
+	if (retCode != ApiSuccess) {
+		printf("Error: AlazarAbortAsyncRead failed -- %s\n", AlazarErrorToText(retCode));
+		success = FALSE;
+	}
+
+	// Free all memory allocated
+	for (bufferIndex = 0; bufferIndex < BUFFER_COUNT; bufferIndex++) {
+		if (IoBufferArray[bufferIndex] != NULL)
+			DestroyIoBuffer(IoBufferArray[bufferIndex]);
+	}
+
+    return;
 }

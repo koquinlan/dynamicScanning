@@ -3,6 +3,9 @@
 
 #include <string>
 #include <vector>
+#include <queue>
+#include <condition_variable>
+#include <mutex>
 
 #include <fftw3.h>
 
@@ -27,6 +30,31 @@ struct AcquisitionParameters {
     U32 bytesPerBuffer;
 };
 
+struct SharedData {
+    std::mutex mutex;
+
+    int samplesPerBuffer;
+
+    std::queue<fftw_complex*> dataQueue;
+    std::queue<fftw_complex*> dataSavingQueue;
+    std::queue<fftw_complex*> processedDataQueue;
+
+    std::condition_variable dataReadyCondition;
+    std::condition_variable saveReadyCondition;
+    std::condition_variable processedDataReadyCondition;
+};
+
+struct SynchronizationFlags {
+    std::mutex mutex;
+    bool pauseDataCollection;
+    bool acquisitionComplete;
+    bool dataReady;
+    bool dataProcessingComplete;
+
+    SynchronizationFlags() : pauseDataCollection(false), acquisitionComplete(false),
+                             dataReady(false), dataProcessingComplete(false) {}
+};
+
 
 class ATS {
 public:
@@ -39,6 +67,7 @@ public:
     void setBandwidthLimit(char channel, bool limit);
 
     fftw_complex* AcquireData();
+    void AcquireDataMultithreadedContinuous(SharedData& sharedData, SynchronizationFlags& syncFlags);
 
     U32 suggestBufferNumber(U32 sampleRate, U32 samplesPerAcquisition);
 
