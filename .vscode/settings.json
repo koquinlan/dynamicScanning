@@ -78,6 +78,8 @@
         "random": "cpp",
         "ranges": "cpp",
         "set": "cpp",
-        "span": "cpp"
+        "span": "cpp",
+        "cinttypes": "cpp",
+        "filesystem": "cpp"
     }
 }

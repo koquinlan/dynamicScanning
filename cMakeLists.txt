@@ -1,6 +1,9 @@
 cmake_minimum_required(VERSION 3.0)
 project(lab_control)
 
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
 # Set the path to the VISA and ATS library and include directory
 set(VISA_LIBRARY ${CMAKE_CURRENT_SOURCE_DIR}/libs/visa64.lib) # Replace with the actual path to the VISA library
 set(VISA_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include/VISA) # Replace with the actual path to the VISA include directory
@@ -26,14 +29,15 @@ set(FFTW3_INCLUDE_DIR ${FFTW3_DIR}/include)
 #
 set(CMAKE_PREFIX_PATH $ENV{LIBS}/eigen-3.3.9)
 message(STATUS "Prefix path set to ${CMAKE_PREFIX_PATH}")
-
-#
 find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 
 # Find Python Packages
 find_package(Python3 3.7 EXACT COMPONENTS Interpreter NumPy Development REQUIRED)
 message(STATUS "Found Python version: ${Python3_VERSION}")
 message(STATUS "Interpreter Path: ${Python3_EXECUTABLE}")
+
+set(CMAKE_PREFIX_PATH $ENV{LIBS}/HDF5)
+find_package(HDF5 REQUIRED COMPONENTS CXX)
 
 include_directories(include)
 add_subdirectory(src)
