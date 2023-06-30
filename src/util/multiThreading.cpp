@@ -1,28 +1,37 @@
 #include "decs.hpp"
 
+/**
+ * @brief Function to be run in a separate thread in parallel with ATS::AcquireDataMultithreadedContinuous. Fourier transforms incoming data and
+ *        pushes the result to the decision making and saving queues.
+ * 
+ * @param plan - FFTW plan object for the FFT
+ * @param N - Number of samples per buffer shared in the data queue
+ * @param sharedData - Struct containing data shared between threads
+ * @param syncFlags - Struct containing synchronization flags shared between threads
+ */
 void processingThread(fftw_plan plan, int N, SharedData& sharedData, SynchronizationFlags& syncFlags) {
     int numProcessed = 0;
     while (true) {
-        // Check if data queue is empty
+        // Wait for signal from dataReadyCondition or immediately continue if the data queue is not empty (lock releases while waiting)
         std::unique_lock<std::mutex> lock(sharedData.mutex);
         sharedData.dataReadyCondition.wait(lock, [&sharedData]() {
             return !sharedData.dataQueue.empty();
         });
 
 
-        // Process data if the data queue is not empty
+        // Process data until data queue is empty (lock is reaquired before checking the data queue)
         while (!sharedData.dataQueue.empty()) {
             // Get the pointer to the data from the queue
             fftw_complex* complexOutput = sharedData.dataQueue.front();
             sharedData.dataQueue.pop();
             lock.unlock();
 
-            // Process the data
+            // Process the data (lock is released while processing)
             fftw_complex* procData = processDataFFT(complexOutput, plan, N);
             numProcessed++;
-            // std::cout << "Processed " << std::to_string(numProcessed) << " buffers." << std::endl;
 
-            // Reaquire a lock and push the processed data to the shared queue
+
+            // Acquire a new lock_guard and push the processed data to the shared queue
             {
                 std::lock_guard<std::mutex> lock(sharedData.mutex);
                 sharedData.dataSavingQueue.push(complexOutput);
@@ -30,11 +39,11 @@ void processingThread(fftw_plan plan, int N, SharedData& sharedData, Synchroniza
             }
             sharedData.processedDataReadyCondition.notify_one();
             sharedData.saveReadyCondition.notify_one();
-
-            lock.lock();  // Lock again before checking the data queue
+            
+            lock.lock();  // Reacquire lock before checking the data queue
         }
 
-        // Check if the acquisition is complete
+        // Check if the acquisition and processing is complete
         {
             std::lock_guard<std::mutex> lock(syncFlags.mutex);
             if (syncFlags.acquisitionComplete && sharedData.dataQueue.empty()) {
@@ -45,6 +54,14 @@ void processingThread(fftw_plan plan, int N, SharedData& sharedData, Synchroniza
 }
 
 
+
+/**
+ * @brief Placeholder function to be run in a separate thread in parallel with ATS::AcquireDataMultithreadedContinuous. 
+ *        Currently just pops data from the processed data queue and frees the memory.
+ * 
+ * @param sharedData - Struct containing data shared between threads
+ * @param syncFlags - Struct containing synchronization flags shared between threads
+ */
 void decisionMakingThread(SharedData& sharedData, SynchronizationFlags& syncFlags) {
     int buffersProcessed = 0;
     while (true) {
@@ -88,6 +105,16 @@ void decisionMakingThread(SharedData& sharedData, SynchronizationFlags& syncFlag
 }
 
 
+
+/**
+ * @brief Function to be run in a separate thread in parallel with ATS::AcquireDataMultithreadedContinuous. Saves data from the data 
+ *        saving queue to binary files. The data is saved in the output directory.
+ * 
+ * @todo Change file I/O system to HDF5 or similar
+ * 
+ * @param sharedData - Struct containing data shared between threads
+ * @param syncFlags - Struct containing synchronization flags shared between threads
+ */
 void saveDataToBin(SharedData& sharedData, SynchronizationFlags& syncFlags) {
     // Create the output directory
     std::filesystem::create_directory("output");
