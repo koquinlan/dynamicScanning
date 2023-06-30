@@ -1,17 +1,4 @@
-#include "ATS.hpp"
-
-#include <iostream>
-#include <fstream>
-#include <stdexcept>
-#include <stdio.h>
-#include <conio.h>
-
-#include <cmath>
-#include <algorithm>
-
-#include <fftw3.h>
-
-#define VERBOSE_OUTPUT (1)
+#include "decs.hpp"
 
 
 /**

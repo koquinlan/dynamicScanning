@@ -1,10 +1,4 @@
-#include "PSG.hpp"
-
-#include <iostream>
-#include <string>
-#include <stdexcept>
-
-#include <visa.h>
+#include "decs.hpp"
 
 
 PSG::PSG(int gpibAddress) {

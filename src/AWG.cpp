@@ -1,14 +1,4 @@
-#include "AWG.hpp"
-
-#include <string>
-#include <vector>
-
-#include <iostream>
-#include <sstream>
-
-#include <stdexcept>
-
-#include <visa.h>
+#include "decs.hpp"
 
 AWG::AWG(int gpibAddress){
     openConnection(gpibAddress);

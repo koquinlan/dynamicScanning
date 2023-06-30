@@ -1,12 +1,7 @@
 #ifndef AWG_H
 #define AWG_H
 
-#include <string>
-#include <vector>
-
-#include <visa.h>
-
-#include "instrument.hpp"
+#include "decs.hpp"
 
 class AWG : public Instrument {
 public:

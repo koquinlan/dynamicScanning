@@ -1,9 +1,7 @@
 #ifndef PSG_H
 #define PSG_H
 
-#include <visa.h>
-
-#include "instrument.hpp"
+#include "decs.hpp"
 
 class PSG : public Instrument{
 public:

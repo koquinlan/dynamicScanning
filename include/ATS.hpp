@@ -12,20 +12,7 @@
 #ifndef ATS_H
 #define ATS_H
 
-#include <string>
-#include <vector>
-#include <queue>
-#include <condition_variable>
-#include <mutex>
-
-#include <fftw3.h>
-
-#include "AlazarError.h"
-#include "AlazarApi.h"
-#include "AlazarCmd.h"
-#include "IoBuffer.h"
-
-#define BUFFER_COUNT 8
+#include "decs.hpp"
 
 /**
  * @brief Struct for storing acquisition parameters. Set by setAcquisitionParameters() method and accessed throughout the class.

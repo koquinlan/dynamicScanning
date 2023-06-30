@@ -1,10 +1,7 @@
 #ifndef INST_H
 #define INST_H
 
-#include <iostream>
-#include <string>
-
-#include <visa.h>
+#include "decs.hpp"
 
 class Instrument {
 protected:

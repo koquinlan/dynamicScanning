@@ -1,11 +1,4 @@
-#include "instrument.hpp"
-
-#include <string>
-#include <iostream>
-
-#include <stdexcept>
-
-#include <visa.h>
+#include "decs.hpp"
 
 Instrument::Instrument() {
     status = viOpenDefaultRM(&defaultRM);
