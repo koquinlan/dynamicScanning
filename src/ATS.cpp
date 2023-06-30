@@ -14,6 +14,12 @@
 #define VERBOSE_OUTPUT (1)
 
 
+/**
+ * @brief Construct a new ATS::ATS object. This will open the board and set the boardHandle member variable. Default to system ID 1, board ID 1.
+ * 
+ * @param systemId 
+ * @param boardId 
+ */
 ATS::ATS(int systemId, int boardId) {
     boardHandle = AlazarGetBoardBySystemID(systemId, boardId);
     if (boardHandle == NULL) {
@@ -22,7 +28,10 @@ ATS::ATS(int systemId, int boardId) {
 }
 
 
-
+/**
+ * @brief Destroy the ATS::ATS object. This will close the board and free the boardHandle member variable.
+ * 
+ */
 ATS::~ATS() { 
     if (boardHandle != NULL) {
         AlazarClose(boardHandle);
@@ -167,13 +176,19 @@ void ATS::setInputParameters(char channel, std::string coupling, double inputRan
 
 
 
-void ATS::setBandwidthLimit(char channel, bool limit) {
+/**
+ * @brief Toggles the 20MHz low pass filter for a particular channel
+ * 
+ * @param channel           'a' or 'b'      - which channel to set
+ * @param enable            0 or 1          - 0 = disable, 1 = enable
+ */
+void ATS::toggleLowPass(char channel, bool enable) {
     int channelID = getChannelID(channel);
 
     retCode = AlazarSetBWLimit(
         boardHandle,			// HANDLE -- board handle
         channelID,				// U8 -- channel identifier
-        limit					// U32 -- 0 = disable, 1 = enable
+        enable					// U32 -- 0 = disable, 1 = enable
     );
     if (retCode != ApiSuccess) {
         throw std::runtime_error(std::string("Error: AlazarSetBWLimit failed -- ") + AlazarErrorToText(retCode) + "\n");
@@ -182,6 +197,12 @@ void ATS::setBandwidthLimit(char channel, bool limit) {
 
 
 
+/**
+ * @brief Converts a channel character to a channel ID. Purely for convenience in other methods.
+ * 
+ * @param channel 'a' or 'b'      - which channel to set
+ * @return int - channel ID (CHANNEL_A or CHANNEL_B)
+ */
 int ATS::getChannelID(char channel){
     int channelID;
     channel = std::toupper(channel);
@@ -197,8 +218,61 @@ int ATS::getChannelID(char channel){
 
 
 
+/**
+ * @brief Suggests a number of buffers to use for a given sample rate and number of samples per acquisition. Attempts to optimize buffer size for DMA speed
+ * 
+ * @param sampleRate - desired sample rate in Hz
+ * @param samplesPerAcquisition - desired number of samples over the full acquisition
+ * @return U32 - suggested number of buffers to use for given parameters
+ */
+U32 ATS::suggestBufferNumber(U32 sampleRate, U32 samplesPerAcquisition){
+    // For optimal performance buffer sizes should be between 1MB and 16MB. Absolute maximum is 64MB
+    // As per https://docs.alazartech.com/ats-sdk-user-guide/latest/reference/AlazarBeforeAsyncRead.html
+
+    int channelCount = 2; 
+    int desiredBytesPerBuffer = (int)4e6; // Shoot for 4MB buffer sizes
+
+    // Get the sample size in bits, and the on-board memory size in samples per channel
+	U8 bitsPerSample;
+	U32 maxSamplesPerChannel;
+	RETURN_CODE retCode = AlazarGetChannelInfo(boardHandle, &maxSamplesPerChannel, &bitsPerSample);
+	if (retCode != ApiSuccess) {
+        throw std::runtime_error(std::string("Error: AlazarGetChannelInfo failed -- ") + AlazarErrorToText(retCode) + "\n");
+	}
+
+
+    // Calculate remaining parameters
+    U32 bytesPerSample = (bitsPerSample + 7) / 8;
+	U32 buffersPerAcquisition = max(1, (U32)std::round(bytesPerSample * samplesPerAcquisition * channelCount / desiredBytesPerBuffer)); 
+
+    // Make sure the number of buffers evenly divides the number of samples
+    int spread = 1;
+    while((samplesPerAcquisition % buffersPerAcquisition != 0)) {
+        if (samplesPerAcquisition % (buffersPerAcquisition + spread) == 0) {
+            buffersPerAcquisition = buffersPerAcquisition + spread;
+        } 
+        else if (samplesPerAcquisition % (buffersPerAcquisition - spread) == 0) {
+            buffersPerAcquisition = buffersPerAcquisition - spread;
+        }
+        spread++;
+    }
+
+
+    return buffersPerAcquisition;
+}
+
+
+
+/**
+ * @brief Sets the acquisition parameters for the ATS9462. This will set all parameters in the acquisitionParams struct.
+ * 
+ * @param sampleRate - desired sample rate in Hz
+ * @param samplesPerAcquisition - desired number of samples over the full acquisition
+ * @param buffersPerAcquisition - desired number of buffers to split the acquisition into. If 0, will be calculated automatically for efficiency.
+ * @param inputRange - desired full scale voltage range. Valid values are 0.2, 0.4, 0.8, and 2 V
+ * @param inputImpedance - desired input impedance. Valid values are 50 and 1e6 ohms
+ */
 void ATS::setAcquisitionParameters(U32 sampleRate, U32 samplesPerAcquisition, U32 buffersPerAcquisition, double inputRange, double inputImpedance){
-    // 
     if (buffersPerAcquisition <= 0){
         buffersPerAcquisition = suggestBufferNumber(sampleRate, samplesPerAcquisition);
     }
@@ -227,8 +301,9 @@ void ATS::setAcquisitionParameters(U32 sampleRate, U32 samplesPerAcquisition, U3
     acquisitionParams.bytesPerSample = (bitsPerSample + 7) / 8;
     acquisitionParams.bytesPerBuffer = acquisitionParams.bytesPerSample * acquisitionParams.samplesPerBuffer * channelCount;
 
-    // This is calculated from the above parameters since rounding could cause the actual samples to be different than requested
+    // Calculated from the above parameters since rounding could cause the actual sample number to be slightly different than requested
     acquisitionParams.samplesPerAcquisition = acquisitionParams.samplesPerBuffer*acquisitionParams.buffersPerAcquisition;
+
 
     // Send parameters to board
     double realSampleRate = setExternalSampleClock(acquisitionParams.sampleRate);
@@ -238,10 +313,10 @@ void ATS::setAcquisitionParameters(U32 sampleRate, U32 samplesPerAcquisition, U3
     }
 
     setInputParameters('a', "dc", acquisitionParams.inputRange, acquisitionParams.inputImpedance);
-    setBandwidthLimit('a', 1);
+    toggleLowPass('a', 1);
 
     setInputParameters('b', "dc", acquisitionParams.inputRange, acquisitionParams.inputImpedance);
-    setBandwidthLimit('b', 1);                                   
+    toggleLowPass('b', 1);                                   
 
     retCode = AlazarSetRecordSize(
         boardHandle,			    // HANDLE -- board handle
@@ -262,6 +337,15 @@ void ATS::setAcquisitionParameters(U32 sampleRate, U32 samplesPerAcquisition, U3
 }
 
 
+
+/**
+ * @brief Begins an aquisition on the ATS9462 based on parameters set in acquisitionParams struct. Intended for immediate FFT with FFTW library.
+ * 
+ * @warning This function will allocate memory for the raw data. It is the caller's responsibility to free this memory.
+ * @warning Alternating signs applied to the real and imaginary components of the output to center the assumed DFT at 0 later in processing.
+ *
+ * @return fftw_complex* - pointer to the raw data as voltages with channel A and B in real and imaginary components, respectively.
+ */
 fftw_complex* ATS::AcquireData() {
     // Set basic flags
     U32 channelMask = CHANNEL_A | CHANNEL_B;
@@ -284,7 +368,7 @@ fftw_complex* ATS::AcquireData() {
     }
 
 
-    // Allocate and post memory for DMA buffers
+    // Allocate memory for DMA buffers and post them to board
 	int bufferIndex;
 	for (bufferIndex = 0; bufferIndex < BUFFER_COUNT; bufferIndex++)
 	{
@@ -340,17 +424,17 @@ fftw_complex* ATS::AcquireData() {
 		INT64 bytesTransferred = 0;
 
         
-
+        // Main acquisition logic
 		while (buffersCompleted < acquisitionParams.buffersPerAcquisition) {
-            // Send a software trigger to begin acquisition
+            // Send a software trigger to begin acquisition (technically should be unecessary but won't hurt anything)
             retCode = AlazarForceTrigger(boardHandle);
             if (retCode != ApiSuccess) {
                 throw std::runtime_error(std::string("Error: Trigger failed to send -- ") + AlazarErrorToText(retCode) + "\n");
             }
 
-
             // Timeout after 10x the expected time for 1 buffer
 			DWORD timeout_ms = (DWORD)(10*1e3*acquisitionParams.samplesPerBuffer/acquisitionParams.sampleRate); 
+
 
 			// Wait for the buffer at the head of the list of available buffers to be filled by the board.
 			bufferIndex = buffersCompleted % BUFFER_COUNT;
@@ -361,23 +445,25 @@ fftw_complex* ATS::AcquireData() {
                 timeout_ms
             );
 
+            // Process the buffer that was just filled. This buffer is full and has been removed from the list of buffers available to the board.
 			if (retCode == ApiSuccess) {
-                // This buffer is full and has been removed from the list of buffers available to the board.
                 // DWORD startProcTickCount = GetTickCount();
 
                 std::vector<unsigned short> bufferData(reinterpret_cast<unsigned short*>(pIoBuffer->pBuffer),
                                       reinterpret_cast<unsigned short*>(pIoBuffer->pBuffer) + (acquisitionParams.bytesPerBuffer / sizeof(unsigned short)));
 
+                // Deprecated from before I was using FFTW immediately after acquisition
                 fullDataA.insert(fullDataA.end(), bufferData.begin(), bufferData.begin() + bufferData.size()/2);
                 fullDataB.insert(fullDataB.end(), bufferData.begin() + bufferData.size()/2, bufferData.end());
 
+                // Current implementation - pre processes the data into a complex array for FFT
                 for (unsigned int i=0; i < bufferData.size()/2; i++) {
                     int index = buffersCompleted*acquisitionParams.samplesPerBuffer + i;
 
                     complexOutput[index][0] = (bufferData[i]   / (double)0xFFFF) * 2 * acquisitionParams.inputRange - acquisitionParams.inputRange;
                     complexOutput[index][1] = (bufferData[bufferData.size()/2 + i]  / (double)0xFFFF) * 2 * acquisitionParams.inputRange - acquisitionParams.inputRange;
 
-                    // Trick to 0-center the dft
+                    // WARNING: Alternating signs trick to 0-center the dft
                     if (index % 2 == 1) {
                         complexOutput[index][0] *= -1;
                         complexOutput[index][1] *= -1;
@@ -419,8 +505,7 @@ fftw_complex* ATS::AcquireData() {
 			}
 
 
-			// Add the buffer to the end of the list of available buffers so that 
-			// the board can fill it with data from another segment of the acquisition.
+			// Add the buffer to the end of the list of available buffers on the board
 			if (success) {
 				if (!ResetIoBuffer (pIoBuffer)) {
 					success = FALSE;
@@ -437,13 +522,11 @@ fftw_complex* ATS::AcquireData() {
 					}
 				}
 			}
-
-
 			// If the acquisition failed, exit the acquisition loop
 			if (!success) {
 				break;
             }
-	
+
 			// If a key was pressed, exit the acquisition loop					
 			if (_kbhit()) {
 				printf("Aborted...\n");
@@ -457,7 +540,7 @@ fftw_complex* ATS::AcquireData() {
 		}
 
         #ifdef VERBOSE_OUTPUT
-		// Display results
+		// Display timing results for the acquisition
 		double transferTime_sec = (GetTickCount() - startTickCount) / 1000.;
 		printf("Capture completed in %.3lf sec\n", transferTime_sec);
 
@@ -479,12 +562,14 @@ fftw_complex* ATS::AcquireData() {
         #endif
 	}
 
-	// Abort the acquisition
+
+	// Abort the acquisition ("abort" is potentially misleading here - should call even if the acquisition completed normally)
 	retCode = AlazarAbortAsyncRead(boardHandle);
 	if (retCode != ApiSuccess) {
 		printf("Error: AlazarAbortAsyncRead failed -- %s\n", AlazarErrorToText(retCode));
 		success = FALSE;
 	}
+
 
 	// Free all memory allocated
 	for (bufferIndex = 0; bufferIndex < BUFFER_COUNT; bufferIndex++) {
@@ -492,49 +577,20 @@ fftw_complex* ATS::AcquireData() {
 			DestroyIoBuffer(IoBufferArray[bufferIndex]);
 	}
 
+
+    // Return the fftw_complex array for further processing
     return complexOutput;
 }
 
 
 
-U32 ATS::suggestBufferNumber(U32 sampleRate, U32 samplesPerAcquisition){
-    // For optimal performance buffer sizes should be between 1MB and 16MB. Absolute maximum is 64MB
-    // As per https://docs.alazartech.com/ats-sdk-user-guide/latest/reference/AlazarBeforeAsyncRead.html
-
-    int channelCount = 2; 
-    int desiredBytesPerBuffer = (int)4e6; // Shoot for 4MB buffer sizes
-
-    // Get the sample size in bits, and the on-board memory size in samples per channel
-	U8 bitsPerSample;
-	U32 maxSamplesPerChannel;
-	RETURN_CODE retCode = AlazarGetChannelInfo(boardHandle, &maxSamplesPerChannel, &bitsPerSample);
-	if (retCode != ApiSuccess) {
-        throw std::runtime_error(std::string("Error: AlazarGetChannelInfo failed -- ") + AlazarErrorToText(retCode) + "\n");
-	}
-
-
-    // Calculate remaining parameters
-    U32 bytesPerSample = (bitsPerSample + 7) / 8;
-	U32 buffersPerAcquisition = max(1, (U32)std::round(bytesPerSample * samplesPerAcquisition * channelCount / desiredBytesPerBuffer)); 
-
-    // Make sure the number of buffers evenly divides the number of samples
-    int spread = 1;
-    while((samplesPerAcquisition % buffersPerAcquisition != 0)) {
-        if (samplesPerAcquisition % (buffersPerAcquisition + spread) == 0) {
-            buffersPerAcquisition = buffersPerAcquisition + spread;
-        } 
-        else if (samplesPerAcquisition % (buffersPerAcquisition - spread) == 0) {
-            buffersPerAcquisition = buffersPerAcquisition - spread;
-        }
-        spread++;
-    }
-
-
-    return buffersPerAcquisition;
-}
-
-
-
+/**
+ * @brief Deprecated function to process channels from the ATS9462. This will return a pair of vectors containing the voltage data for each channel.
+ * 
+ * @param sampleData - Pair of double vectors containing the raw sample data for each channel saved as unsigned shorts
+ * @param acquisitionParams - Struct containing the acquisition parameters used to collect sampleData
+ * @return std::pair<std::vector<double>, std::vector<double>> - Pair of double vectors containing the voltage data for each channel
+ */
 std::pair<std::vector<double>, std::vector<double>> processData(std::pair<std::vector<unsigned short>, std::vector<unsigned short>> sampleData, AcquisitionParameters acquisitionParams) {
     // Sample codes are unsigned by default so that:
     // - a sample code of 0x0000 represents a negative full scale input signal;
@@ -561,36 +617,32 @@ std::pair<std::vector<double>, std::vector<double>> processData(std::pair<std::v
 
 
 
+/**
+ * @brief Fourier transforms the time domain data from the ATS9462. This will return a fftw_complex array containing frequency domain 
+ * voltage data (raw spectra).
+ * 
+ * @param sampleData - fftw_complex array containing the raw sample data. The real and imaginary components of each element are the 
+ * voltage data for channels A and B, respectively. Should be pre-processed into voltages (currently done in acquisition loop)
+ * @param plan - fftw_plan object containing the plan for the FFT. Should be created before calling this function.
+ * @param N - Number of samples in sampleData. Should be the same as acquisitionParams.samplesPerBuffer or acquisitionParams.samplesPerAcquisition
+ * @return fftw_complex* - Fourier transformed data in the frequency domain
+ */
 fftw_complex* processDataFFT(fftw_complex* sampleData, fftw_plan plan, int N) {
-    // Sample codes are unsigned by default so that:
-    // - a sample code of 0x0000 represents a negative full scale input signal;
-    // - a sample code of 0x8000 represents a 0V signal;
-    // - a sample code of 0xFFFF represents a positive full scale input signal;
-    // #ifdef VERBOSE_OUTPUT
-    // DWORD startTickCount = GetTickCount();
-    // #endif
-
     fftw_complex *FFTData = reinterpret_cast<fftw_complex*>(fftw_malloc(sizeof(fftw_complex) * 2 * N));
     fftw_execute_dft(plan, sampleData, FFTData);
-
-    // #ifdef VERBOSE_OUTPUT
-    // double transferTime_sec = (GetTickCount() - startTickCount) / 1000.;
-	// printf("\nProcessing and FFT completed in %.4lf sec\n\n", transferTime_sec);
-    // #endif
 
     return FFTData;
 }
 
 
-// // Define the shared data structure
-// struct SharedData {
-//     std::queue<fftw_complex*> dataQueue;
-//     std::condition_variable dataReadyCondition;
-//     std::mutex mutex;
-//     bool pauseDataCollection;
-// };
 
-
+/**
+ * @brief Data acquisition loop for the fully parallelized acquisition. Designed to acquire data continuously until the pauseDataCollection flag 
+ * is set to true or the fixed horizon is hit. This function will acquire data, process it into voltage, and save it to the sharedData struct.
+ * 
+ * @param sharedData - Struct containing the shared data between threads. This function will write to dataQueue and signal dataReadyCondition
+ * @param syncFlags - Struct containing the synchronization flags between threads. This function will read the pauseDataCollection flag
+ */
 void ATS::AcquireDataMultithreadedContinuous(SharedData& sharedData, SynchronizationFlags& syncFlags) {
     // Set basic flags
     U32 channelMask = CHANNEL_A | CHANNEL_B;
@@ -613,7 +665,7 @@ void ATS::AcquireDataMultithreadedContinuous(SharedData& sharedData, Synchroniza
     }
 
 
-    // Allocate and post memory for DMA buffers
+    // Allocate memory for DMA buffers and post them to board
 	int bufferIndex;
 	for (bufferIndex = 0; bufferIndex < BUFFER_COUNT; bufferIndex++)
 	{
@@ -622,8 +674,8 @@ void ATS::AcquireDataMultithreadedContinuous(SharedData& sharedData, Synchroniza
             throw std::runtime_error(std::string("Error: Alloc ") + AlazarErrorToText(retCode) +  "bytes failed\n");
 		}
 	}
-    bool success = TRUE;
 
+    bool success = TRUE;
 	for (bufferIndex = 0; (bufferIndex < BUFFER_COUNT) && (success == TRUE); bufferIndex++)
 	{
 		IO_BUFFER *pIoBuffer = IoBufferArray[bufferIndex];
@@ -664,9 +716,9 @@ void ATS::AcquireDataMultithreadedContinuous(SharedData& sharedData, Synchroniza
 		U32 buffersCompleted = 0;
 		INT64 bytesTransferred = 0;
 
-
+        // Main acquisition logic     
 		while (buffersCompleted < acquisitionParams.buffersPerAcquisition) {
-            // Check the pause flag within the lock
+            // Acquire a mutex lock and check if the pause flag has been set
             {
                 std::lock_guard<std::mutex> lock(syncFlags.mutex);
                 if (syncFlags.pauseDataCollection) {
@@ -675,15 +727,16 @@ void ATS::AcquireDataMultithreadedContinuous(SharedData& sharedData, Synchroniza
                 }
             }
 
-            // Send a software trigger to begin acquisition
+
+            // Send a software trigger to begin acquisition (technically should be unecessary but won't hurt anything)
             retCode = AlazarForceTrigger(boardHandle);
             if (retCode != ApiSuccess) {
                 throw std::runtime_error(std::string("Error: Trigger failed to send -- ") + AlazarErrorToText(retCode) + "\n");
             }
 
-
             // Timeout after 10x the expected time for 1 buffer
 			DWORD timeout_ms = (DWORD)(10*1e3*acquisitionParams.samplesPerBuffer/acquisitionParams.sampleRate); 
+
 
 			// Wait for the buffer at the head of the list of available buffers to be filled by the board.
 			bufferIndex = buffersCompleted % BUFFER_COUNT;
@@ -694,8 +747,9 @@ void ATS::AcquireDataMultithreadedContinuous(SharedData& sharedData, Synchroniza
                 timeout_ms
             );
 
+
+            // Process the buffer that was just filled. This buffer is full and has been removed from the list of buffers available to the board.
 			if (retCode == ApiSuccess) {
-                // This buffer is full and has been removed from the list of buffers available to the board.
                 // DWORD startProcTickCount = GetTickCount();
                 fftw_complex* complexOutput = reinterpret_cast<fftw_complex*>(fftw_malloc(sizeof(fftw_complex) * acquisitionParams.samplesPerBuffer));
 
@@ -803,7 +857,7 @@ void ATS::AcquireDataMultithreadedContinuous(SharedData& sharedData, Synchroniza
 
         double transferTime_sec = (GetTickCount() - startTickCount) / 1000.;
         double minTime = (double)acquisitionParams.samplesPerBuffer/acquisitionParams.sampleRate*buffersCompleted;
-        
+
 		if (transferTime_sec > 0.)
 		{
 			buffersPerSec = buffersCompleted / transferTime_sec;
@@ -825,12 +879,14 @@ void ATS::AcquireDataMultithreadedContinuous(SharedData& sharedData, Synchroniza
         #endif
 	}
 
-	// Abort the acquisition
+
+	// Abort the acquisition ("abort" is potentially misleading here - should call even if the acquisition completed normally)
 	retCode = AlazarAbortAsyncRead(boardHandle);
 	if (retCode != ApiSuccess) {
 		printf("Error: AlazarAbortAsyncRead failed -- %s\n", AlazarErrorToText(retCode));
 		success = FALSE;
 	}
+
 
 	// Free all memory allocated
 	for (bufferIndex = 0; bufferIndex < BUFFER_COUNT; bufferIndex++) {
