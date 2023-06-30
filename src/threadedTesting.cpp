@@ -39,8 +39,8 @@ int main() {
     try{
         // Start the threads
         std::thread acquisitionThread(&ATS::AcquireDataMultithreadedContinuous, &alazarCard, std::ref(sharedData), std::ref(syncFlags));
-        std::thread processingThread(ProcessingThread, plan, N, std::ref(sharedData), std::ref(syncFlags));
-        std::thread decisionMakingThread(DecisionMakingThread, std::ref(sharedData), std::ref(syncFlags));
+        std::thread processingThread(processingThread, plan, N, std::ref(sharedData), std::ref(syncFlags));
+        std::thread decisionMakingThread(decisionMakingThread, std::ref(sharedData), std::ref(syncFlags));
 
         #if SAVE_DATA
         std::thread savingThread(saveDataToBin, std::ref(sharedData), std::ref(syncFlags));

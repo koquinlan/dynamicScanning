@@ -11,6 +11,16 @@
 
 /*******************************************************************************
  *                                                                            *
+ * GLOBAL MACROS AND DEFINITIONS                                               *
+ *                                                                            *
+ ******************************************************************************/
+#define BUFFER_COUNT (8)
+
+#define VERBOSE_OUTPUT (1)
+
+
+/*******************************************************************************
+ *                                                                            *
  * INCLUDES                                                                   *
  *                                                                            *
  ******************************************************************************/
@@ -56,21 +66,29 @@ namespace plt = matplotlibcpp;
 
 
 // Class includes
+#include "instrument.hpp"
+
 #include "PSG.hpp"
 #include "AWG.hpp"
 #include "ATS.hpp"
-#include "instrument.hpp"
-#include "tests.hpp"
-#include "multiThreading.hpp"
-
-
 
 
 /*******************************************************************************
  *                                                                            *
- * GLOBAL MACROS AND DEFINITIONS                                               *
+ * FUNCTION DECLARATIONS                                                      *
  *                                                                            *
  ******************************************************************************/
-#define BUFFER_COUNT (8)
 
-#define VERBOSE_OUTPUT (1)
+// tests.cpp
+void printAvailableResources();
+void psgTesting(int gpibAdress);
+void awgTesting(int gpibAdress);
+
+// multiThreading.cpp
+void processingThread(fftw_plan plan, int N, SharedData& sharedData, SynchronizationFlags& syncFlags);
+void decisionMakingThread(SharedData& sharedData, SynchronizationFlags& syncFlags);
+void saveDataToBin(SharedData& sharedData, SynchronizationFlags& syncFlags);
+void saveDataToHDF5(SharedData& sharedData, SynchronizationFlags& syncFlags);
+
+
+#endif // DECS_H

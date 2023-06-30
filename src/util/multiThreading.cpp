@@ -1,6 +1,6 @@
 #include "decs.hpp"
 
-void ProcessingThread(fftw_plan plan, int N, SharedData& sharedData, SynchronizationFlags& syncFlags) {
+void processingThread(fftw_plan plan, int N, SharedData& sharedData, SynchronizationFlags& syncFlags) {
     int numProcessed = 0;
     while (true) {
         // Check if data queue is empty
@@ -45,7 +45,7 @@ void ProcessingThread(fftw_plan plan, int N, SharedData& sharedData, Synchroniza
 }
 
 
-void DecisionMakingThread(SharedData& sharedData, SynchronizationFlags& syncFlags) {
+void decisionMakingThread(SharedData& sharedData, SynchronizationFlags& syncFlags) {
     int buffersProcessed = 0;
     while (true) {
         // Check if processed data queue is empty

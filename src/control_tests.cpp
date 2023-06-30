@@ -1,21 +1,4 @@
-#include "matplotlibcpp.h"
-namespace plt = matplotlibcpp;
-
-#include <iostream>
-#include <cmath>
-
-#include <string>
-#include <vector>
-
-#include <chrono>
-#include <thread>
-#include <stdexcept>
-#include <fftw3.h>
-
-#include "PSG.hpp"
-#include "AWG.hpp"
-#include "ATS.hpp"
-#include "tests.hpp"
+#include "decs.hpp"
 
 int main() {
     printAvailableResources();

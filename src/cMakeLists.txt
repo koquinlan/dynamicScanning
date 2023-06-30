@@ -1,12 +1,14 @@
 project(lab_control)
 
 set(SOURCES
-    instrument.cpp
-    PSG.cpp
-    AWG.cpp
-    ATS.cpp
+    instruments/instrument.cpp
+    instruments/PSG.cpp
+    instruments/AWG.cpp
+    instruments/ATS.cpp
 
-    IoBuffer.cpp
+    util/IoBuffer.cpp
+    util/multiThreading.cpp
+    util/tests.cpp
 )
 
 message(STATUS ${SOURCES})
