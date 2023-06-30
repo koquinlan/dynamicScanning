@@ -1,3 +1,19 @@
+/**
+ * @file multiThreading.cpp
+ * @author Kyle Quinlan (kyle.quinlan@colorado.edu)
+ * @brief Provides function definitions meant for use in multithreaded data acquisition. See ATS::AcquireDataMultithreadedContinuous for further usage.
+ * @version 0.1
+ * @date 2023-06-30
+ * 
+ * @copyright Copyright (c) 2023
+ * 
+ * @note See include/ATS.hpp for shared data and sync flag structures
+ * 
+ * @todo Change file I/O system to HDF5 or similar
+ * @todo Implement real decision making engine in decisionMakingThread
+ * 
+ */
+
 #include "decs.hpp"
 
 /**
@@ -109,8 +125,6 @@ void decisionMakingThread(SharedData& sharedData, SynchronizationFlags& syncFlag
 /**
  * @brief Function to be run in a separate thread in parallel with ATS::AcquireDataMultithreadedContinuous. Saves data from the data 
  *        saving queue to binary files. The data is saved in the output directory.
- * 
- * @todo Change file I/O system to HDF5 or similar
  * 
  * @param sharedData - Struct containing data shared between threads
  * @param syncFlags - Struct containing synchronization flags shared between threads

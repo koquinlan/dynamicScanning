@@ -1,10 +1,13 @@
-/******************************************************************************
- *                                                                            *
- * DECS.H                                                                     *
- *                                                                            *
- * GLOBAL MACROS, FUNCTION DEFINITIONS, INCLUDES, AND DECLARATIONS            *
- *                                                                            *
- ******************************************************************************/
+/**
+ * @file decs.hpp
+ * @author Kyle Quinlan (kyle.quinlan@colorado.edu)
+ * @brief Defines global macros, includes and function prototypes for the project.
+ * @version 0.1
+ * @date 2023-06-30
+ * 
+ * @copyright Copyright (c) 2023
+ * 
+ */
 
 #ifndef DECS_H
 #define DECS_H

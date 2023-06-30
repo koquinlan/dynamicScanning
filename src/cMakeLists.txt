@@ -13,7 +13,7 @@ set(SOURCES
 
 message(STATUS ${SOURCES})
 
-add_executable(lab_control ${SOURCES} control_tests.cpp)
+add_executable(lab_control ${SOURCES} controlTests.cpp)
 
 # Include the VISA header file
 target_include_directories(lab_control PRIVATE ${VISA_INCLUDE_DIR} ${ALAZAR_INCLUDE_DIR} ${Python3_INCLUDE_DIRS} ${Python3_NumPy_INCLUDE_DIRS} ${FFTW3_INCLUDE_DIR} ${HDF5_INCLUDE_DIRS})

@@ -1,3 +1,14 @@
+/**
+ * @file AWG.cpp
+ * @author Kyle Quinlan (kyle.quinlan@colorado.edu)
+ * @brief Method definitions and documentation for the AWG class. See include\AWG.hpp for the class definition.
+ * @version 0.1
+ * @date 2023-06-30
+ * 
+ * @copyright Copyright (c) 2023
+ * 
+ */
+
 #include "decs.hpp"
 
 AWG::AWG(int gpibAddress){

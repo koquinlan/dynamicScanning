@@ -1,3 +1,19 @@
+/**
+ * @file ATS.cpp
+ * @author Kyle Quinlan (kyle.quinlan@colorado.edu)
+ * @brief Method definitions and documentation for ATS class. See include\ATS.hpp for class definition.
+ * @version 0.1
+ * @date 2023-06-30
+ * 
+ * @copyright Copyright (c) 2023
+ * 
+ * @note Some of the code in this file is adapted from the AlazarTech SDK examples. See the following for more information: 
+ * http://research.physics.illinois.edu/bezryadin/labprotocol/ATS-SDK-Guide-5.8.2.pdf
+ * 
+ * @warning Some functions assume a 2-channel acquisition. If you want to use this with a single channel, you will need to modify the code.
+ * 
+ */
+
 #include "decs.hpp"
 
 

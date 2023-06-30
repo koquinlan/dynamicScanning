@@ -1,3 +1,16 @@
+/**
+ * @file instrument.cpp
+ * @author Kyle Quinlan (kyle.quinlan@colorado.edu)
+ * @brief Method definitions and documentation for the Instrument parent class template. See include\instrument.hpp for the class definition.
+ * @version 0.1
+ * @date 2023-06-30
+ * 
+ * @copyright Copyright (c) 2023
+ * 
+ * @note This file is intended for use with any instrument that communicates via GPIB/VISA.
+ * 
+ */
+
 #include "decs.hpp"
 
 Instrument::Instrument() {

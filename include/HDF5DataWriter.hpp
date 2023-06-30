@@ -1,5 +1,17 @@
-#include "decs.hpp"
+/**
+ * @file HDF5DataWriter.hpp
+ * @author Kyle Quinlan (kyle.quinlan@colorado.edu)
+ * @brief Class for HDF5 file I/O system
+ * @version 0.1
+ * @date 2023-06-30
+ * 
+ * @copyright Copyright (c) 2023
+ * 
+ * @warning This class is not currently used in the project. It is a work in progress.
+ * 
+ */
 
+#include "decs.hpp"
 
 class HDF5DataWriter {
 public:

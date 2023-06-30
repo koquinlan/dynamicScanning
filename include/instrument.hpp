@@ -1,3 +1,14 @@
+/**
+ * @file instrument.hpp
+ * @author Kyle Quinlan (kyle.quinlan@colorado.edu)
+ * @brief Parent instrument class for GPIB/VISA instruments to inherit from
+ * @version 0.1
+ * @date 2023-06-30
+ * 
+ * @copyright Copyright (c) 2023
+ * 
+ */
+
 #ifndef INST_H
 #define INST_H
 

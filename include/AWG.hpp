@@ -1,3 +1,14 @@
+/**
+ * @file AWG.hpp
+ * @author Kyle Quinlan (kyle.quinlan@colorado.edu)
+ * @brief Instrument class for controlling the Agilent 33522A Arbitrary Waveform Generator.
+ * @version 0.1
+ * @date 2023-06-30
+ * 
+ * @copyright Copyright (c) 2023
+ * 
+ */
+
 #ifndef AWG_H
 #define AWG_H
 

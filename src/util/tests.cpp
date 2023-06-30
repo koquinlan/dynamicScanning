@@ -1,3 +1,14 @@
+/**
+ * @file tests.cpp
+ * @author Kyle Quinlan (kyle.quinlan@colorado.edu)
+ * @brief Implements some basic tests for the VISA communication and PSG/AWG classes.
+ * @version 0.1
+ * @date 2023-06-30
+ * 
+ * @copyright Copyright (c) 2023
+ * 
+ */
+
 #include "decs.hpp"
 
 void printAvailableResources() {
