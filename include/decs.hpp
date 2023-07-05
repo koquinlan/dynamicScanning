@@ -69,11 +69,11 @@ namespace plt = matplotlibcpp;
 
 
 // Class includes
-#include "instrument.hpp"
+#include "instruments/instrument.hpp"
 
-#include "PSG.hpp"
-#include "AWG.hpp"
-#include "ATS.hpp"
+#include "instruments/PSG.hpp"
+#include "instruments/AWG.hpp"
+#include "instruments/ATS.hpp"
 
 
 /*******************************************************************************
