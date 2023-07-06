@@ -24,7 +24,7 @@
 
 /*******************************************************************************
  *                                                                            *
- * INCLUDES                                                                   *
+ * LIBRARY INCLUDES                                                           *
  *                                                                            *
  ******************************************************************************/
 
@@ -64,16 +64,42 @@
 
 #include "H5Cpp.h"
 
-#include "matplotlibcpp.h"
+#include "utils/matplotlibcpp.h"
 namespace plt = matplotlibcpp;
 
 
-// Class includes
-#include "instruments/instrument.hpp"
+/*******************************************************************************
+ *                                                                            *
+ * STRUCTS AND GLOBALS                                                        *
+ *                                                                            *
+ ******************************************************************************/
 
-#include "instruments/PSG.hpp"
-#include "instruments/AWG.hpp"
-#include "instruments/ATS.hpp"
+// Struct for storing data shared between threads. Used for multithreaded data acquisition.
+struct SharedData {
+    std::mutex mutex;
+
+    int samplesPerBuffer;
+
+    std::queue<fftw_complex*> dataQueue;
+    std::queue<fftw_complex*> dataSavingQueue;
+    std::queue<fftw_complex*> processedDataQueue;
+
+    std::condition_variable dataReadyCondition;
+    std::condition_variable saveReadyCondition;
+    std::condition_variable processedDataReadyCondition;
+};
+
+// Struct for storing synchronization flags. Used for multithreaded data acquisition.
+struct SynchronizationFlags {
+    std::mutex mutex;
+    bool pauseDataCollection;
+    bool acquisitionComplete;
+    bool dataReady;
+    bool dataProcessingComplete;
+
+    SynchronizationFlags() : pauseDataCollection(false), acquisitionComplete(false),
+                             dataReady(false), dataProcessingComplete(false) {}
+};
 
 
 /*******************************************************************************
@@ -93,5 +119,18 @@ void decisionMakingThread(SharedData& sharedData, SynchronizationFlags& syncFlag
 void saveDataToBin(SharedData& sharedData, SynchronizationFlags& syncFlags);
 void saveDataToHDF5(SharedData& sharedData, SynchronizationFlags& syncFlags);
 
+
+/*******************************************************************************
+ *                                                                            *
+ * CLASS DEFINITIONS                                                          *
+ *                                                                            *
+ ******************************************************************************/
+
+// Class includes
+#include "instruments/instrument.hpp"
+
+#include "instruments/PSG.hpp"
+#include "instruments/AWG.hpp"
+#include "instruments/ATS.hpp"
 
 #endif // DECS_H

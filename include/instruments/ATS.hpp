@@ -33,40 +33,6 @@ struct AcquisitionParameters {
 };
 
 /**
- * @brief Struct for storing data shared between threads. Used for multithreaded data acquisition.
- * 
- */
-struct SharedData {
-    std::mutex mutex;
-
-    int samplesPerBuffer;
-
-    std::queue<fftw_complex*> dataQueue;
-    std::queue<fftw_complex*> dataSavingQueue;
-    std::queue<fftw_complex*> processedDataQueue;
-
-    std::condition_variable dataReadyCondition;
-    std::condition_variable saveReadyCondition;
-    std::condition_variable processedDataReadyCondition;
-};
-
-/**
- * @brief Struct for storing synchronization flags. Used for multithreaded data acquisition.
- * 
- */
-struct SynchronizationFlags {
-    std::mutex mutex;
-    bool pauseDataCollection;
-    bool acquisitionComplete;
-    bool dataReady;
-    bool dataProcessingComplete;
-
-    SynchronizationFlags() : pauseDataCollection(false), acquisitionComplete(false),
-                             dataReady(false), dataProcessingComplete(false) {}
-};
-
-
-/**
  * @brief Class for controlling alazarCard. Implements methods for acquiring data and setting acquisition parameters. 
  * Function definitions and documentation are in ATS.cpp.
  * 
