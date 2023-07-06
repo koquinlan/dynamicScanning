@@ -233,7 +233,7 @@ U32 ATS::suggestBufferNumber(U32 sampleRate, U32 samplesPerAcquisition){
     // As per https://docs.alazartech.com/ats-sdk-user-guide/latest/reference/AlazarBeforeAsyncRead.html
 
     int channelCount = 2; 
-    int desiredBytesPerBuffer = (int)4e6; // Shoot for 4MB buffer sizes
+    int desiredBytesPerBuffer = (int)2e6; // Shoot for 4MB buffer sizes
 
     // Get the sample size in bits, and the on-board memory size in samples per channel
 	U8 bitsPerSample;

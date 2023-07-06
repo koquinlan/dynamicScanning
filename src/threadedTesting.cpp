@@ -50,7 +50,8 @@ int main() {
     try{
         // Start the threads
         std::thread acquisitionThread(&ATS::AcquireDataMultithreadedContinuous, &alazarCard, std::ref(sharedData), std::ref(syncFlags));
-        std::thread processingThread(processingThread, plan, N, std::ref(sharedData), std::ref(syncFlags));
+        std::thread FFTThread(FFTThread, plan, N, std::ref(sharedData), std::ref(syncFlags));
+        std::thread magnitudeThread(magnitudeThread, N, std::ref(sharedData), std::ref(syncFlags));
         std::thread decisionMakingThread(decisionMakingThread, std::ref(sharedData), std::ref(syncFlags));
 
         #if SAVE_DATA
@@ -59,7 +60,8 @@ int main() {
 
         // Wait for the threads to finish
         acquisitionThread.join();
-        processingThread.join();
+        FFTThread.join();
+        magnitudeThread.join();
         decisionMakingThread.join();
 
         #if SAVE_DATA

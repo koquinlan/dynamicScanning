@@ -42,6 +42,7 @@
 #include <string>
 #include <vector>
 #include <queue>
+#include <complex>
 
 #include <chrono>
 #include <stdexcept>
@@ -82,10 +83,12 @@ struct SharedData {
 
     std::queue<fftw_complex*> dataQueue;
     std::queue<fftw_complex*> dataSavingQueue;
-    std::queue<fftw_complex*> processedDataQueue;
+    std::queue<fftw_complex*> FFTDataQueue;
+    std::queue<std::vector<double>> processedDataQueue;
 
     std::condition_variable dataReadyCondition;
     std::condition_variable saveReadyCondition;
+    std::condition_variable FFTDataReadyCondition;
     std::condition_variable processedDataReadyCondition;
 };
 
@@ -114,7 +117,8 @@ void psgTesting(int gpibAdress);
 void awgTesting(int gpibAdress);
 
 // multiThreading.cpp
-void processingThread(fftw_plan plan, int N, SharedData& sharedData, SynchronizationFlags& syncFlags);
+void FFTThread(fftw_plan plan, int N, SharedData& sharedData, SynchronizationFlags& syncFlags);
+void magnitudeThread(int N, SharedData& sharedData, SynchronizationFlags& syncFlags);
 void decisionMakingThread(SharedData& sharedData, SynchronizationFlags& syncFlags);
 void saveDataToBin(SharedData& sharedData, SynchronizationFlags& syncFlags);
 void saveDataToHDF5(SharedData& sharedData, SynchronizationFlags& syncFlags);
@@ -132,5 +136,7 @@ void saveDataToHDF5(SharedData& sharedData, SynchronizationFlags& syncFlags);
 #include "instruments/PSG.hpp"
 #include "instruments/AWG.hpp"
 #include "instruments/ATS.hpp"
+
+#include "dataProcessing/dataProcessor.hpp"
 
 #endif // DECS_H

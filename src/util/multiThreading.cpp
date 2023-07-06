@@ -25,9 +25,11 @@
  * @param sharedData - Struct containing data shared between threads
  * @param syncFlags - Struct containing synchronization flags shared between threads
  */
-void processingThread(fftw_plan plan, int N, SharedData& sharedData, SynchronizationFlags& syncFlags) {
+void FFTThread(fftw_plan plan, int N, SharedData& sharedData, SynchronizationFlags& syncFlags) {
     int numProcessed = 0;
     while (true) {
+        // std::cout << "Waiting for data..." << std::endl;
+
         // Wait for signal from dataReadyCondition or immediately continue if the data queue is not empty (lock releases while waiting)
         std::unique_lock<std::mutex> lock(sharedData.mutex);
         sharedData.dataReadyCondition.wait(lock, [&sharedData]() {
@@ -37,13 +39,14 @@ void processingThread(fftw_plan plan, int N, SharedData& sharedData, Synchroniza
 
         // Process data until data queue is empty (lock is reaquired before checking the data queue)
         while (!sharedData.dataQueue.empty()) {
+
             // Get the pointer to the data from the queue
             fftw_complex* complexOutput = sharedData.dataQueue.front();
             sharedData.dataQueue.pop();
             lock.unlock();
 
             // Process the data (lock is released while processing)
-            fftw_complex* procData = processDataFFT(complexOutput, plan, N);
+            fftw_complex* FFTData = processDataFFT(complexOutput, plan, N);
             numProcessed++;
 
 
@@ -51,9 +54,9 @@ void processingThread(fftw_plan plan, int N, SharedData& sharedData, Synchroniza
             {
                 std::lock_guard<std::mutex> lock(sharedData.mutex);
                 sharedData.dataSavingQueue.push(complexOutput);
-                sharedData.processedDataQueue.push(procData);
+                sharedData.FFTDataQueue.push(FFTData);
             }
-            sharedData.processedDataReadyCondition.notify_one();
+            sharedData.FFTDataReadyCondition.notify_one();
             sharedData.saveReadyCondition.notify_one();
             
             lock.lock();  // Reacquire lock before checking the data queue
@@ -63,6 +66,57 @@ void processingThread(fftw_plan plan, int N, SharedData& sharedData, Synchroniza
         {
             std::lock_guard<std::mutex> lock(syncFlags.mutex);
             if (syncFlags.acquisitionComplete && sharedData.dataQueue.empty()) {
+                break;  // Exit the processing thread
+            }
+        }
+    }
+}
+
+
+void magnitudeThread(int N, SharedData& sharedData, SynchronizationFlags& syncFlags) {
+    int numProcessed = 0;
+    while (true) {
+        // std::cout << "Waiting for data..." << std::endl;
+
+        // Wait for signal from dataReadyCondition or immediately continue if the data queue is not empty (lock releases while waiting)
+        std::unique_lock<std::mutex> lock(sharedData.mutex);
+        sharedData.FFTDataReadyCondition.wait(lock, [&sharedData]() {
+            return !sharedData.FFTDataQueue.empty();
+        });
+
+
+        // Process data until data queue is empty (lock is reaquired before checking the data queue)
+        while (!sharedData.FFTDataQueue.empty()) {
+
+            // Get the pointer to the data from the queue
+            fftw_complex* FFTData = sharedData.FFTDataQueue.front();
+            sharedData.FFTDataQueue.pop();
+            lock.unlock();
+
+            std::vector<double> procData(N);
+            for (int i = 0; i < N; i++) {
+                procData[i] = std::abs(std::complex<double>(FFTData[i][0], FFTData[i][1]));
+            }
+
+            // Free the memory allocated for the fft data
+            fftw_free(FFTData);
+            numProcessed++;
+
+
+            // Acquire a new lock_guard and push the processed data to the shared queue
+            {
+                std::lock_guard<std::mutex> lock(sharedData.mutex);
+                sharedData.processedDataQueue.push(procData);
+            }
+            sharedData.processedDataReadyCondition.notify_one();
+            
+            lock.lock();  // Reacquire lock before checking the data queue
+        }
+
+        // Check if the acquisition and processing is complete
+        {
+            std::lock_guard<std::mutex> lock(syncFlags.mutex);
+            if (syncFlags.acquisitionComplete && sharedData.FFTDataQueue.empty()) {
                 break;  // Exit the processing thread
             }
         }
@@ -91,16 +145,15 @@ void decisionMakingThread(SharedData& sharedData, SynchronizationFlags& syncFlag
         // Process data if the data queue is not empty
         while (!sharedData.processedDataQueue.empty()) {
             // Get the pointer to the data from the queue
-            fftw_complex* processedOutput = sharedData.processedDataQueue.front();
+            std::vector<double> processedOutput = sharedData.processedDataQueue.front();
             sharedData.processedDataQueue.pop();
             lock.unlock();
 
-            // Free the memory allocated for the raw data
-            fftw_free(processedOutput);
+
             buffersProcessed++;
             // std::cout << "Decided on " << std::to_string(buffersProcessed) << " buffers." << std::endl;
 
-            if (buffersProcessed >= 50) {
+            if (buffersProcessed >= 100) {
                 std::lock_guard<std::mutex> lock(syncFlags.mutex);
                 syncFlags.acquisitionComplete = true;
                 syncFlags.pauseDataCollection = true;
