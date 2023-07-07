@@ -29,7 +29,7 @@ int main() {
 
         ATS alazarCard(1, 1);
 
-        alazarCard.setAcquisitionParameters((U32)32e6, (U32)16e7, 0);
+        alazarCard.setAcquisitionParameters((U32)32e6, (U32)16e4, 0);
 
         fftw_complex* rawData = alazarCard.AcquireData();
 
@@ -53,7 +53,7 @@ int main() {
             freq[i] = (static_cast<double>(i)-static_cast<double>(N)/2)*alazarCard.acquisitionParams.sampleRate/N;
             fftVoltage[i] = std::sqrt((procData[i][0]*procData[i][0] + procData[i][1]*procData[i][1]))/(double)N;
 
-            fftPower[i] = fftVoltage[i]*fftVoltage[i]/alazarCard.acquisitionParams.inputImpedance;
+            fftPower[i] = fftVoltage[i]*fftVoltage[i]/(double)alazarCard.acquisitionParams.inputImpedance;
         }
 
         plt::plot(freq, fftVoltage, "b");
