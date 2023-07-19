@@ -80,6 +80,8 @@
         "set": "cpp",
         "span": "cpp",
         "cinttypes": "cpp",
-        "filesystem": "cpp"
+        "filesystem": "cpp",
+        "coroutine": "cpp",
+        "resumable": "cpp"
     }
 }

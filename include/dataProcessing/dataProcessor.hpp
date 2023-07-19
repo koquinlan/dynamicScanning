@@ -22,8 +22,14 @@ public:
 
     std::vector<double> rawToProcessed(std::vector<double> rawSpectrum);
 
-private:
 
+    std::vector<double> filterBadBins(std::vector<double> unfilteredRawSpectrum);
+    void addRawSpectrumToBaseline(std::vector<double> rawSpectrum);
+
+private:
+    int numSpectra;
+
+    std::vector<double> currentBaseline;
 };
 
 

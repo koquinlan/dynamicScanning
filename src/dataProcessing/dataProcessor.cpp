@@ -15,3 +15,22 @@
 std::vector<double> DataProcessor::rawToProcessed(std::vector<double> rawSpectrum) {
     
 }
+
+
+void DataProcessor::addRawSpectrumToBaseline(std::vector<double> rawSpectrum) {
+    numSpectra++;
+
+    for (int i = 0; i < currentBaseline.size(); i++) {
+        currentBaseline[i] = currentBaseline[i]*(numSpectra-1)/numSpectra + rawSpectrum[i]/numSpectra;
+    }
+}
+
+
+std::vector<double> DataProcessor::filterBadBins(std::vector<double> unfilteredRawSpectrum, double badBinThreshold) {
+    std::vector<double> filteredSpectrum(unfilteredRawSpectrum.size());
+
+    // Replace bad bins with NAN based on the current best available baseline
+    for (int i = 0; i < unfilteredRawSpectrum.size(); i++) {
+        filteredSpectrum[i] = unfilteredRawSpectrum[i]/currentBaseline[i] > badBinThreshold ? unfilteredRawSpectrum[i] : NAN;
+    }
+}
