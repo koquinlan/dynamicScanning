@@ -12,5 +12,19 @@
 #include "decs.hpp"
 
 int main(){
+    std::string filename = "../../../src/dataProcessing/raw_data_probe_1.csv";
+    std::vector<std::vector<double>> rawData = readCSV(filename);
+
     
+    DataProcessor proc;
+
+    for (int i = 0; i < rawData.size(); i++) {
+        proc.addRawSpectrumToBaseline(rawData[i]);
+    }
+    
+
+    plt::plot(rawData[0]);
+    plt::show();
+
+    return 0;
 }

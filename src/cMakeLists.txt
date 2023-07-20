@@ -9,6 +9,32 @@ set(SOURCES
     util/IoBuffer.cpp
     util/multiThreading.cpp
     util/tests.cpp
+    util/fileIO.cpp
+
+    dataProcessing/dataProcessor.cpp
+)
+
+set(INCLUDES
+    ${VISA_INCLUDE_DIR}
+    ${ALAZAR_INCLUDE_DIR}
+
+    ${Python3_INCLUDE_DIRS}
+    ${Python3_NumPy_INCLUDE_DIRS}
+
+    ${FFTW3_INCLUDE_DIR}
+    ${HDF5_INCLUDE_DIRS}
+)
+
+set(LINKS
+    ${VISA_LIBRARY}
+    ${ALAZAR_LIBRARY}
+
+    ${Python3_LIBRARIES}
+    Python3::NumPy
+
+    ${FFTW3_LIBRARIES}
+    ${HDF5_LIBRARIES}
+    Eigen3::Eigen
 )
 
 message(STATUS ${SOURCES})
@@ -16,17 +42,27 @@ message(STATUS ${SOURCES})
 add_executable(lab_control ${SOURCES} controlTests.cpp)
 
 # Include the VISA header file
-target_include_directories(lab_control PRIVATE ${VISA_INCLUDE_DIR} ${ALAZAR_INCLUDE_DIR} ${Python3_INCLUDE_DIRS} ${Python3_NumPy_INCLUDE_DIRS} ${FFTW3_INCLUDE_DIR} ${HDF5_INCLUDE_DIRS})
+target_include_directories(lab_control PRIVATE ${INCLUDES})
 
 # Link against the VISA library
-target_link_libraries(lab_control PRIVATE ${VISA_LIBRARY} ${ALAZAR_LIBRARY} ${Python3_LIBRARIES} ${FFTW3_LIBRARIES} Python3::NumPy Eigen3::Eigen ${HDF5_LIBRARIES})
+target_link_libraries(lab_control PRIVATE ${LINKS})
 
 #
 #
 add_executable(thread_test ${SOURCES} threadedTesting.cpp)
 
 # Include the VISA header file
-target_include_directories(thread_test PRIVATE ${VISA_INCLUDE_DIR} ${ALAZAR_INCLUDE_DIR} ${Python3_INCLUDE_DIRS} ${Python3_NumPy_INCLUDE_DIRS} ${FFTW3_INCLUDE_DIR} ${HDF5_INCLUDE_DIRS})
+target_include_directories(thread_test PRIVATE ${INCLUDES})
 
 # Link against the VISA library
-target_link_libraries(thread_test PRIVATE ${VISA_LIBRARY} ${ALAZAR_LIBRARY} ${Python3_LIBRARIES} ${FFTW3_LIBRARIES} Python3::NumPy Eigen3::Eigen ${HDF5_LIBRARIES})
+target_link_libraries(thread_test PRIVATE ${LINKS})
+
+#
+#
+add_executable(proc_test ${SOURCES} processerTests.cpp)
+
+# Include the VISA header file
+target_include_directories(proc_test PRIVATE ${INCLUDES})
+
+# Link against the VISA library
+target_link_libraries(proc_test PRIVATE ${LINKS})

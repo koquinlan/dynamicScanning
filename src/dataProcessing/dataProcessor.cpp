@@ -13,15 +13,14 @@
 
 
 std::vector<double> DataProcessor::rawToProcessed(std::vector<double> rawSpectrum) {
-    
+    return rawSpectrum;
 }
-
 
 void DataProcessor::addRawSpectrumToBaseline(std::vector<double> rawSpectrum) {
     numSpectra++;
 
-    for (int i = 0; i < currentBaseline.size(); i++) {
-        currentBaseline[i] = currentBaseline[i]*(numSpectra-1)/numSpectra + rawSpectrum[i]/numSpectra;
+    for (int i = 0; i < runningAverage.size(); i++) {
+        runningAverage[i] = runningAverage[i]*(numSpectra-1)/numSpectra + rawSpectrum[i]/numSpectra;
     }
 }
 
@@ -33,4 +32,6 @@ std::vector<double> DataProcessor::filterBadBins(std::vector<double> unfilteredR
     for (int i = 0; i < unfilteredRawSpectrum.size(); i++) {
         filteredSpectrum[i] = unfilteredRawSpectrum[i]/currentBaseline[i] > badBinThreshold ? unfilteredRawSpectrum[i] : NAN;
     }
+
+    return filteredSpectrum;
 }

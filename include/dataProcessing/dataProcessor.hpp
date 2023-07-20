@@ -17,19 +17,20 @@
 
 class DataProcessor {
 public:
-    DataProcessor();
-    ~DataProcessor();
+    DataProcessor(){};
+    ~DataProcessor(){};
 
     std::vector<double> rawToProcessed(std::vector<double> rawSpectrum);
 
 
-    std::vector<double> filterBadBins(std::vector<double> unfilteredRawSpectrum);
+    std::vector<double> filterBadBins(std::vector<double> unfilteredRawSpectrum, double badBinThreshold);
     void addRawSpectrumToBaseline(std::vector<double> rawSpectrum);
 
 private:
-    int numSpectra;
+    int numSpectra=0;
 
     std::vector<double> currentBaseline;
+    std::vector<double> runningAverage;
 };
 
 
