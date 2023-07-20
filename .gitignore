@@ -32,3 +32,6 @@
 
 # Cmake Stuff
 build*/
+
+# Raw Data
+*.csv
