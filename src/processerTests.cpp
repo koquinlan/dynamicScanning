@@ -15,6 +15,7 @@ int main(){
     std::string filename = "../../../src/dataProcessing/raw_data_probe_1.csv";
     std::vector<std::vector<double>> rawData = readCSV(filename);
 
+    std::cout << "Read " << rawData.size() << " spectra from " << filename << "\n" << std::endl;
     
     DataProcessor proc;
 
