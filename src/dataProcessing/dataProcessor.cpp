@@ -19,6 +19,11 @@ std::vector<double> DataProcessor::rawToProcessed(std::vector<double> rawSpectru
 void DataProcessor::addRawSpectrumToBaseline(std::vector<double> rawSpectrum) {
     numSpectra++;
 
+    if (numSpectra == 1) {
+        runningAverage = rawSpectrum;
+        return;
+    }
+
     for (int i = 0; i < runningAverage.size(); i++) {
         runningAverage[i] = runningAverage[i]*(numSpectra-1)/numSpectra + rawSpectrum[i]/numSpectra;
     }

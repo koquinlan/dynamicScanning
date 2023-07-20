@@ -26,7 +26,7 @@ public:
     std::vector<double> filterBadBins(std::vector<double> unfilteredRawSpectrum, double badBinThreshold);
     void addRawSpectrumToBaseline(std::vector<double> rawSpectrum);
 
-private:
+// private:
     int numSpectra=0;
 
     std::vector<double> currentBaseline;

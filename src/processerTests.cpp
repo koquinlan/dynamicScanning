@@ -24,6 +24,7 @@ int main(){
     
 
     plt::plot(rawData[0]);
+    plt::plot(proc.runningAverage);
     plt::show();
 
     return 0;

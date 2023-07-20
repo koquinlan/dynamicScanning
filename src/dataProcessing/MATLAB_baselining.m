@@ -89,7 +89,7 @@ set(gca,'fontsize',18,'linewidth',1,'fontname','times')
 
 
 %% save bad bin removed data for processing tests
-nSpectra = 10; % Number of spectra within each probe to use for baseline
+nSpectra = 1000; % = numel(matFiles);
 
 % Before the for loop, initialize a cell array to store the raw_data from each iteration
 all_raw_data = cell(1, nProbes);
