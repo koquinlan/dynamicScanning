@@ -57,6 +57,8 @@
 // Custom library includes
 #include <fftw3.h>
 
+#include <Eigen/Dense>
+
 #include <visa.h>
 
 #include "AlazarError.h"
