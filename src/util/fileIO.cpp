@@ -11,7 +11,7 @@
 
 #include "decs.hpp"
 
-std::vector<std::vector<double>> readCSV(std::string filename) {
+std::vector<std::vector<double>> readCSV(std::string filename, int maxLines = -1) {
     std::vector<std::vector<double>> data;
 
     std::ifstream file(filename);
@@ -21,6 +21,8 @@ std::vector<std::vector<double>> readCSV(std::string filename) {
     }
 
     std::string line;
+    int linesRead = 0; // Keep track of the number of lines read
+
     while (std::getline(file, line)) {
         std::vector<double> row;
         std::stringstream ss(line);
@@ -36,6 +38,11 @@ std::vector<std::vector<double>> readCSV(std::string filename) {
         }
 
         data.push_back(row);
+
+        linesRead++;
+        if (maxLines > 0 && linesRead >= maxLines) {
+            break; // Stop reading after maxLines lines are read.
+        }
     }
 
     return data;
