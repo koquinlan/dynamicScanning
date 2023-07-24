@@ -38,6 +38,7 @@
 #include <fstream>
 #include <sstream>
 #include <filesystem>
+#include <iomanip>
 
 #include <string>
 #include <vector>
@@ -67,6 +68,8 @@
 
 #include "utils/matplotlibcpp.h"
 namespace plt = matplotlibcpp;
+
+#include "DspFilters/Dsp.h"
 
 
 /*******************************************************************************
@@ -124,7 +127,7 @@ void saveDataToBin(SharedData& sharedData, SynchronizationFlags& syncFlags);
 void saveDataToHDF5(SharedData& sharedData, SynchronizationFlags& syncFlags);
 
 // fileIO.cpp
-std::vector<std::vector<double>> readCSV(std::string filename);
+std::vector<std::vector<double>> readCSV(std::string filename, int maxLines);
 
 
 /*******************************************************************************
