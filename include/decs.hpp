@@ -21,6 +21,7 @@
 
 #define VERBOSE_OUTPUT (1)
 
+#define _USE_MATH_DEFINES
 
 /*******************************************************************************
  *                                                                            *
@@ -116,10 +117,11 @@ struct SynchronizationFlags {
  *                                                                            *
  ******************************************************************************/
 
-// tests.cpp
-void printAvailableResources();
-void psgTesting(int gpibAdress);
-void awgTesting(int gpibAdress);
+// dataProcessingUtils.cpp
+void unwrapPhase(std::vector<double>& phase);
+
+// fileIO.cpp
+std::vector<std::vector<double>> readCSV(std::string filename, int maxLines);
 
 // multiThreading.cpp
 void FFTThread(fftw_plan plan, int N, SharedData& sharedData, SynchronizationFlags& syncFlags);
@@ -128,8 +130,10 @@ void decisionMakingThread(SharedData& sharedData, SynchronizationFlags& syncFlag
 void saveDataToBin(SharedData& sharedData, SynchronizationFlags& syncFlags);
 void saveDataToHDF5(SharedData& sharedData, SynchronizationFlags& syncFlags);
 
-// fileIO.cpp
-std::vector<std::vector<double>> readCSV(std::string filename, int maxLines);
+// tests.cpp
+void printAvailableResources();
+void psgTesting(int gpibAdress);
+void awgTesting(int gpibAdress);
 
 
 /*******************************************************************************
