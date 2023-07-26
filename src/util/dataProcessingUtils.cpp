@@ -41,3 +41,18 @@ std::tuple<double, double> vectorStats(const std::vector<double>& vec) {
     double variance = sumSquaredDiff / static_cast<double>(vec.size());
     return std::make_tuple(mean, std::sqrt(variance));
 }
+
+
+void trimVector(std::vector<double>& vec, double cutPercentage) {
+    if (vec.size() < 3) {
+        // The vector is too small to remove elements.
+        return;
+    }
+
+    // Calculate the number of elements to be removed from the front and back.
+    int numElementsToRemove = std::round(vec.size() * cutPercentage);
+
+    // Erase elements from the beginning and end of the vector.
+    vec.erase(vec.begin(), vec.begin() + numElementsToRemove);
+    vec.erase(vec.end() - numElementsToRemove, vec.end());
+}

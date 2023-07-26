@@ -121,6 +121,7 @@ struct SynchronizationFlags {
 // dataProcessingUtils.cpp
 void unwrapPhase(std::vector<double>& phase);
 std::tuple<double, double> vectorStats(const std::vector<double>& vec);
+void trimVector(std::vector<double>& vec, double cutPercentage);
 
 // fileIO.cpp
 std::vector<std::vector<double>> readCSV(std::string filename, int maxLines);

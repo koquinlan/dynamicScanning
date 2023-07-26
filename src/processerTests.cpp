@@ -36,6 +36,9 @@ int main() {
         intermediateSpectrum[i]--;
     }
 
+    trimVector(intermediateSpectrum, 0.1);
+    trimVector(processedSpectrum, 0.1);
+
 
     // Display results
     // proc.displayFilterResponse();
