@@ -20,6 +20,8 @@ public:
     DataProcessor(){};
     ~DataProcessor(){};
 
+    void displayState();
+
     void setFilterParams(double sampleRate, int poleNumber, double cutoffFrequency, double stopbandAttenuation);
     std::tuple<std::vector<double>, std::vector<double>, std::vector<double>> getFilterResponse();
     void displayFilterResponse();

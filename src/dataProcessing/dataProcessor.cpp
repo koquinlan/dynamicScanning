@@ -11,6 +11,15 @@
 
 #include "decs.hpp"
 
+void DataProcessor::displayState(){
+    plt::figure();
+
+    plt::plot(runningAverage);
+    plt::plot(currentBaseline);
+
+    plt::show();
+}
+
 
 void DataProcessor::setFilterParams(double sampleRate, int poleNumber, double cutoffFrequency, double stopbandAttenuation) {
     Dsp::Params params;

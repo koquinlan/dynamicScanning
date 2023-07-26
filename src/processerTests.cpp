@@ -26,20 +26,19 @@ int main() {
 
 
     // Apply filtering to the running average
-    proc.setFilterParams(30e6, 3, 20e3, 30);
+    proc.setFilterParams(30e6, 3, 20e3, 30.);
     proc.updateBaseline();
 
 
     // Display results
     proc.displayFilterResponse();
+    // proc.displayState();
 
     plt::figure();
     plt::plot(rawData[0]);
     plt::plot(proc.runningAverage);
     plt::plot(proc.currentBaseline);
-
     plt::show();
-
 
     return 0;
 }

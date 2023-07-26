@@ -29,12 +29,8 @@ std::vector<std::vector<double>> readCSV(std::string filename, int maxLines = -1
         std::string cell;
 
         while (std::getline(ss, cell, ',')) {
-            try {
-                double value = std::stod(cell);
-                row.push_back(value);
-            } catch (const std::exception& e) {
-                // Handle invalid data in CSV (e.g., non-numeric entries).
-            }
+            double value = std::stod(cell);
+            row.push_back(value);
         }
 
         data.push_back(row);
