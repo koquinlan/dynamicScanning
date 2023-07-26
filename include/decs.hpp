@@ -34,6 +34,7 @@
 #include <conio.h>
 #include <cmath>
 #include <algorithm>
+#include <numeric>
 
 #include <iostream>
 #include <fstream>
@@ -119,6 +120,7 @@ struct SynchronizationFlags {
 
 // dataProcessingUtils.cpp
 void unwrapPhase(std::vector<double>& phase);
+std::tuple<double, double> vectorStats(const std::vector<double>& vec);
 
 // fileIO.cpp
 std::vector<std::vector<double>> readCSV(std::string filename, int maxLines);

@@ -21,3 +21,23 @@ void unwrapPhase(std::vector<double>& phase) {
         }
     }
 }
+
+
+std::tuple<double, double> vectorStats(const std::vector<double>& vec) {
+    if (vec.empty()) {
+        // Return NaN to indicate that the mean is undefined for an empty vector.
+        return std::make_tuple(std::numeric_limits<double>::quiet_NaN(), std::numeric_limits<double>::quiet_NaN());
+    }
+
+    double sum = std::accumulate(vec.begin(), vec.end(), 0.0);
+    double mean = sum / static_cast<double>(vec.size());
+
+    double sumSquaredDiff = 0.0;
+    for (const double& value : vec) {
+        double diff = value - mean;
+        sumSquaredDiff += diff * diff;
+    }
+
+    double variance = sumSquaredDiff / static_cast<double>(vec.size());
+    return std::make_tuple(mean, std::sqrt(variance));
+}

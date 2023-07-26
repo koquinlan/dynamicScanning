@@ -131,24 +131,28 @@ std::vector<double> DataProcessor::rawToIntermediate(std::vector<double> rawSpec
 
 
 std::vector<double> DataProcessor::intermediateToProcessed(std::vector<double> intermediateSpectrum) {
+    // Set up containers for the baselining process
     std::vector<double> processedSpectrum(intermediateSpectrum.size());
     std::vector<double> processedBaseline = intermediateSpectrum;
 
-    double* processedData[1];
-    processedData[0] = processedBaseline.data();
+    double* processedBaselineData[1];
+    processedBaselineData[0] = processedBaseline.data();
+
 
     // Apply bidirectional filter to running average to extract the baseline
-    chebyshevFilter.process((int) processedBaseline.size(), processedData);
+    chebyshevFilter.process((int) processedBaseline.size(), processedBaselineData);
 
     std::reverse(processedBaseline.begin(), processedBaseline.end());
-    chebyshevFilter.process((int) processedBaseline.size(), processedData);
+    chebyshevFilter.process((int) processedBaseline.size(), processedBaselineData);
     std::reverse(processedBaseline.begin(), processedBaseline.end());
 
+
+    // Divide the intermediate spectrum by the processed baseline to get the processed spectrum
     for (int i = 0; i < intermediateSpectrum.size(); i++) {
-        processedBaseline[i] = intermediateSpectrum[i]/processedBaseline[i];
+        processedSpectrum[i] = intermediateSpectrum[i]/processedBaseline[i]-1;
     }
 
-    return processedBaseline;
+    return processedSpectrum;
 }
 
 

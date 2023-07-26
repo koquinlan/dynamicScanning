@@ -29,15 +29,30 @@ int main() {
     proc.setFilterParams(30e6, 3, 20e3, 30.);
     proc.updateBaseline();
 
+    std::vector<double> intermediateSpectrum = proc.rawToIntermediate(rawData[0]);
+    std::vector<double> processedSpectrum = proc.intermediateToProcessed(intermediateSpectrum);
+
+    for (int i=0; i<intermediateSpectrum.size(); i++) {
+        intermediateSpectrum[i]--;
+    }
+
 
     // Display results
-    proc.displayFilterResponse();
+    // proc.displayFilterResponse();
     // proc.displayState();
 
     plt::figure();
     plt::plot(rawData[0]);
     plt::plot(proc.runningAverage);
     plt::plot(proc.currentBaseline);
+
+
+    plt::figure();
+    // Plot intermediate and processed spectra
+    plt::plot(intermediateSpectrum);
+    plt::plot(processedSpectrum);
+    plt::ylim(-1, 1);
+
     plt::show();
 
     return 0;
