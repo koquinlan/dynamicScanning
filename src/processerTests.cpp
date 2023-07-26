@@ -26,41 +26,17 @@ int main() {
 
 
     // Apply filtering to the running average
-    double sampleRate = 30e6;
-    int poleNumber = 3;
-    double cutoffFrequency = 20e3;
-    double stopbandAttenuation = 50;
-
-    std::vector<double> freqPoints;
-    std::vector<double> magnitude;
-    std::vector<double> phase;
-
-    std::tie(freqPoints, magnitude, phase) = proc.setFilterParams(sampleRate, poleNumber, cutoffFrequency, stopbandAttenuation);
-
+    proc.setFilterParams(30e6, 3, 20e3, 30);
     proc.updateBaseline();
 
 
-    // Create separate figures for magnitude and phase plots
+    // Display results
+    proc.displayFilterResponse();
+
     plt::figure();
     plt::plot(rawData[0]);
     plt::plot(proc.runningAverage);
     plt::plot(proc.currentBaseline);
-
-
-    plt::figure();
-    plt::loglog(freqPoints, magnitude);
-    plt::title("Magnitude Response");
-    plt::xlabel("Normalized Frequency");
-    plt::ylabel("Magnitude");
-    plt::grid(true);
-
-
-    plt::figure();
-    plt::semilogx(freqPoints, phase);
-    plt::title("Phase Response");
-    plt::xlabel("Normalized Frequency");
-    plt::ylabel("Phase (radians)");
-    plt::grid(true);
 
     plt::show();
 

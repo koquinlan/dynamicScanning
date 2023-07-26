@@ -12,7 +12,7 @@
 #include "decs.hpp"
 
 
-std::tuple<std::vector<double>, std::vector<double>, std::vector<double>> DataProcessor::setFilterParams(double sampleRate, int poleNumber, double cutoffFrequency, double stopbandAttenuation) {
+void DataProcessor::setFilterParams(double sampleRate, int poleNumber, double cutoffFrequency, double stopbandAttenuation) {
     Dsp::Params params;
     params[0] = sampleRate;             // sample rate
     params[1] = poleNumber;             // pole number
@@ -21,7 +21,17 @@ std::tuple<std::vector<double>, std::vector<double>, std::vector<double>> DataPr
 
     chebyshevFilter.setParams(params);
 
+    sampleRate_ = sampleRate;
+    cutoffFrequency_ = cutoffFrequency;
+}
 
+
+/**
+ * @brief 
+ * 
+ * @return std::tuple<std::vector<double>, std::vector<double>, std::vector<double>> 
+ */
+std::tuple<std::vector<double>, std::vector<double>, std::vector<double>> DataProcessor::getFilterResponse() {
     // Create an array of frequency points for the frequency response plot
     int numPoints = 10000; // You can adjust this based on the desired resolution
     std::vector<double> freqPoints(numPoints);
@@ -33,7 +43,7 @@ std::tuple<std::vector<double>, std::vector<double>, std::vector<double>> DataPr
     for (int i = 0; i < numPoints; i++) {
         freqPoints[i] = 100 * static_cast<double>(i) / (numPoints - 1);
         
-        response[i] = chebyshevFilter.response(freqPoints[i]*(cutoffFrequency/sampleRate));
+        response[i] = chebyshevFilter.response(freqPoints[i]*(cutoffFrequency_/sampleRate_));
 
         magnitude[i] = std::abs(response[i]);
         phase[i] = std::arg(response[i]);
@@ -48,6 +58,41 @@ std::tuple<std::vector<double>, std::vector<double>, std::vector<double>> DataPr
     // Return response
     return std::make_tuple(freqPoints, magnitude, phase);
 }
+
+
+/**
+ * @brief 
+ * 
+ */
+void DataProcessor::displayFilterResponse() {
+    std::vector<double> freqPoints, magnitude, phase, bidirectionalMagnitude;
+
+    std::tie(freqPoints, magnitude, phase) = getFilterResponse();
+
+    for (int i = 0; i < magnitude.size(); i++) {
+        bidirectionalMagnitude.push_back(magnitude[i]*magnitude[i]);
+    }
+
+    // Create separate figures for magnitude and phase plots
+    plt::figure();
+    plt::loglog(freqPoints, magnitude);
+    plt::loglog(freqPoints, bidirectionalMagnitude);
+    plt::title("Magnitude Response");
+    plt::xlabel("Normalized Frequency");
+    plt::ylabel("Magnitude");
+    plt::grid(true);
+
+
+    plt::figure();
+    plt::semilogx(freqPoints, phase);
+    plt::title("Phase Response");
+    plt::xlabel("Normalized Frequency");
+    plt::ylabel("Phase (radians)");
+    plt::grid(true);
+
+    plt::show();
+}
+
 
 void DataProcessor::updateBaseline() {
     // Set up pointer to copy of running average to become the baseline
@@ -65,9 +110,38 @@ void DataProcessor::updateBaseline() {
 }
 
 
-std::vector<double> DataProcessor::rawToProcessed(std::vector<double> rawSpectrum) {
-    return rawSpectrum;
+std::vector<double> DataProcessor::rawToIntermediate(std::vector<double> rawSpectrum) {
+    std::vector<double> intermediateSpectrum(rawSpectrum.size());
+
+    for (int i = 0; i < rawSpectrum.size(); i++) {
+        intermediateSpectrum[i] = rawSpectrum[i]/currentBaseline[i];
+    }
+
+    return intermediateSpectrum;
 }
+
+
+std::vector<double> DataProcessor::intermediateToProcessed(std::vector<double> intermediateSpectrum) {
+    std::vector<double> processedSpectrum(intermediateSpectrum.size());
+    std::vector<double> processedBaseline = intermediateSpectrum;
+
+    double* processedData[1];
+    processedData[0] = processedBaseline.data();
+
+    // Apply bidirectional filter to running average to extract the baseline
+    chebyshevFilter.process((int) processedBaseline.size(), processedData);
+
+    std::reverse(processedBaseline.begin(), processedBaseline.end());
+    chebyshevFilter.process((int) processedBaseline.size(), processedData);
+    std::reverse(processedBaseline.begin(), processedBaseline.end());
+
+    for (int i = 0; i < intermediateSpectrum.size(); i++) {
+        processedBaseline[i] = intermediateSpectrum[i]/processedBaseline[i];
+    }
+
+    return processedBaseline;
+}
+
 
 void DataProcessor::addRawSpectrumToRunningAverage(std::vector<double> rawSpectrum) {
     numSpectra++;

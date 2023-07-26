@@ -20,13 +20,17 @@ public:
     DataProcessor(){};
     ~DataProcessor(){};
 
-    std::tuple<std::vector<double>, std::vector<double>, std::vector<double>> setFilterParams(double sampleRate, int poleNumber, double cutoffFrequency, double stopbandAttenuation);
-
-    std::vector<double> rawToProcessed(std::vector<double> rawSpectrum);
+    void setFilterParams(double sampleRate, int poleNumber, double cutoffFrequency, double stopbandAttenuation);
+    std::tuple<std::vector<double>, std::vector<double>, std::vector<double>> getFilterResponse();
+    void displayFilterResponse();
 
     std::vector<double> filterBadBins(std::vector<double> unfilteredRawSpectrum, double badBinThreshold);
+
     void addRawSpectrumToRunningAverage(std::vector<double> rawSpectrum);
     void updateBaseline();
+
+    std::vector<double> rawToIntermediate(std::vector<double> rawSpectrum);
+    std::vector<double> intermediateToProcessed(std::vector<double> intermediateSpectrum);
 
 // private:
     int numSpectra=0;
@@ -37,6 +41,8 @@ public:
     // Dsp::FilterDesign <class DesignClass, int Channels = 0, class StateType = DirectFormII>
     // DesignClass <int MaxOrder>
     Dsp::FilterDesign <Dsp::ChebyshevII::Design::LowPass<4>, 1> chebyshevFilter;
+
+    double cutoffFrequency_, sampleRate_;
 };
 
 
