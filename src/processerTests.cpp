@@ -12,9 +12,7 @@
 #include "decs.hpp"
 
 int main() {
-    double sampleRate = 30e6;
-    double cutoffFrequency = 10e3;
-
+    // Add some toy data to work with
     std::string filename = "../../../src/dataProcessing/raw_data_probe_1.csv";
     std::vector<std::vector<double>> rawData = readCSV(filename, 10);
 
@@ -23,68 +21,39 @@ int main() {
     DataProcessor proc;
 
     for (int i = 0; i < rawData.size(); i++) {
-        proc.addRawSpectrumToBaseline(rawData[i]);
+        proc.addRawSpectrumToRunningAverage(rawData[i]);
     }
 
 
-    std::vector<double> filteredRunningAverage = proc.runningAverage;
-    double* averagedData[1];
-    averagedData[0] = filteredRunningAverage.data();
+    // Apply filtering to the running average
+    double sampleRate = 30e6;
+    int poleNumber = 3;
+    double cutoffFrequency = 20e3;
+    double stopbandAttenuation = 50;
 
-    Dsp::FilterDesign <Dsp::ChebyshevII::Design::LowPass<3>, 1> f;
-    Dsp::Params params;
-    params[0] = sampleRate; // sample rate
-    params[1] = 3;    // order
-    params[2] = cutoffFrequency; // cutoff frequency
-    params[3] = 30;  // stopband attenuation
+    std::vector<double> freqPoints;
+    std::vector<double> magnitude;
+    std::vector<double> phase;
 
-    /** Useful to watch in debug mode to learn about filter **/
-    // f.getKind();
-    // f.getName();
-    // f.getNumParams();
-    // f.getParamInfo(0);
-    // f.getParamInfo(1);
-    // f.getParamInfo(2);
+    std::tie(freqPoints, magnitude, phase) = proc.setFilterParams(sampleRate, poleNumber, cutoffFrequency, stopbandAttenuation);
 
-    f.setParams(params);
-    f.process((int) proc.runningAverage.size(), averagedData); // Pass the pointer to the vector's data
-
-    std::reverse(filteredRunningAverage.begin(), filteredRunningAverage.end());
-    f.process((int) proc.runningAverage.size(), averagedData);
-    std::reverse(filteredRunningAverage.begin(), filteredRunningAverage.end());
-
-    plt::plot(rawData[0]);
-    plt::plot(proc.runningAverage);
-    plt::plot(filteredRunningAverage);
-    plt::show();
-
-
-    // Create an array of frequency points for the frequency response plot
-    int numPoints = 10000; // You can adjust this based on the desired resolution
-    std::vector<double> freqPoints(numPoints);
-    std::vector<std::complex<double>> response(numPoints);
-
-    std::vector<double> magnitude(numPoints);
-    std::vector<double> phase(numPoints);
-    for (int i = 0; i < numPoints; i++) {
-        freqPoints[i] = 100 * static_cast<double>(i) / (numPoints - 1);
-        
-        response[i] = f.response(freqPoints[i]*(cutoffFrequency/sampleRate));
-
-        magnitude[i] = std::abs(response[i]);
-        phase[i] = std::arg(response[i]);
-    }
-
-    unwrapPhase(phase);
+    proc.updateBaseline();
 
 
     // Create separate figures for magnitude and phase plots
+    plt::figure();
+    plt::plot(rawData[0]);
+    plt::plot(proc.runningAverage);
+    plt::plot(proc.currentBaseline);
+
+
     plt::figure();
     plt::loglog(freqPoints, magnitude);
     plt::title("Magnitude Response");
     plt::xlabel("Normalized Frequency");
     plt::ylabel("Magnitude");
     plt::grid(true);
+
 
     plt::figure();
     plt::semilogx(freqPoints, phase);
