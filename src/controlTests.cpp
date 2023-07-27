@@ -50,7 +50,7 @@ int main() {
         std::vector<double> fftPower(N);
 
         for (int i = 0; i < N; ++i) {
-            freq[i] = (static_cast<double>(i)-static_cast<double>(N)/2)*alazarCard.acquisitionParams.sampleRate/N;
+            freq[i] = (static_cast<double>(i)-static_cast<double>(N)/2)*alazarCard.acquisitionParams.sampleRate/N/1e6;
             fftVoltage[i] = std::sqrt((procData[i][0]*procData[i][0] + procData[i][1]*procData[i][1]))/(double)N;
 
             fftPower[i] = fftVoltage[i]*fftVoltage[i]/(double)alazarCard.acquisitionParams.inputImpedance;
@@ -58,6 +58,7 @@ int main() {
 
         plt::plot(freq, fftVoltage, "b");
         plt::plot(freq, fftPower, "r");
+        plt::xlabel("Frequency (MHz)");
         plt::show();
 
 

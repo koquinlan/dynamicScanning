@@ -26,7 +26,7 @@ int main() {
 
 
     // Apply filtering to the running average
-    proc.setFilterParams(30e6, 3, 20e3, 30.);
+    proc.setFilterParams(30e6, 3, 20e3, 40.);
     proc.updateBaseline();
 
     std::vector<double> intermediateSpectrum = proc.rawToIntermediate(rawData[0]);

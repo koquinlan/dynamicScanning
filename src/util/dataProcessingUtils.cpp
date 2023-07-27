@@ -56,3 +56,13 @@ void trimVector(std::vector<double>& vec, double cutPercentage) {
     vec.erase(vec.begin(), vec.begin() + numElementsToRemove);
     vec.erase(vec.end() - numElementsToRemove, vec.end());
 }
+
+
+void plotVectors(std::vector<double> x, std::vector<double> y, std::string title="", std::string xlabel="x", std::string ylabel="y") {
+    plt::figure();
+    plt::plot(x, y);
+    plt::title(title);
+    plt::xlabel(xlabel);
+    plt::ylabel(ylabel);
+    plt::show();
+}
