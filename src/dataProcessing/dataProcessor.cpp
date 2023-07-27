@@ -100,6 +100,8 @@ void DataProcessor::displayFilterResponse() {
     plt::grid(true);
 
     plt::show();
+
+    plt::close();
 }
 
 

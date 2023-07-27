@@ -13,7 +13,7 @@
 
 int main() {
     // Add some toy data to work with
-    std::string filename = "../../../src/dataProcessing/raw_data_probe_1.csv";
+    std::string filename = "../../../src/dataProcessing/raw_data_probe_2.csv";
     std::vector<std::vector<double>> rawData = readCSV(filename, 10);
 
     std::cout << "Read " << rawData.size() << " spectra from " << filename << "\n" << std::endl;
@@ -41,8 +41,8 @@ int main() {
 
 
     // Display results
-    // proc.displayFilterResponse();
-    // proc.displayState();
+    proc.displayFilterResponse();
+    proc.displayState();
 
     plt::figure();
     plt::plot(rawData[0]);
