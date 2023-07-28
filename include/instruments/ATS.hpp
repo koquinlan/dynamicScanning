@@ -51,6 +51,7 @@ public:
     void AcquireDataMultithreadedContinuous(SharedData& sharedData, SynchronizationFlags& syncFlags);
 
     U32 suggestBufferNumber(U32 sampleRate, U32 samplesPerAcquisition);
+    void printBufferSize(U32 samplesPerAcquisition, U32 buffersPerAcquisition);
 
     AcquisitionParameters acquisitionParams;
 

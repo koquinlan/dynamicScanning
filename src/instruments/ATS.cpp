@@ -233,7 +233,7 @@ U32 ATS::suggestBufferNumber(U32 sampleRate, U32 samplesPerAcquisition){
     // As per https://docs.alazartech.com/ats-sdk-user-guide/latest/reference/AlazarBeforeAsyncRead.html
 
     int channelCount = 2; 
-    int desiredBytesPerBuffer = (int)2e6; // Shoot for 4MB buffer sizes
+    int desiredBytesPerBuffer = (int)2e6; // Shoot for 2MB buffer sizes
 
     // Get the sample size in bits, and the on-board memory size in samples per channel
 	U8 bitsPerSample;
@@ -266,6 +266,27 @@ U32 ATS::suggestBufferNumber(U32 sampleRate, U32 samplesPerAcquisition){
 
 
 
+void ATS::printBufferSize(U32 samplesPerAcquisition, U32 buffersPerAcquisition){
+    // Get the sample size in bits, and the on-board memory size in samples per channel
+	U8 bitsPerSample;
+	U32 maxSamplesPerChannel;
+	RETURN_CODE retCode = AlazarGetChannelInfo(boardHandle, &maxSamplesPerChannel, &bitsPerSample);
+	if (retCode != ApiSuccess) {
+        throw std::runtime_error(std::string("Error: AlazarGetChannelInfo failed -- ") + AlazarErrorToText(retCode) + "\n");
+	}
+
+
+    // Calculate remaining parameters
+    U32 bytesPerSample = (bitsPerSample + 7) / 8;
+    double megaBytesPerBuffer = bytesPerSample * samplesPerAcquisition / buffersPerAcquisition / 1e6;
+
+    std::cout << "Acquisition parameters result in buffer size of " << std::to_string(megaBytesPerBuffer) << "MB per buffer." << std::endl;
+
+    return;
+}
+
+
+
 /**
  * @brief Sets the acquisition parameters for the ATS9462. This will set all parameters in the acquisitionParams struct.
  * 
@@ -279,6 +300,7 @@ void ATS::setAcquisitionParameters(U32 sampleRate, U32 samplesPerAcquisition, U3
     if (buffersPerAcquisition <= 0){
         buffersPerAcquisition = suggestBufferNumber(sampleRate, samplesPerAcquisition);
     }
+    printBufferSize(samplesPerAcquisition, buffersPerAcquisition);
 
 
     // Get the sample size in bits, and the on-board memory size in samples per channel
