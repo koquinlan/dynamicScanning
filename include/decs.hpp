@@ -77,7 +77,7 @@
 #include "AlazarCmd.h"
 #include "IoBuffer.h"
 
-#include "H5Cpp.h"
+// #include "H5Cpp.h"
 
 #include "utils/matplotlibcpp.h"
 namespace plt = matplotlibcpp;
@@ -123,6 +123,22 @@ struct SynchronizationFlags {
 
 /*******************************************************************************
  *                                                                            *
+ * CLASS DEFINITIONS                                                          *
+ *                                                                            *
+ ******************************************************************************/
+
+// Class includes
+#include "instruments/instrument.hpp"
+
+#include "instruments/PSG.hpp"
+#include "instruments/AWG.hpp"
+#include "instruments/ATS.hpp"
+
+#include "dataProcessing/dataProcessor.hpp"
+
+
+/*******************************************************************************
+ *                                                                            *
  * FUNCTION DECLARATIONS                                                      *
  *                                                                            *
  ******************************************************************************/
@@ -137,9 +153,9 @@ void plotVectors(std::vector<double> x, std::vector<double> y, std::string title
 std::vector<std::vector<double>> readCSV(std::string filename, int maxLines);
 
 // multiThreading.cpp
-void FFTThread(fftw_plan plan, int N, SharedData& sharedData, SynchronizationFlags& syncFlags);
-void magnitudeThread(int N, SharedData& sharedData, SynchronizationFlags& syncFlags);
 void decisionMakingThread(SharedData& sharedData, SynchronizationFlags& syncFlags);
+void FFTThread(fftw_plan plan, int N, SharedData& sharedData, SynchronizationFlags& syncFlags);
+void magnitudeThread(int N, SharedData& sharedData, SynchronizationFlags& syncFlags, DataProcessor& dataProcessor);
 void saveDataToBin(SharedData& sharedData, SynchronizationFlags& syncFlags);
 void saveDataToHDF5(SharedData& sharedData, SynchronizationFlags& syncFlags);
 
@@ -155,21 +171,5 @@ void startTimer(int timerCode);
 void stopTimer(int timerCode);
 void resetTimers();
 void reportPerformance();
-
-
-/*******************************************************************************
- *                                                                            *
- * CLASS DEFINITIONS                                                          *
- *                                                                            *
- ******************************************************************************/
-
-// Class includes
-#include "instruments/instrument.hpp"
-
-#include "instruments/PSG.hpp"
-#include "instruments/AWG.hpp"
-#include "instruments/ATS.hpp"
-
-#include "dataProcessing/dataProcessor.hpp"
 
 #endif // DECS_H

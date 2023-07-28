@@ -74,7 +74,7 @@ void FFTThread(fftw_plan plan, int N, SharedData& sharedData, SynchronizationFla
 }
 
 
-void magnitudeThread(int N, SharedData& sharedData, SynchronizationFlags& syncFlags) {
+void magnitudeThread(int N, SharedData& sharedData, SynchronizationFlags& syncFlags, DataProcessor& dataProcessor) {
     int numProcessed = 0;
     while (true) {
         // std::cout << "Waiting for data..." << std::endl;
@@ -99,6 +99,9 @@ void magnitudeThread(int N, SharedData& sharedData, SynchronizationFlags& syncFl
             for (int i = 0; i < N; i++) {
                 procData[i] = std::abs(std::complex<double>(FFTData[i][0], FFTData[i][1]));
             }
+
+            // Update the running average using DataProcessor
+            dataProcessor.addRawSpectrumToRunningAverage(procData);
 
             // Free the memory allocated for the fft data
             fftw_free(FFTData);
@@ -125,6 +128,7 @@ void magnitudeThread(int N, SharedData& sharedData, SynchronizationFlags& syncFl
         }
     }
 }
+
 
 
 

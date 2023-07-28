@@ -733,6 +733,7 @@ void ATS::AcquireDataMultithreadedContinuous(SharedData& sharedData, Synchroniza
 
 	// Wait for each buffer to be filled, process the buffer, and re-post it to the board.
 	if (success) {
+        startTimer(TIMER_ACQUISITION);
         #ifdef VERBOSE_OUTPUT
 		printf("Capturing %d buffers ... press any key to abort\n", acquisitionParams.buffersPerAcquisition);
         #endif
@@ -875,6 +876,7 @@ void ATS::AcquireDataMultithreadedContinuous(SharedData& sharedData, Synchroniza
 			printf("Completed %u buffers\r", buffersCompleted);
             #endif
 		}
+        stopTimer(TIMER_ACQUISITION);
 
         #ifdef VERBOSE_OUTPUT
 		double buffersPerSec;

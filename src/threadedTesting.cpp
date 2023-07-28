@@ -48,6 +48,14 @@ int main() {
     std::cout << "Plan created!" << std::endl;
 
 
+    // Create data processor
+    DataProcessor dataProcessor;
+    double cutoffFrequency = 20e3;
+    int poleNumber = 3;
+    double stopbandAttenuation = 40.0;
+    dataProcessor.setFilterParams(alazarCard.acquisitionParams.sampleRate, poleNumber, cutoffFrequency, stopbandAttenuation);
+
+
     // Create shared data structures
     SharedData sharedData;
     SynchronizationFlags syncFlags;
@@ -58,7 +66,7 @@ int main() {
         // Start the threads
         std::thread acquisitionThread(&ATS::AcquireDataMultithreadedContinuous, &alazarCard, std::ref(sharedData), std::ref(syncFlags));
         std::thread FFTThread(FFTThread, plan, N, std::ref(sharedData), std::ref(syncFlags));
-        std::thread magnitudeThread(magnitudeThread, N, std::ref(sharedData), std::ref(syncFlags));
+        std::thread magnitudeThread(magnitudeThread, N, std::ref(sharedData), std::ref(syncFlags), std::ref(dataProcessor));
         std::thread decisionMakingThread(decisionMakingThread, std::ref(sharedData), std::ref(syncFlags));
 
         #if SAVE_DATA
@@ -80,16 +88,8 @@ int main() {
         std::cerr << e.what() << '\n';
     }
 
+    dataProcessor.updateBaseline();
 
-    // // Main acquisition and processing logic
-    // DWORD startTickCount = GetTickCount();
-
-    // double fullTime_sec = (GetTickCount() - startTickCount) / 1000.;
-    // double expectedScanTime = (samplesPerAcquisition/sampleRate)*numShots;
-    // printf("\nMultithreaded run completed in %.3lf sec\n", fullTime_sec);
-    // printf("Time actively scanning %.3lf sec\n", scanTime_sec);
-    // printf("Expected scan time %.3lf sec\n", expectedScanTime);
-    // printf("Total live time efficiency: %.3lf \n\n", expectedScanTime/scanTime_sec);
 
 
     // Cleanup

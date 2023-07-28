@@ -40,6 +40,9 @@ public:
     std::vector<double> currentBaseline;
     std::vector<double> runningAverage;
 
+    std::mutex baselineMutex;
+    std::mutex averageMutex;
+
     // Dsp::FilterDesign <class DesignClass, int Channels = 0, class StateType = DirectFormII>
     // DesignClass <int MaxOrder>
     Dsp::FilterDesign <Dsp::ChebyshevII::Design::LowPass<4>, 1> chebyshevFilter;

@@ -35,3 +35,6 @@ build*/
 
 # Raw Data
 *.csv
+
+# VS code stuff
+.vscode/*
