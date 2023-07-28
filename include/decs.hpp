@@ -23,6 +23,15 @@
 
 #define _USE_MATH_DEFINES
 
+// Timers
+#define TIMER_ACQUISITION   (0)
+#define TIMER_FFT           (1)
+#define TIMER_MAG           (2)
+#define TIMER_DECISION      (3)
+#define TIMER_SAVE          (4)
+#define NUM_TIMERS          (5)
+
+
 /*******************************************************************************
  *                                                                            *
  * LIBRARY INCLUDES                                                           *
@@ -138,6 +147,14 @@ void saveDataToHDF5(SharedData& sharedData, SynchronizationFlags& syncFlags);
 void printAvailableResources();
 void psgTesting(int gpibAdress);
 void awgTesting(int gpibAdress);
+
+//timing.cpp
+void setTime(int timerCode, double val);
+double getTime(int timerCode);
+void startTimer(int timerCode);
+void stopTimer(int timerCode);
+void resetTimers();
+void reportPerformance();
 
 
 /*******************************************************************************

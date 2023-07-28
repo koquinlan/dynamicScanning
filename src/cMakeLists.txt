@@ -11,6 +11,7 @@ set(SOURCES
     util/IoBuffer.cpp
     util/multiThreading.cpp
     util/tests.cpp
+    util/timing.cpp
 
     dataProcessing/dataProcessor.cpp
 

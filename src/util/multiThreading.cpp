@@ -38,8 +38,8 @@ void FFTThread(fftw_plan plan, int N, SharedData& sharedData, SynchronizationFla
 
 
         // Process data until data queue is empty (lock is reaquired before checking the data queue)
+        startTimer(TIMER_FFT);
         while (!sharedData.dataQueue.empty()) {
-
             // Get the pointer to the data from the queue
             fftw_complex* complexOutput = sharedData.dataQueue.front();
             sharedData.dataQueue.pop();
@@ -61,6 +61,7 @@ void FFTThread(fftw_plan plan, int N, SharedData& sharedData, SynchronizationFla
             
             lock.lock();  // Reacquire lock before checking the data queue
         }
+        stopTimer(TIMER_FFT);
 
         // Check if the acquisition and processing is complete
         {
@@ -86,6 +87,7 @@ void magnitudeThread(int N, SharedData& sharedData, SynchronizationFlags& syncFl
 
 
         // Process data until data queue is empty (lock is reaquired before checking the data queue)
+        startTimer(TIMER_MAG);
         while (!sharedData.FFTDataQueue.empty()) {
 
             // Get the pointer to the data from the queue
@@ -112,6 +114,7 @@ void magnitudeThread(int N, SharedData& sharedData, SynchronizationFlags& syncFl
             
             lock.lock();  // Reacquire lock before checking the data queue
         }
+        stopTimer(TIMER_MAG);
 
         // Check if the acquisition and processing is complete
         {
@@ -143,6 +146,7 @@ void decisionMakingThread(SharedData& sharedData, SynchronizationFlags& syncFlag
 
 
         // Process data if the data queue is not empty
+        startTimer(TIMER_DECISION);
         while (!sharedData.processedDataQueue.empty()) {
             // Get the pointer to the data from the queue
             std::vector<double> processedOutput = sharedData.processedDataQueue.front();
@@ -162,6 +166,7 @@ void decisionMakingThread(SharedData& sharedData, SynchronizationFlags& syncFlag
 
             lock.lock();  // Lock again before checking the data queue
         }
+        stopTimer(TIMER_DECISION);
 
         // Check if the acquisition is complete
         {
@@ -196,6 +201,7 @@ void saveDataToBin(SharedData& sharedData, SynchronizationFlags& syncFlags) {
 
 
         // Process data if the data queue is not empty
+        startTimer(TIMER_SAVE);
         while (!sharedData.dataSavingQueue.empty()) {
             // Get the pointer to the data from the queue
             fftw_complex* rawData = sharedData.dataSavingQueue.front();
@@ -222,6 +228,7 @@ void saveDataToBin(SharedData& sharedData, SynchronizationFlags& syncFlags) {
 
             lock.lock();  // Lock again before checking the data queue
         }
+        stopTimer(TIMER_SAVE);
 
         // Check if the acquisition and saving is complete
         {
