@@ -15,8 +15,15 @@ int main() {
     // std::chrono::seconds dura(5);
     // std::this_thread::sleep_for(dura);
 
+
+    // Set up acquisition parameters
     double sampleRate = 32e6;
-    double samplesPerAcquisition = 7.5e7;
+    double RBW = 100;
+    int maxSpectraPerAcquisition = 250;
+
+    double samplesPerSpectrum = sampleRate/RBW;
+    double samplesPerAcquisition = samplesPerSpectrum*maxSpectraPerAcquisition;
+
 
     // Try to import an FFTW plan if available
     const char* wisdomFilePath = "fftw_wisdom.txt";
@@ -27,11 +34,11 @@ int main() {
         std::cout << "Failed to import FFTW wisdom from file." << std::endl;
     }
 
+
     // Prepare for acquisition and create FFTW plan
     ATS alazarCard(1, 1);
-    alazarCard.setAcquisitionParameters((U32)sampleRate, (U32)samplesPerAcquisition, 0);
+    alazarCard.setAcquisitionParameters((U32)sampleRate, (U32)samplesPerAcquisition, maxSpectraPerAcquisition);
     std::cout << "Acquisition parameters set. Collecting " << std::to_string(alazarCard.acquisitionParams.buffersPerAcquisition) << " buffers." << std::endl;
-
 
     int N = (int)alazarCard.acquisitionParams.samplesPerBuffer;
     std::cout << "Creating plan for N = " << std::to_string(N) << std::endl;
@@ -93,5 +100,7 @@ int main() {
     fftw_free(fftwInput);
     fftw_free(fftwOutput);
 
+
+    reportPerformance();
     return 0;
 }
