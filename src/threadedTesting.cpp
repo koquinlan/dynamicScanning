@@ -91,7 +91,6 @@ int main() {
     dataProcessor.updateBaseline();
 
 
-
     // Cleanup
     fftw_export_wisdom_to_filename(wisdomFilePath);
     std::cout << "FFTW wisdom saved to file." << std::endl;
@@ -100,7 +99,18 @@ int main() {
     fftw_free(fftwInput);
     fftw_free(fftwOutput);
 
-
     reportPerformance();
+
+
+    // Save the data
+    std::vector<double> freq(N);
+    for (int i = 0; i < N; ++i) {
+        freq[i] = (static_cast<double>(i)-static_cast<double>(N)/2)*alazarCard.acquisitionParams.sampleRate/N/1e6;
+    }
+
+    saveVector(freq, "../../../plotting/freq.csv");
+    saveVector(dataProcessor.currentBaseline, "../../../plotting/baseline.csv");
+    saveVector(dataProcessor.runningAverage, "../../../plotting/runningAverage.csv");
+
     return 0;
 }

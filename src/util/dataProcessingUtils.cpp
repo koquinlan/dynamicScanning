@@ -50,19 +50,9 @@ void trimVector(std::vector<double>& vec, double cutPercentage) {
     }
 
     // Calculate the number of elements to be removed from the front and back.
-    int numElementsToRemove = std::round(vec.size() * cutPercentage);
+    int numElementsToRemove = (int) std::round(vec.size() * cutPercentage);
 
     // Erase elements from the beginning and end of the vector.
     vec.erase(vec.begin(), vec.begin() + numElementsToRemove);
     vec.erase(vec.end() - numElementsToRemove, vec.end());
-}
-
-
-void plotVectors(std::vector<double> x, std::vector<double> y, std::string title="", std::string xlabel="x", std::string ylabel="y") {
-    plt::figure();
-    plt::plot(x, y);
-    plt::title(title);
-    plt::xlabel(xlabel);
-    plt::ylabel(ylabel);
-    plt::show();
 }
