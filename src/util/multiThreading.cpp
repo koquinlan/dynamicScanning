@@ -100,8 +100,10 @@ void magnitudeThread(int N, SharedData& sharedData, SynchronizationFlags& syncFl
                 procData[i] = std::abs(std::complex<double>(FFTData[i][0], FFTData[i][1]));
             }
 
+            std::vector<double> filteredData = dataProcessor.removeBadBins(procData);
+
             // Update the running average using DataProcessor
-            dataProcessor.addRawSpectrumToRunningAverage(procData);
+            dataProcessor.addRawSpectrumToRunningAverage(filteredData);
 
             // Free the memory allocated for the fft data
             fftw_free(FFTData);
@@ -111,7 +113,7 @@ void magnitudeThread(int N, SharedData& sharedData, SynchronizationFlags& syncFl
             // Acquire a new lock_guard and push the processed data to the shared queue
             {
                 std::lock_guard<std::mutex> lock(sharedData.mutex);
-                sharedData.processedDataQueue.push(procData);
+                sharedData.processedDataQueue.push(filteredData);
             }
             sharedData.processedDataReadyCondition.notify_one();
             

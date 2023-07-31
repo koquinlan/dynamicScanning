@@ -10,6 +10,7 @@
  */
 
 #include "decs.hpp"
+#define DETECT_BAD_BINS (0)
 
 int main() {
     // std::chrono::seconds dura(5);
@@ -54,6 +55,11 @@ int main() {
     int poleNumber = 3;
     double stopbandAttenuation = 40.0;
     dataProcessor.setFilterParams(alazarCard.acquisitionParams.sampleRate, poleNumber, cutoffFrequency, stopbandAttenuation);
+
+    // Try to import bad bins if available
+    #if !DETECT_BAD_BINS
+    dataProcessor.badBins = readVector("badBins.csv");
+    #endif
 
 
     // Create shared data structures
@@ -112,9 +118,12 @@ int main() {
 
     saveVector(freq, "../../../plotting/freq.csv");
     saveVector(outliers, "../../../plotting/outliers.csv");
-    saveVector(outliers, "outliers.csv");
     saveVector(dataProcessor.currentBaseline, "../../../plotting/baseline.csv");
     saveVector(dataProcessor.runningAverage, "../../../plotting/runningAverage.csv");
+
+    #if DETECT_BAD_BINS
+    saveVector(outliers, "badBins.csv");
+    #endif
 
     return 0;
 }

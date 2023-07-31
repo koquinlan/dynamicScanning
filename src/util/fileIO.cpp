@@ -44,6 +44,32 @@ std::vector<std::vector<double>> readCSV(std::string filename, int maxLines = -1
     return data;
 }
 
+std::vector<int> readVector(const std::string& filename) {
+    std::vector<int> data;
+    std::ifstream file(filename);
+
+    if (!file.is_open()) {
+        std::cerr << "Error: Unable to open file " << filename << std::endl;
+        return data;
+    }
+
+    std::string line;
+    while (std::getline(file, line)) {
+        std::istringstream iss(line);
+        int value;
+        while (iss >> value) {
+            data.push_back(value);
+            char comma;
+            if (!(iss >> comma)) {
+                break; // No more characters to read on this line
+            }
+        }
+    }
+
+    file.close();
+    return data;
+}
+
 
 void saveVector(const std::vector<double>& data, const std::string& filename) {
     std::ofstream dataFile(filename);

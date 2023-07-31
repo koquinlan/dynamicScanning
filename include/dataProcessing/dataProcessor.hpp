@@ -26,13 +26,16 @@ public:
     std::tuple<std::vector<double>, std::vector<double>, std::vector<double>> getFilterResponse();
     void displayFilterResponse();
 
-    std::vector<double> filterBadBins(std::vector<double> unfilteredRawSpectrum, double badBinThreshold);
+    std::vector<double> removeBadBins(std::vector<double> unfilteredRawSpectrum);
 
     void addRawSpectrumToRunningAverage(std::vector<double> rawSpectrum);
     void updateBaseline();
 
     std::vector<double> rawToIntermediate(std::vector<double> rawSpectrum);
     std::vector<double> intermediateToProcessed(std::vector<double> intermediateSpectrum);
+
+
+    std::vector<int> badBins;
 
 // private:
     int numSpectra=0;

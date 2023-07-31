@@ -172,12 +172,19 @@ void DataProcessor::addRawSpectrumToRunningAverage(std::vector<double> rawSpectr
 }
 
 
-std::vector<double> DataProcessor::filterBadBins(std::vector<double> unfilteredRawSpectrum, double badBinThreshold) {
-    std::vector<double> filteredSpectrum(unfilteredRawSpectrum.size());
+std::vector<double> DataProcessor::removeBadBins(std::vector<double> unfilteredRawSpectrum) {
+    std::vector<double> filteredSpectrum = unfilteredRawSpectrum;
 
-    // Replace bad bins with NAN based on the current best available baseline
-    for (int i = 0; i < unfilteredRawSpectrum.size(); i++) {
-        filteredSpectrum[i] = unfilteredRawSpectrum[i]/currentBaseline[i] > badBinThreshold ? unfilteredRawSpectrum[i] : NAN;
+    // Replace bad bins with a linear fill
+    for (int i = 0; i < badBins.size(); i++) {
+        int index = badBins[i];
+        
+        double fillValue = (
+                unfilteredRawSpectrum[(index+1) % unfilteredRawSpectrum.size()] + 
+                unfilteredRawSpectrum[(index-1) % unfilteredRawSpectrum.size()]
+            ) / 2;
+        
+        filteredSpectrum[index] = fillValue;
     }
 
     return filteredSpectrum;
