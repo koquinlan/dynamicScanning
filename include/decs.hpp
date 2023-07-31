@@ -55,6 +55,7 @@
 #include <vector>
 #include <queue>
 #include <complex>
+#include <iterator>
 
 #include <chrono>
 #include <stdexcept>
@@ -151,7 +152,7 @@ void trimVector(std::vector<double>& vec, double cutPercentage);
 
 // fileIO.cpp
 std::vector<std::vector<double>> readCSV(std::string filename, int maxLines);
-std::vector<int> readVector(const std::string& filename);
+std::vector<double> readVector(const std::string& filename);
 void saveVector(const std::vector<double>& data, const std::string& filename);
 void saveVector(const std::vector<int>& data, const std::string& filename);
 

@@ -121,18 +121,14 @@ void DataProcessor::updateBaseline() {
 }
 
 
-std::vector<double> DataProcessor::rawToIntermediate(std::vector<double> rawSpectrum) {
+std::tuple<std::vector<double>, std::vector<double>> DataProcessor::rawToProcessed(std::vector<double> rawSpectrum) {
     std::vector<double> intermediateSpectrum(rawSpectrum.size());
 
     for (int i = 0; i < rawSpectrum.size(); i++) {
         intermediateSpectrum[i] = rawSpectrum[i]/currentBaseline[i];
     }
 
-    return intermediateSpectrum;
-}
 
-
-std::vector<double> DataProcessor::intermediateToProcessed(std::vector<double> intermediateSpectrum) {
     // Set up containers for the baselining process
     std::vector<double> processedSpectrum(intermediateSpectrum.size());
     std::vector<double> processedBaseline = intermediateSpectrum;
@@ -154,7 +150,7 @@ std::vector<double> DataProcessor::intermediateToProcessed(std::vector<double> i
         processedSpectrum[i] = intermediateSpectrum[i]/processedBaseline[i]-1;
     }
 
-    return processedSpectrum;
+    return std::make_tuple(processedSpectrum, processedBaseline);
 }
 
 
@@ -162,27 +158,27 @@ void DataProcessor::addRawSpectrumToRunningAverage(std::vector<double> rawSpectr
     numSpectra++;
 
     if (numSpectra == 1) {
-        runningAverage = rawSpectrum;
+        runningAverage = std::move(rawSpectrum);
         return;
     }
 
-    for (int i = 0; i < runningAverage.size(); i++) {
-        runningAverage[i] = runningAverage[i]*(numSpectra-1)/numSpectra + rawSpectrum[i]/numSpectra;
-    }
+    // Optimized lambda function version of updating the running average
+    const double factor = static_cast<double>(numSpectra - 1) / numSpectra;
+    std::transform(runningAverage.begin(), runningAverage.end(), rawSpectrum.begin(), runningAverage.begin(),
+                   [this, factor](double a, double b) { return a * factor + b / numSpectra; });
 }
+
 
 
 std::vector<double> DataProcessor::removeBadBins(std::vector<double> unfilteredRawSpectrum) {
     std::vector<double> filteredSpectrum = unfilteredRawSpectrum;
 
     // Replace bad bins with a linear fill
-    for (int i = 0; i < badBins.size(); i++) {
-        int index = badBins[i];
-        
+    for (int index : badBins) {
         double fillValue = (
-                unfilteredRawSpectrum[(index+1) % unfilteredRawSpectrum.size()] + 
-                unfilteredRawSpectrum[(index-1) % unfilteredRawSpectrum.size()]
-            ) / 2;
+            unfilteredRawSpectrum[(index + 1) % unfilteredRawSpectrum.size()] +
+            unfilteredRawSpectrum[(index + unfilteredRawSpectrum.size() - 1) % unfilteredRawSpectrum.size()]
+            ) / 2.0;
         
         filteredSpectrum[index] = fillValue;
     }

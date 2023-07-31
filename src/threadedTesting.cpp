@@ -11,6 +11,7 @@
 
 #include "decs.hpp"
 #define DETECT_BAD_BINS (0)
+#define REFRESH_BASELINE (0)
 
 int main() {
     // std::chrono::seconds dura(5);
@@ -51,14 +52,21 @@ int main() {
 
     // Create data processor
     DataProcessor dataProcessor;
-    double cutoffFrequency = 20e3;
+    double cutoffFrequency = 10e3;
     int poleNumber = 3;
-    double stopbandAttenuation = 40.0;
+    double stopbandAttenuation = 15.0;
     dataProcessor.setFilterParams(alazarCard.acquisitionParams.sampleRate, poleNumber, cutoffFrequency, stopbandAttenuation);
 
     // Try to import bad bins if available
     #if !DETECT_BAD_BINS
-    dataProcessor.badBins = readVector("badBins.csv");
+    std::vector<double> badBins = readVector("badBins.csv");
+    dataProcessor.badBins.reserve(badBins.size());
+
+    std::transform(badBins.begin(), badBins.end(), std::back_inserter(dataProcessor.badBins), [](double d) { return static_cast<int>(d); });
+    #endif
+
+    #if !REFRESH_BASELINE
+    dataProcessor.currentBaseline = readVector("baseline.csv");
     #endif
 
 
@@ -95,6 +103,8 @@ int main() {
     }
 
     dataProcessor.updateBaseline();
+    std::vector<double> processedData, processedBaseline;
+    std::tie(processedData, processedBaseline) = dataProcessor.rawToProcessed(dataProcessor.runningAverage);
 
 
     // Cleanup
@@ -118,8 +128,12 @@ int main() {
 
     saveVector(freq, "../../../plotting/freq.csv");
     saveVector(outliers, "../../../plotting/outliers.csv");
+
     saveVector(dataProcessor.currentBaseline, "../../../plotting/baseline.csv");
     saveVector(dataProcessor.runningAverage, "../../../plotting/runningAverage.csv");
+
+    saveVector(processedData, "../../../plotting/processedData.csv");
+    saveVector(processedBaseline, "../../../plotting/processedBaseline.csv");
 
     #if DETECT_BAD_BINS
     saveVector(outliers, "badBins.csv");

@@ -31,8 +31,7 @@ public:
     void addRawSpectrumToRunningAverage(std::vector<double> rawSpectrum);
     void updateBaseline();
 
-    std::vector<double> rawToIntermediate(std::vector<double> rawSpectrum);
-    std::vector<double> intermediateToProcessed(std::vector<double> intermediateSpectrum);
+    std::tuple<std::vector<double>, std::vector<double>> rawToProcessed(std::vector<double> rawSpectrum);
 
 
     std::vector<int> badBins;
