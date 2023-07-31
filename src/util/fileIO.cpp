@@ -43,3 +43,18 @@ std::vector<std::vector<double>> readCSV(std::string filename, int maxLines = -1
 
     return data;
 }
+
+
+// Function to save a vector to a file
+void saveVector(const std::vector<double>& data, const std::string& filename) {
+    std::ofstream dataFile(filename);
+    if (dataFile.is_open()) {
+        dataFile << data[0];
+        for (size_t i = 1; i < data.size(); i++) {
+            dataFile << "," << data[i];
+        }
+        dataFile.close();
+    } else {
+        std::cerr << "Unable to open the file to save data." << std::endl;
+    }
+}

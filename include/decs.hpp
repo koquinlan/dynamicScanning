@@ -79,7 +79,7 @@
 
 // #include "H5Cpp.h"
 
-#include "utils/matplotlibcpp.h"
+#include "matplotlibcpp.h"
 namespace plt = matplotlibcpp;
 
 #include "DspFilters/Dsp.h"
@@ -151,6 +151,7 @@ void plotVectors(std::vector<double> x, std::vector<double> y, std::string title
 
 // fileIO.cpp
 std::vector<std::vector<double>> readCSV(std::string filename, int maxLines);
+void saveVector(const std::vector<double>& data, const std::string& filename);
 
 // multiThreading.cpp
 void decisionMakingThread(SharedData& sharedData, SynchronizationFlags& syncFlags);
