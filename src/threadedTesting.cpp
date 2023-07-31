@@ -102,9 +102,11 @@ int main() {
         std::cerr << e.what() << '\n';
     }
 
+    startTimer(TIMER_PROCESS);
     dataProcessor.updateBaseline();
     std::vector<double> processedData, processedBaseline;
     std::tie(processedData, processedBaseline) = dataProcessor.rawToProcessed(dataProcessor.runningAverage);
+    stopTimer(TIMER_PROCESS);
 
 
     // Cleanup

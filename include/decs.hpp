@@ -28,8 +28,9 @@
 #define TIMER_FFT           (1)
 #define TIMER_MAG           (2)
 #define TIMER_DECISION      (3)
-#define TIMER_SAVE          (4)
-#define NUM_TIMERS          (5)
+#define TIMER_PROCESS       (4)
+#define TIMER_SAVE          (5)
+#define NUM_TIMERS          (6)
 
 
 /*******************************************************************************
