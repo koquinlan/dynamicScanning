@@ -144,14 +144,15 @@ struct SynchronizationFlags {
  ******************************************************************************/
 
 // dataProcessingUtils.cpp
+std::vector<int> findOutliers(const std::vector<double>& data, int windowSize = 10, double multiplier = 3);
 void unwrapPhase(std::vector<double>& phase);
 std::tuple<double, double> vectorStats(const std::vector<double>& vec);
 void trimVector(std::vector<double>& vec, double cutPercentage);
-void plotVectors(std::vector<double> x, std::vector<double> y, std::string title, std::string xlabel, std::string ylabel);
 
 // fileIO.cpp
 std::vector<std::vector<double>> readCSV(std::string filename, int maxLines);
 void saveVector(const std::vector<double>& data, const std::string& filename);
+void saveVector(const std::vector<int>& data, const std::string& filename);
 
 // multiThreading.cpp
 void decisionMakingThread(SharedData& sharedData, SynchronizationFlags& syncFlags);

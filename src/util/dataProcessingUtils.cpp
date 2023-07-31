@@ -56,3 +56,24 @@ void trimVector(std::vector<double>& vec, double cutPercentage) {
     vec.erase(vec.begin(), vec.begin() + numElementsToRemove);
     vec.erase(vec.end() - numElementsToRemove, vec.end());
 }
+
+
+
+std::vector<int> findOutliers(const std::vector<double>& data, int windowSize, double multiplier) {
+    int halfWindow = windowSize / 2;
+    std::vector<int> outliers;
+
+    for (int i = halfWindow; i < data.size() - halfWindow; ++i) {
+        std::vector<double> windowData(data.begin() + i - halfWindow, data.begin() + i + halfWindow + 1);
+        
+        double mean, stdDev;
+        std::tie(mean, stdDev) = vectorStats(windowData);
+
+        // Check if the current element is an outlier
+        if (data[i] > (mean + multiplier * stdDev)) {
+            outliers.push_back(i);
+        }
+    }
+
+    return outliers;
+}

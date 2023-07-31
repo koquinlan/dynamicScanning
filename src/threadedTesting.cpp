@@ -108,7 +108,11 @@ int main() {
         freq[i] = (static_cast<double>(i)-static_cast<double>(N)/2)*alazarCard.acquisitionParams.sampleRate/N/1e6;
     }
 
+    std::vector<int> outliers = findOutliers(dataProcessor.runningAverage, 50, 5);
+
     saveVector(freq, "../../../plotting/freq.csv");
+    saveVector(outliers, "../../../plotting/outliers.csv");
+    saveVector(outliers, "outliers.csv");
     saveVector(dataProcessor.currentBaseline, "../../../plotting/baseline.csv");
     saveVector(dataProcessor.runningAverage, "../../../plotting/runningAverage.csv");
 
