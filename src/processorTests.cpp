@@ -1,5 +1,5 @@
 /**
- * @file processerTests.cpp
+ * @file processorTests.cpp
  * @author Kyle Quinlan (kyle.quinlan@colorado.edu)
  * @brief 
  * @version 0.1
