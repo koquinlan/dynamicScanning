@@ -17,6 +17,18 @@ int main() {
     // std::chrono::seconds dura(5);
     // std::this_thread::sleep_for(dura);
 
+    // Set up PSGs
+    PSG psg1_Diff(27);
+    PSG psg4_JPA(30);
+
+    psg1_Diff.setFreq(2.470396);
+    psg1_Diff.setPow(6.73);
+    psg1_Diff.onOff(true);
+
+    psg4_JPA.setFreq(9.970151);
+    psg4_JPA.setPow(13.08);
+    psg4_JPA.onOff(true);
+
 
     // Set up acquisition parameters
     double sampleRate = 32e6;
@@ -110,6 +122,9 @@ int main() {
 
 
     // Cleanup
+    psg1_Diff.onOff(false);
+    psg4_JPA.onOff(false);
+
     fftw_export_wisdom_to_filename(wisdomFilePath);
     std::cout << "FFTW wisdom saved to file." << std::endl;
 
