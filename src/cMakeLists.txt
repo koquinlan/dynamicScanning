@@ -38,8 +38,8 @@ set(INCLUDES
     ${VISA_INCLUDE_DIR}
     ${ALAZAR_INCLUDE_DIR}
 
-    ${PYTHON3_INCLUDE_DIRS}
-    ${NumPy_INCLUDE_DIRS}
+    ${Python3_INCLUDE_DIRS}
+    ${Python3_NumPy_INCLUDE_DIRS}
 
     # ${Python3_NumPy_INCLUDE_DIRS}
     ${FFTW3_INCLUDE_DIR}
@@ -51,7 +51,7 @@ set(LINKS
     ${VISA_LIBRARY}
     ${ALAZAR_LIBRARY}
 
-    ${PYTHON_LIBRARIES}
+    ${PYTHON3_LIBRARIES}
     Python3::NumPy
 
     ${FFTW3_LIBRARIES}
