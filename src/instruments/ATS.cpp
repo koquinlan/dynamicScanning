@@ -583,7 +583,7 @@ fftw_complex* ATS::AcquireData() {
 		}
 
 		printf("Captured %d buffers (%.4g buffers per sec)\n", buffersCompleted, buffersPerSec);
-		printf("Transferred %I64d bytes (%.4g bytes per sec)\n", bytesTransferred, bytesPerSec);
+		printf("Transferred %I64d bytes (%.4g bytes per sec)\n\n", bytesTransferred, bytesPerSec);
         #endif
 	}
 
