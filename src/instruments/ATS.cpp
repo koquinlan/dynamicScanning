@@ -440,7 +440,7 @@ fftw_complex* ATS::AcquireData() {
 
 	// Wait for each buffer to be filled, process the buffer, and re-post it to the board.
 	if (success) {
-        #ifdef VERBOSE_OUTPUT
+        #if VERBOSE_OUTPUT
 		printf("Capturing %d buffers ... press any key to abort\n", acquisitionParams.buffersPerAcquisition);
         #endif
 
@@ -558,13 +558,13 @@ fftw_complex* ATS::AcquireData() {
 				break;
 			}
 
-            #ifdef VERBOSE_OUTPUT
+            #if VERBOSE_OUTPUT
 			// Display progress
 			printf("Completed %u buffers\r", buffersCompleted);
             #endif
 		}
 
-        #ifdef VERBOSE_OUTPUT
+        #if VERBOSE_OUTPUT
 		// Display timing results for the acquisition
 		double transferTime_sec = (GetTickCount() - startTickCount) / 1000.;
 		printf("Capture completed in %.3lf sec\n", transferTime_sec);
@@ -734,7 +734,7 @@ void ATS::AcquireDataMultithreadedContinuous(SharedData& sharedData, Synchroniza
 	// Wait for each buffer to be filled, process the buffer, and re-post it to the board.
 	if (success) {
         startTimer(TIMER_ACQUISITION);
-        #ifdef VERBOSE_OUTPUT
+        #if VERBOSE_OUTPUT
 		printf("Capturing %d buffers ... press any key to abort\n", acquisitionParams.buffersPerAcquisition);
         #endif
 
@@ -871,14 +871,14 @@ void ATS::AcquireDataMultithreadedContinuous(SharedData& sharedData, Synchroniza
 				break;
 			}
 
-            #ifdef VERBOSE_OUTPUT
+            #if VERBOSE_OUTPUT
 			// Display progress
 			printf("Completed %u buffers\r", buffersCompleted);
             #endif
 		}
         stopTimer(TIMER_ACQUISITION);
 
-        #ifdef VERBOSE_OUTPUT
+        #if VERBOSE_OUTPUT
 		double buffersPerSec;
 		double bytesPerSec;
 

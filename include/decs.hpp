@@ -19,7 +19,7 @@
  ******************************************************************************/
 #define BUFFER_COUNT (8)
 
-#define VERBOSE_OUTPUT (1)
+#define VERBOSE_OUTPUT (0)
 
 #define _USE_MATH_DEFINES
 
