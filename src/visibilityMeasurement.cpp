@@ -11,7 +11,7 @@
 
 #include "decs.hpp"
 
-std::vector<double> takeData(ATS& alazarCard, fftw_plan plan);
+std::vector<double> processData(fftw_complex* rawStream, int spectraPerAcquisition, int samplesPerSpectrum, fftw_plan plan);
 
 int main() {
     // Determine parameters for acquisition
@@ -34,14 +34,15 @@ int main() {
     int samplesPerAcquisition = samplesPerSpectrum*spectraPerAcquisition;
 
     // Probe parameters
-    double probeSpan = 20; // MHz
-    int numProbes = 10;
+    double probeSpan = 10; // MHz
+    int numProbes = 30;
 
     std::vector<double> probeFreqs(numProbes);
     for (int i = 0; i < numProbes; ++i) {
         probeFreqs[i] = yModeFreq - probeSpan/2*1e-3 + i*probeSpan/(numProbes-1)*1e-3;
+        std::cout << probeFreqs[i] << " ";
     }
-
+    std::cout << std::endl;
 
     // Set up PSGs
     printAvailableResources();
@@ -85,17 +86,18 @@ int main() {
     psg3_Probe.setPow(-60);
 
     for (double probe : probeFreqs) {
+        printf("Taking data at %.3f MHz\n", probe*1e3);
         psg3_Probe.setFreq(probe);
 
         psg3_Probe.onOff(true);
-        std::vector<double> fftPowerProbeOn = takeData(alazarCard, plan);
+        std::vector<double> fftPowerProbeOn = processData(alazarCard.AcquireData(), spectraPerAcquisition, samplesPerSpectrum, plan);
         psg3_Probe.onOff(false);
-        std::vector<double> fftPowerBackground = takeData(alazarCard, plan);
+        std::vector<double> fftPowerBackground = processData(alazarCard.AcquireData(), spectraPerAcquisition, samplesPerSpectrum, plan);
 
-        std::string fileName = "../../../plotting/visData/" + std::to_string(probe - yModeFreq) + ".csv";
+        std::string fileName = "../../../plotting/visData/" + std::to_string(1e3*(probe - yModeFreq)) + ".csv";
         saveVector(fftPowerProbeOn, fileName);
 
-        fileName = "../../../plotting/visData/bg_" + std::to_string(probe - yModeFreq) + ".csv";
+        fileName = "../../../plotting/visData/bg_" + std::to_string(1e3*(probe - yModeFreq)) + ".csv";
         saveVector(fftPowerBackground, fileName);
     }
 
@@ -125,13 +127,7 @@ int main() {
 }
 
 
-std::vector<double> takeData(ATS& alazarCard, fftw_plan plan){
-    int spectraPerAcquisition = alazarCard.acquisitionParams.buffersPerAcquisition;
-    int samplesPerSpectrum = alazarCard.acquisitionParams.samplesPerBuffer;
-
-    fftw_complex* rawStream = alazarCard.AcquireData();
-
-
+std::vector<double> processData(fftw_complex* rawStream, int spectraPerAcquisition, int samplesPerSpectrum, fftw_plan plan){
     // Slice the rawStream into subStreams and store them in the rawData vector
     std::vector<fftw_complex*> rawData(spectraPerAcquisition);
     std::vector<fftw_complex*> procData(spectraPerAcquisition);
@@ -160,15 +156,11 @@ std::vector<double> takeData(ATS& alazarCard, fftw_plan plan){
     std::vector<std::vector<double>> fftVoltage(spectraPerAcquisition);
     std::vector<std::vector<double>> fftPower(spectraPerAcquisition);
 
-    for (int i = 0; i < samplesPerSpectrum; ++i) {
-        freq[i] = (static_cast<double>(i)-static_cast<double>(samplesPerSpectrum)/2)*alazarCard.acquisitionParams.sampleRate/samplesPerSpectrum/1e6;
-    }
-
     for (int i=0; i < spectraPerAcquisition; i++) {
         for (int j=0; j < samplesPerSpectrum; j++){
             fftVoltage[i].push_back( std::sqrt((procData[i][j][0]*procData[i][j][0] + procData[i][j][1]*procData[i][j][1]))/(double)samplesPerSpectrum );
 
-            fftPower[i].push_back( fftVoltage[i][j]*fftVoltage[i][j]/(double)alazarCard.acquisitionParams.inputImpedance );
+            fftPower[i].push_back( fftVoltage[i][j]*fftVoltage[i][j]/50 ); // Hard code in 50 Ohm input impedance
         }
     }
 
