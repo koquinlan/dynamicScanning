@@ -72,7 +72,7 @@ std::vector<double> readVector(const std::string& filename) {
 }
 
 
-void saveVector(const std::vector<double>& data, const std::string& filename) {
+void saveVector(std::vector<double> data, std::string filename) {
     std::ofstream dataFile(filename);
     if (dataFile.is_open()) {
         dataFile << data[0];
@@ -86,7 +86,7 @@ void saveVector(const std::vector<double>& data, const std::string& filename) {
 }
 
 
-void saveVector(const std::vector<int>& data, const std::string& filename) {
+void saveVector(std::vector<int> data, std::string filename) {
     std::ofstream dataFile(filename);
     if (dataFile.is_open()) {
         dataFile << data[0];

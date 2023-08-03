@@ -51,7 +51,7 @@ set(LINKS
     ${VISA_LIBRARY}
     ${ALAZAR_LIBRARY}
 
-    ${PYTHON3_LIBRARIES}
+    ${Python3_LIBRARIES}
     Python3::NumPy
 
     ${FFTW3_LIBRARIES}

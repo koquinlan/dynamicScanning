@@ -55,6 +55,7 @@ find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 find_package(Python3 3.7 EXACT COMPONENTS Interpreter NumPy Development REQUIRED)
 message(STATUS "Found Python version: ${Python3_VERSION}")
 message(STATUS "Interpreter Path: ${Python3_EXECUTABLE}")
+message(STATUS "DLLs: ${Python3_LIBRARIES}")
 
 set(CMAKE_PREFIX_PATH $ENV{LIBS}/HDF5)
 find_package(HDF5 REQUIRED COMPONENTS CXX)

@@ -41,6 +41,7 @@
 
 // Standard library includes
 #include <stdio.h>
+#include <crtdbg.h> // for leak detection
 #include <conio.h>
 #include <cmath>
 #include <algorithm>
@@ -81,8 +82,8 @@
 
 // #include "H5Cpp.h"
 
-#include "matplotlibcpp.h"
-namespace plt = matplotlibcpp;
+// #include "matplotlibcpp.h"
+// namespace plt = matplotlibcpp;
 
 #include "DspFilters/Dsp.h"
 
@@ -154,8 +155,8 @@ void trimVector(std::vector<double>& vec, double cutPercentage);
 // fileIO.cpp
 std::vector<std::vector<double>> readCSV(std::string filename, int maxLines);
 std::vector<double> readVector(const std::string& filename);
-void saveVector(const std::vector<double>& data, const std::string& filename);
-void saveVector(const std::vector<int>& data, const std::string& filename);
+void saveVector(std::vector<int> data, std::string filename);
+void saveVector(std::vector<double> data, std::string filename);
 
 // multiThreading.cpp
 void decisionMakingThread(SharedData& sharedData, SynchronizationFlags& syncFlags);

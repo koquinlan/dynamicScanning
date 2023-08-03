@@ -12,12 +12,13 @@
 #include "decs.hpp"
 
 void DataProcessor::displayState(){
-    plt::figure();
+    // plt::figure();
 
-    plt::plot(runningAverage);
-    plt::plot(currentBaseline);
+    // plt::plot(runningAverage);
+    // plt::plot(currentBaseline);
 
-    plt::show();
+    // plt::show();
+    return;
 }
 
 
@@ -82,26 +83,26 @@ void DataProcessor::displayFilterResponse() {
         bidirectionalMagnitude.push_back(magnitude[i]*magnitude[i]);
     }
 
-    // Create separate figures for magnitude and phase plots
-    plt::figure();
-    plt::loglog(freqPoints, magnitude);
-    plt::loglog(freqPoints, bidirectionalMagnitude);
-    plt::title("Magnitude Response");
-    plt::xlabel("Normalized Frequency");
-    plt::ylabel("Magnitude");
-    plt::grid(true);
+    // // Create separate figures for magnitude and phase plots
+    // plt::figure();
+    // plt::loglog(freqPoints, magnitude);
+    // plt::loglog(freqPoints, bidirectionalMagnitude);
+    // plt::title("Magnitude Response");
+    // plt::xlabel("Normalized Frequency");
+    // plt::ylabel("Magnitude");
+    // plt::grid(true);
 
 
-    plt::figure();
-    plt::semilogx(freqPoints, phase);
-    plt::title("Phase Response");
-    plt::xlabel("Normalized Frequency");
-    plt::ylabel("Phase (radians)");
-    plt::grid(true);
+    // plt::figure();
+    // plt::semilogx(freqPoints, phase);
+    // plt::title("Phase Response");
+    // plt::xlabel("Normalized Frequency");
+    // plt::ylabel("Phase (radians)");
+    // plt::grid(true);
 
-    plt::show();
+    // plt::show();
 
-    plt::close();
+    // plt::close();
 }
 
 
