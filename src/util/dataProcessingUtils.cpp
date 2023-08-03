@@ -77,3 +77,41 @@ std::vector<int> findOutliers(const std::vector<double>& data, int windowSize, d
 
     return outliers;
 }
+
+
+
+int findClosestIndex(std::vector<double> vec, double target) {
+    double minDifference = std::abs(vec[0] - target);
+    int closestIndex = 0;
+
+    for (int i = 1; i < vec.size(); ++i) {
+        double difference = std::abs(vec[i] - target);
+        if (difference < minDifference) {
+            minDifference = difference;
+            closestIndex = i;
+        }
+    }
+
+    return closestIndex;
+}
+
+
+
+int findMaxIndex(std::vector<double> vec, int startIndex, int endIndex) {
+    if (startIndex < 0 || endIndex > vec.size()) {
+        // Handle invalid input window
+        return -1;
+    }
+
+    int maxIndex = startIndex;
+    double maxValue = vec[startIndex];
+
+    for (int i = startIndex + 1; i < endIndex; ++i) {
+        if (vec[i] > maxValue) {
+            maxValue = vec[i];
+            maxIndex = i;
+        }
+    }
+
+    return maxIndex;
+}
