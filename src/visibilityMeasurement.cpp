@@ -9,6 +9,7 @@
  * 
  */
 
+#define _CRTDBG_MAP_ALLOC // leak detection
 #include "decs.hpp"
 
 std::vector<double> processData(fftw_complex* rawStream, int spectraPerAcquisition, int samplesPerSpectrum, fftw_plan plan);
@@ -35,7 +36,7 @@ int main() {
 
     // Probe parameters
     double probeSpan = 10; // MHz
-    int numProbes = 30;
+    int numProbes = 100;
 
     std::vector<double> probeFreqs(numProbes);
     for (int i = 0; i < numProbes; ++i) {
@@ -86,19 +87,29 @@ int main() {
     psg3_Probe.setPow(-60);
 
     for (double probe : probeFreqs) {
-        printf("Taking data at %.3f MHz\n", probe*1e3);
+        printf("Taking data at %.6f GHz\n", probe);
         psg3_Probe.setFreq(probe);
 
         psg3_Probe.onOff(true);
-        std::vector<double> fftPowerProbeOn = processData(alazarCard.AcquireData(), spectraPerAcquisition, samplesPerSpectrum, plan);
+        fftw_complex* rawProbeStream = alazarCard.AcquireData();
+        std::vector<double> fftPowerProbeOn = processData(rawProbeStream, spectraPerAcquisition, samplesPerSpectrum, plan);
+        fftw_free(rawProbeStream);
+
         psg3_Probe.onOff(false);
-        std::vector<double> fftPowerBackground = processData(alazarCard.AcquireData(), spectraPerAcquisition, samplesPerSpectrum, plan);
+        fftw_complex* rawBackgroundStream = alazarCard.AcquireData();
+        std::vector<double> fftPowerBackground = processData(rawBackgroundStream, spectraPerAcquisition, samplesPerSpectrum, plan);
+        fftw_free(rawBackgroundStream);
 
         std::string fileName = "../../../plotting/visData/" + std::to_string(1e3*(probe - yModeFreq)) + ".csv";
         saveVector(fftPowerProbeOn, fileName);
 
         fileName = "../../../plotting/visData/bg_" + std::to_string(1e3*(probe - yModeFreq)) + ".csv";
         saveVector(fftPowerBackground, fileName);
+
+        fftPowerProbeOn.clear();
+        std::vector<double>().swap(fftPowerProbeOn); // This line releases the memory
+        fftPowerBackground.clear();
+        std::vector<double>().swap(fftPowerBackground); // This line releases the memory
     }
 
 
@@ -123,31 +134,30 @@ int main() {
 
     saveVector(freq, "../../../plotting/visFreq.csv");
 
+    freq.clear();
+    std::vector<double>().swap(freq);
+
+    _CrtDumpMemoryLeaks();
     return 0;
 }
 
 
 std::vector<double> processData(fftw_complex* rawStream, int spectraPerAcquisition, int samplesPerSpectrum, fftw_plan plan){
     // Slice the rawStream into subStreams and store them in the rawData vector
-    std::vector<fftw_complex*> rawData(spectraPerAcquisition);
     std::vector<fftw_complex*> procData(spectraPerAcquisition);
 
     for (int i = 0; i < spectraPerAcquisition; ++i) {
-        // Calculate the starting index for the current subStream
         int startIndex = i * samplesPerSpectrum;
-
-        // Allocate memory for the subStream
         fftw_complex* subStream = (fftw_complex*) fftw_malloc(samplesPerSpectrum * sizeof(fftw_complex));
 
-        // Copy data from rawStream to the subStream
         for (int j = 0; j < samplesPerSpectrum; ++j) {
             subStream[j][0] = rawStream[startIndex + j][0]; // Real part
             subStream[j][1] = rawStream[startIndex + j][1]; // Imaginary part
         }
 
-        // Store the subStreams in the rawData and procData vectors
-        rawData[i] = subStream;
         procData[i] = processDataFFT(subStream, plan, samplesPerSpectrum);
+
+        fftw_free(subStream);
     }
 
 
@@ -178,11 +188,8 @@ std::vector<double> processData(fftw_complex* rawStream, int spectraPerAcquisiti
         fftPowerAvg[i] /= spectraPerAcquisition;
     }
 
-
-    // Cleanup
-    fftw_free(rawStream);
-    for (fftw_complex* subStream : rawData) {
-        fftw_free(subStream);
+    for (fftw_complex* data : procData) {
+        fftw_free(data);
     }
 
     return fftPowerAvg;
