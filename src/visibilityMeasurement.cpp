@@ -13,6 +13,7 @@
 #include "decs.hpp"
 
 std::vector<double> processData(fftw_complex* rawStream, int spectraPerAcquisition, int samplesPerSpectrum, fftw_plan plan);
+std::tuple<double, double> getVisibility(std::vector<double> fftPowerProbeOn, std::vector<double> fftPowerBackground, std::vector<double> probeFreqs, std::vector<double> freqAxis, double probeFreq, double yModeFreq);
 
 int main() {
     // Determine parameters for acquisition
@@ -39,9 +40,10 @@ int main() {
     int numProbes = 100;
 
     std::vector<double> probeFreqs(numProbes);
-    for (int i = 0; i < numProbes; ++i) {
-        probeFreqs[i] = yModeFreq - probeSpan/2*1e-3 + i*probeSpan/(numProbes-1)*1e-3;
-        std::cout << probeFreqs[i] << " ";
+    for (int i = 0; i < numProbes/2; ++i) {
+        probeFreqs[2*i] = yModeFreq - (probeSpan/2*1e-3 - i*probeSpan/(numProbes-1)*1e-3);
+        probeFreqs[2*i + 1] = yModeFreq + (probeSpan/2*1e-3 - i*probeSpan/(numProbes-1)*1e-3);
+        std::cout << (probeFreqs[2*i] - yModeFreq)*1e3 << " " << (probeFreqs[2*i+1] - yModeFreq)*1e3 << " ";
     }
     std::cout << std::endl;
 
@@ -84,10 +86,18 @@ int main() {
 
 
     // Acquire data
+    std::vector<double> freqAxis(samplesPerSpectrum);
+    for (int i = 0; i < samplesPerSpectrum; ++i) {
+        freqAxis[i] = (static_cast<double>(i)-static_cast<double>(samplesPerSpectrum)/2)*alazarCard.acquisitionParams.sampleRate/samplesPerSpectrum/1e6;
+    }
+    saveVector(freqAxis, "../../../plotting/visFreq.csv");
+
     psg3_Probe.setPow(-60);
 
+    std::vector<double> visibility, trueProbeFreqs;
+    DataProcessor proc;
     for (double probe : probeFreqs) {
-        printf("Taking data at %.6f GHz\n", probe);
+        printf("Taking data at %.6f GHz, %.2f %% complete\r", probe, trueProbeFreqs.size()/(double)numProbes*100);
         psg3_Probe.setFreq(probe);
 
         psg3_Probe.onOff(true);
@@ -106,11 +116,29 @@ int main() {
         fileName = "../../../plotting/visData/bg_" + std::to_string(1e3*(probe - yModeFreq)) + ".csv";
         saveVector(fftPowerBackground, fileName);
 
+
+        std::vector<int> outliers = findOutliers(fftPowerBackground);
+        for (int outlier : outliers) {
+            fftPowerBackground[outlier] = (fftPowerBackground[outlier-1] + fftPowerBackground[outlier+1])/2;
+            fftPowerProbeOn[outlier] = (fftPowerProbeOn[outlier-1] + fftPowerProbeOn[outlier+1])/2;
+        }
+
+        double vis, trueProbeFreq;
+        std::tie(vis, trueProbeFreq) = getVisibility(fftPowerProbeOn, fftPowerBackground, probeFreqs, freqAxis, probe, yModeFreq);
+        visibility.push_back(vis);
+        trueProbeFreqs.push_back(trueProbeFreq);
+
         fftPowerProbeOn.clear();
         std::vector<double>().swap(fftPowerProbeOn); // This line releases the memory
         fftPowerBackground.clear();
         std::vector<double>().swap(fftPowerBackground); // This line releases the memory
     }
+    printf("\n Acqusiition complete!\n");
+
+    saveVector(visibility, "../../../src/dataProcessing/visCurve.csv");
+    saveVector(visibility, "../../../plotting/visCurve.csv");
+    saveVector(trueProbeFreqs, "../../../src/dataProcessing/trueProbeFreqs.csv");
+    saveVector(trueProbeFreqs, "../../../plotting/trueProbeFreqs.csv");
 
 
     // Cleanup
@@ -125,17 +153,8 @@ int main() {
     fftw_free(fftwInput);
     fftw_free(fftwOutput);
 
-
-    // Save the data
-    std::vector<double> freq(samplesPerSpectrum);
-    for (int i = 0; i < samplesPerSpectrum; ++i) {
-        freq[i] = (static_cast<double>(i)-static_cast<double>(samplesPerSpectrum)/2)*alazarCard.acquisitionParams.sampleRate/samplesPerSpectrum/1e6;
-    }
-
-    saveVector(freq, "../../../plotting/visFreq.csv");
-
-    freq.clear();
-    std::vector<double>().swap(freq);
+    freqAxis.clear();
+    std::vector<double>().swap(freqAxis);
 
     _CrtDumpMemoryLeaks();
     return 0;
@@ -162,7 +181,6 @@ std::vector<double> processData(fftw_complex* rawStream, int spectraPerAcquisiti
 
 
     // Process the data into voltages
-    std::vector<double> freq(samplesPerSpectrum);
     std::vector<std::vector<double>> fftVoltage(spectraPerAcquisition);
     std::vector<std::vector<double>> fftPower(spectraPerAcquisition);
 
@@ -193,4 +211,32 @@ std::vector<double> processData(fftw_complex* rawStream, int spectraPerAcquisiti
     }
 
     return fftPowerAvg;
+}
+
+
+
+std::tuple<double, double> getVisibility(std::vector<double> fftPowerProbeOn, std::vector<double> fftPowerBackground, std::vector<double> probeFreqs, std::vector<double> freqAxis, double probeFreq, double yModeFreq) {
+    double probeSeparation = (probeFreqs[1] - probeFreqs[0])*1e9;   // GHz -> Hz
+    double freqSeparation = (freqAxis[1] - freqAxis[0])*1e6;        // MHz -> Hz
+
+    int probeIndex = findClosestIndex(freqAxis, (probeFreq-yModeFreq)*1e3);
+    int imageProbeIndex = findClosestIndex(freqAxis, (2*yModeFreq-probeFreq)*1e3);
+    int searchWindow = 100;//(int)std::round(probeSeparation/freqSeparation)/2;
+
+    std::vector<double> visibility(fftPowerProbeOn.size());
+    for (int i = 0; i < fftPowerProbeOn.size(); ++i) {
+        visibility[i] = (fftPowerProbeOn[i] - fftPowerBackground[i])/fftPowerBackground[i];
+    }
+
+    int alignedProbeIndex = findMaxIndex(visibility, max((probeIndex-searchWindow), 0), min((probeIndex+searchWindow),(int)visibility.size()));
+    int alignedImageProbeIndex = findMaxIndex(visibility, max((imageProbeIndex-searchWindow), 0), min((imageProbeIndex+searchWindow),(int)visibility.size()));
+
+    int sumWindow = 10;
+    int selectedProbeIndex = visibility[alignedProbeIndex] > visibility[alignedImageProbeIndex] ? alignedProbeIndex : alignedImageProbeIndex;
+    double finalVisibility = 0;
+    for (int i = max((selectedProbeIndex-sumWindow/2), 0); i <= min((selectedProbeIndex+sumWindow/2),(int)fftPowerProbeOn.size()); ++i) {
+        finalVisibility += visibility[i];
+    }
+
+    return std::make_tuple(finalVisibility, freqAxis[alignedProbeIndex]);
 }

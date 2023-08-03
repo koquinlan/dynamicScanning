@@ -58,6 +58,7 @@ probeDataFiles = [
     f for f in os.listdir(dataFolder) if f.endswith(".csv") and not f.startswith("bg_")
 ]
 probeDataFiles = sort_files_by_number(probeDataFiles)
+# probeDataFiles = np.concatenate((probeDataFiles[60:71], probeDataFiles[130:141]))
 
 probeData = []
 for probe in probeDataFiles:
@@ -71,6 +72,7 @@ bgDataFiles = [
     f for f in os.listdir(dataFolder) if f.startswith("bg_") and f.endswith(".csv")
 ]
 bgDataFiles = sort_files_by_number(bgDataFiles)
+# bgDataFiles = np.concatenate((bgDataFiles[60:71], bgDataFiles[130:141]))
 
 bgData = []
 for bg in bgDataFiles:
@@ -82,6 +84,11 @@ bgData = np.vstack(bgData)  # Combine arrays into a single numpy array
 ### OTHER DATA ###
 probeFreqs = np.array([extract_number(filename) for filename in probeDataFiles])
 freq = np.loadtxt("visFreq.csv", delimiter=",")
+trueProbeFreqs = np.loadtxt("trueProbeFreqs.csv", delimiter=",")
+visCurve = np.loadtxt("visCurve.csv", delimiter=",")
+
+# trueProbeFreqs = np.concatenate((trueProbeFreqs[60:71], trueProbeFreqs[130:141]))
+# visCurve = np.concatenate((visCurve[60:71], visCurve[130:141]))
 
 
 ####  PLOT PROBE AND BACKGROUND DATA  ####
@@ -95,7 +102,7 @@ for probe, probeFreq in zip(probeData, probeFreqs):
 
 
 plt.figure()
-
+plt.plot(trueProbeFreqs, visCurve, "o", color="red")
 for bg, probe in zip(bgData, probeData):
     plt.plot(freq, (probe - bg) / bg)
 
