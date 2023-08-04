@@ -143,14 +143,14 @@ int main() {
 
     std::vector<int> outliers = findOutliers(dataProcessor.runningAverage, 50, 5);
 
-    saveVector(freq, "../../../plotting/freq.csv");
-    saveVector(outliers, "../../../plotting/outliers.csv");
+    saveVector(freq, "../../../plotting/threadTests/freq.csv");
+    saveVector(outliers, "../../../plotting/threadTests/outliers.csv");
 
-    saveVector(dataProcessor.currentBaseline, "../../../plotting/baseline.csv");
-    saveVector(dataProcessor.runningAverage, "../../../plotting/runningAverage.csv");
+    saveVector(dataProcessor.currentBaseline, "../../../plotting/threadTests/baseline.csv");
+    saveVector(dataProcessor.runningAverage, "../../../plotting/threadTests/runningAverage.csv");
 
-    saveVector(processedData, "../../../plotting/processedData.csv");
-    saveVector(processedBaseline, "../../../plotting/processedBaseline.csv");
+    saveVector(processedData, "../../../plotting/threadTests/processedData.csv");
+    saveVector(processedBaseline, "../../../plotting/threadTests/processedBaseline.csv");
 
     #if DETECT_BAD_BINS
     saveVector(outliers, "badBins.csv");

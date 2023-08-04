@@ -12,11 +12,11 @@
 #include "decs.hpp"
 
 int main() {
-    // Add some toy data to work with
-    std::string filename = "../../../src/dataProcessing/raw_data_probe_2.csv";
-    std::vector<std::vector<double>> rawData = readCSV(filename, 10);
+    // // Add some toy data to work with
+    // std::string filename = "../../../src/dataProcessing/raw_data_probe_2.csv";
+    // std::vector<std::vector<double>> toyRawData = readCSV(filename, 10);
 
-    std::cout << "Read " << rawData.size() << " spectra from " << filename << "\n" << std::endl;
+    // std::cout << "Read " << toyRawData.size() << " spectra from " << filename << "\n" << std::endl;
 
 
     // Get ready for acquisition
@@ -33,7 +33,7 @@ int main() {
     // Acquisition parameters
     double sampleRate = 32e6;
     double RBW = 100;
-    int spectraPerAcquisition = 32;
+    int spectraPerAcquisition = 64;
 
     int samplesPerSpectrum = (int)(sampleRate/RBW);
     int samplesPerAcquisition = samplesPerSpectrum*spectraPerAcquisition;
@@ -42,7 +42,6 @@ int main() {
     printAvailableResources();
 
     PSG psg1_Diff(27);
-    PSG psg3_Probe(21);
     PSG psg4_JPA(30);
 
     psg1_Diff.setFreq(diffFreq);
@@ -52,8 +51,6 @@ int main() {
     psg4_JPA.setFreq(jpaFreq);
     psg4_JPA.setPow(jpaPower);
     psg4_JPA.onOff(true);
-
-    DataProcessor proc;
 
     // Set up alazar card
     ATS alazarCard(1, 1);
@@ -75,39 +72,68 @@ int main() {
     fftw_plan plan = fftw_plan_dft_1d(samplesPerSpectrum, fftwInput, fftwOutput, FFTW_FORWARD, FFTW_ESTIMATE);
     std::cout << "Plan created!" << std::endl;
 
+    
+    // Acquire data
+    fftw_complex* rawStream = alazarCard.AcquireData();
 
-    // Apply filtering to the running average
-    proc.setFilterParams(30e6, 3, 20e3, 40.);
-    proc.updateBaseline();
 
-    std::vector<double> intermediateSpectrum = proc.rawToIntermediate(rawData[0]);
-    std::vector<double> processedSpectrum = proc.intermediateToProcessed(intermediateSpectrum);
+    // Process data
+    DataProcessor dataProcessor;
+    double cutoffFrequency = 10e3;
+    int poleNumber = 3;
+    double stopbandAttenuation = 15.0;
+    dataProcessor.setFilterParams(alazarCard.acquisitionParams.sampleRate, poleNumber, cutoffFrequency, stopbandAttenuation);
 
-    for (int i=0; i<intermediateSpectrum.size(); i++) {
-        intermediateSpectrum[i]--;
+    std::vector<std::vector<double>> rawData = dataProcessor.acquiredToRaw(rawStream, spectraPerAcquisition, samplesPerSpectrum, plan);
+    fftw_free(rawStream);
+
+    dataProcessor.badBins = findOutliers(averageVectors(rawData));
+    for (int i = 0; i < rawData.size(); ++i) {
+        rawData[i] = dataProcessor.removeBadBins(rawData[i]);
+        dataProcessor.addRawSpectrumToRunningAverage(rawData[i]);
     }
 
-    trimVector(intermediateSpectrum, 0.1);
+    dataProcessor.updateBaseline();
+
+    std::vector<double> rawSpectrum = averageVectors(rawData);
+
+    std::vector<double> processedSpectrum, processedBaseline;
+    std::tie(processedSpectrum, processedBaseline) = dataProcessor.rawToProcessed(rawSpectrum);
     trimVector(processedSpectrum, 0.1);
+    trimVector(processedBaseline, 0.1);
 
 
-    // Display results
-    proc.displayFilterResponse();
-    proc.displayState();
+    // Save data for plotting
+    std::vector<double> freqAxis(samplesPerSpectrum);
+    for (int i = 0; i < samplesPerSpectrum; ++i) {
+        freqAxis[i] = (static_cast<double>(i)-static_cast<double>(samplesPerSpectrum)/2)*alazarCard.acquisitionParams.sampleRate/samplesPerSpectrum/1e6;
+    }
+    saveVector(freqAxis, "../../../plotting/processorTests/freqAxis.csv");
 
-    plt::figure();
-    plt::plot(rawData[0]);
-    plt::plot(proc.runningAverage);
-    plt::plot(proc.currentBaseline);
+    trimVector(freqAxis, 0.1);
+
+    saveVector(freqAxis, "../../../plotting/processorTests/trimmedFreqAxis.csv");
+    saveVector(rawSpectrum, "../../../plotting/processorTests/rawSpectrum.csv");
+    saveVector(dataProcessor.currentBaseline, "../../../plotting/processorTests/fullBaseline.csv");
+    saveVector(processedSpectrum, "../../../plotting/processorTests/processedSpectrum.csv");
+    saveVector(processedBaseline, "../../../plotting/processorTests/processedBaseline.csv");
 
 
-    plt::figure();
-    // Plot intermediate and processed spectra
-    plt::plot(intermediateSpectrum);
-    plt::plot(processedSpectrum);
-    plt::ylim(-1, 1);
+    // Cleanup
+    psg1_Diff.onOff(false);
+    psg4_JPA.onOff(false);
 
-    plt::show();
+    fftw_export_wisdom_to_filename(wisdomFilePath);
+    std::cout << "FFTW wisdom saved to file." << std::endl;
+
+    fftw_destroy_plan(plan);
+    fftw_free(fftwInput);
+    fftw_free(fftwOutput);
+
+    freqAxis.clear();
+    std::vector<double>().swap(freqAxis);
+
+    _CrtDumpMemoryLeaks();
 
     return 0;
 }

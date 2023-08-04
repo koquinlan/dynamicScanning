@@ -88,7 +88,7 @@ int main() {
     for (int i = 0; i < samplesPerSpectrum; ++i) {
         freqAxis[i] = (static_cast<double>(i)-static_cast<double>(samplesPerSpectrum)/2)*alazarCard.acquisitionParams.sampleRate/samplesPerSpectrum/1e6;
     }
-    saveVector(freqAxis, "../../../plotting/visFreq.csv");
+    saveVector(freqAxis, "../../../plotting/visMeasurement/visFreq.csv");
 
     psg3_Probe.setPow(-60);
 
@@ -108,10 +108,10 @@ int main() {
         std::vector<double> fftPowerBackground = averageVectors(proc.acquiredToRaw(rawBackgroundStream, spectraPerAcquisition, samplesPerSpectrum, plan));
         fftw_free(rawBackgroundStream);
 
-        std::string fileName = "../../../plotting/visData/" + std::to_string(1e3*(probe - yModeFreq)) + ".csv";
+        std::string fileName = "../../../plotting/visMeasurement/visData/" + std::to_string(1e3*(probe - yModeFreq)) + ".csv";
         saveVector(fftPowerProbeOn, fileName);
 
-        fileName = "../../../plotting/visData/bg_" + std::to_string(1e3*(probe - yModeFreq)) + ".csv";
+        fileName = "../../../plotting/visMeasurement/visData/bg_" + std::to_string(1e3*(probe - yModeFreq)) + ".csv";
         saveVector(fftPowerBackground, fileName);
 
 
@@ -134,9 +134,9 @@ int main() {
     printf("\n Acqusiition complete!\n");
 
     saveVector(visibility, "../../../src/dataProcessing/visCurve.csv");
-    saveVector(visibility, "../../../plotting/visCurve.csv");
+    saveVector(visibility, "../../../plotting/visMeasurement/visCurve.csv");
     saveVector(trueProbeFreqs, "../../../src/dataProcessing/trueProbeFreqs.csv");
-    saveVector(trueProbeFreqs, "../../../plotting/trueProbeFreqs.csv");
+    saveVector(trueProbeFreqs, "../../../plotting/visMeasurement/trueProbeFreqs.csv");
 
 
     // Cleanup
