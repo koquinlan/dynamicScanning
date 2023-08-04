@@ -12,7 +12,6 @@
 #define _CRTDBG_MAP_ALLOC // leak detection
 #include "decs.hpp"
 
-std::vector<double> processData(fftw_complex* rawStream, int spectraPerAcquisition, int samplesPerSpectrum, fftw_plan plan);
 std::tuple<double, double> getVisibility(std::vector<double> fftPowerProbeOn, std::vector<double> fftPowerBackground, std::vector<double> probeFreqs, std::vector<double> freqAxis, double probeFreq, double yModeFreq);
 
 int main() {
@@ -102,12 +101,12 @@ int main() {
 
         psg3_Probe.onOff(true);
         fftw_complex* rawProbeStream = alazarCard.AcquireData();
-        std::vector<double> fftPowerProbeOn = processData(rawProbeStream, spectraPerAcquisition, samplesPerSpectrum, plan);
+        std::vector<double> fftPowerProbeOn = averageVectors(proc.acquiredToRaw(rawProbeStream, spectraPerAcquisition, samplesPerSpectrum, plan));
         fftw_free(rawProbeStream);
 
         psg3_Probe.onOff(false);
         fftw_complex* rawBackgroundStream = alazarCard.AcquireData();
-        std::vector<double> fftPowerBackground = processData(rawBackgroundStream, spectraPerAcquisition, samplesPerSpectrum, plan);
+        std::vector<double> fftPowerBackground = averageVectors(proc.acquiredToRaw(rawBackgroundStream, spectraPerAcquisition, samplesPerSpectrum, plan));
         fftw_free(rawBackgroundStream);
 
         std::string fileName = "../../../plotting/visData/" + std::to_string(1e3*(probe - yModeFreq)) + ".csv";
@@ -158,59 +157,6 @@ int main() {
 
     _CrtDumpMemoryLeaks();
     return 0;
-}
-
-
-std::vector<double> processData(fftw_complex* rawStream, int spectraPerAcquisition, int samplesPerSpectrum, fftw_plan plan){
-    // Slice the rawStream into subStreams and store them in the rawData vector
-    std::vector<fftw_complex*> procData(spectraPerAcquisition);
-
-    for (int i = 0; i < spectraPerAcquisition; ++i) {
-        int startIndex = i * samplesPerSpectrum;
-        fftw_complex* subStream = (fftw_complex*) fftw_malloc(samplesPerSpectrum * sizeof(fftw_complex));
-
-        for (int j = 0; j < samplesPerSpectrum; ++j) {
-            subStream[j][0] = rawStream[startIndex + j][0]; // Real part
-            subStream[j][1] = rawStream[startIndex + j][1]; // Imaginary part
-        }
-
-        procData[i] = processDataFFT(subStream, plan, samplesPerSpectrum);
-
-        fftw_free(subStream);
-    }
-
-
-    // Process the data into voltages
-    std::vector<std::vector<double>> fftVoltage(spectraPerAcquisition);
-    std::vector<std::vector<double>> fftPower(spectraPerAcquisition);
-
-    for (int i=0; i < spectraPerAcquisition; i++) {
-        for (int j=0; j < samplesPerSpectrum; j++){
-            fftVoltage[i].push_back( std::sqrt((procData[i][j][0]*procData[i][j][0] + procData[i][j][1]*procData[i][j][1]))/(double)samplesPerSpectrum );
-
-            fftPower[i].push_back( fftVoltage[i][j]*fftVoltage[i][j]/50 ); // Hard code in 50 Ohm input impedance
-        }
-    }
-
-
-    // Get the average
-    std::vector<double> fftVoltageAvg(samplesPerSpectrum);
-    std::vector<double> fftPowerAvg(samplesPerSpectrum);
-
-    for (int i=0; i < samplesPerSpectrum; i++) {
-        for (int j=0; j < spectraPerAcquisition; j++) {
-            fftVoltageAvg[i] += fftVoltage[j][i];
-            fftPowerAvg[i] += fftPower[j][i];
-        }
-        fftVoltageAvg[i] /= spectraPerAcquisition;
-        fftPowerAvg[i] /= spectraPerAcquisition;
-    }
-
-    for (fftw_complex* data : procData) {
-        fftw_free(data);
-    }
-
-    return fftPowerAvg;
 }
 
 

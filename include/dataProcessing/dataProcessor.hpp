@@ -31,6 +31,7 @@ public:
     void addRawSpectrumToRunningAverage(std::vector<double> rawSpectrum);
     void updateBaseline();
 
+    std::vector<std::vector<double>> acquiredToRaw(fftw_complex* rawStream, int spectraPerAcquisition, int samplesPerSpectrum, fftw_plan plan);
     std::tuple<std::vector<double>, std::vector<double>> rawToProcessed(std::vector<double> rawSpectrum);
 
 

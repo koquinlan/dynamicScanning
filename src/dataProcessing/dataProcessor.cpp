@@ -186,3 +186,43 @@ std::vector<double> DataProcessor::removeBadBins(std::vector<double> unfilteredR
 
     return filteredSpectrum;
 }
+
+
+
+std::vector<std::vector<double>> DataProcessor::acquiredToRaw(fftw_complex* rawStream, int spectraPerAcquisition, int samplesPerSpectrum, fftw_plan plan){
+    // Slice the rawStream into subStreams and store them in the rawData vector
+    std::vector<fftw_complex*> procData(spectraPerAcquisition);
+
+    for (int i = 0; i < spectraPerAcquisition; ++i) {
+        int startIndex = i * samplesPerSpectrum;
+        fftw_complex* subStream = (fftw_complex*) fftw_malloc(samplesPerSpectrum * sizeof(fftw_complex));
+
+        for (int j = 0; j < samplesPerSpectrum; ++j) {
+            subStream[j][0] = rawStream[startIndex + j][0]; // Real part
+            subStream[j][1] = rawStream[startIndex + j][1]; // Imaginary part
+        }
+
+        procData[i] = processDataFFT(subStream, plan, samplesPerSpectrum);
+
+        fftw_free(subStream);
+    }
+
+
+    // Process the data into voltages
+    std::vector<std::vector<double>> fftVoltage(spectraPerAcquisition);
+    std::vector<std::vector<double>> fftPower(spectraPerAcquisition);
+
+    for (int i=0; i < spectraPerAcquisition; i++) {
+        for (int j=0; j < samplesPerSpectrum; j++){
+            fftVoltage[i].push_back( std::sqrt((procData[i][j][0]*procData[i][j][0] + procData[i][j][1]*procData[i][j][1]))/(double)samplesPerSpectrum );
+
+            fftPower[i].push_back( fftVoltage[i][j]*fftVoltage[i][j]/50 ); // Hard code in 50 Ohm input impedance
+        }
+    }
+
+    for (fftw_complex* data : procData) {
+        fftw_free(data);
+    }
+
+    return fftPower;
+}

@@ -115,3 +115,18 @@ int findMaxIndex(std::vector<double> vec, int startIndex, int endIndex) {
 
     return maxIndex;
 }
+
+
+
+std::vector<double> averageVectors(std::vector<std::vector<double>> vecs) {
+    std::vector<double> vecAvg(vecs[0].size());
+
+    for (int i=0; i < vecAvg.size(); i++) {
+        for (int j=0; j < vecs.size(); j++) {
+            vecAvg[i] += vecs[j][i];
+        }
+        vecAvg[i] /= vecs.size();
+    }
+
+    return vecAvg;
+}

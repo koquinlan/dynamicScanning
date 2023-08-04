@@ -147,6 +147,7 @@ struct SynchronizationFlags {
  ******************************************************************************/
 
 // dataProcessingUtils.cpp
+std::vector<double> averageVectors(std::vector<std::vector<double>> vecs);
 int findClosestIndex(std::vector<double> vec, double target);
 std::vector<int> findOutliers(const std::vector<double>& data, int windowSize = 10, double multiplier = 3);
 int findMaxIndex(std::vector<double> vec, int startIndex, int endIndex);
