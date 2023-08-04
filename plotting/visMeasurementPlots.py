@@ -98,7 +98,9 @@ for probe, probeFreq in zip(probeData, probeFreqs):
     plt.plot(freq, probe)
     plt.plot(probeFreq, 0, "o", color="red")
 
-# plt.ylim([0, 1.1 * np.partition(probeData[0], -10)[-10]])  # 10th largest value
+plt.ylim(
+    [0, 1.1 * np.partition(probeData[round(len(probeData) / 2)], -10)[-10]]
+)  # 10th largest value
 
 
 plt.figure()
