@@ -18,7 +18,7 @@ kA = 2*pi*20.56*MHz; % external coupling rates of readout (X) mode
 kAl = 2*pi*959*kHz; % internal loss rates of readout (X) mode
 kB = 2*pi*1160*Hz; % external coupling rates of axion (Y) mode
 kBl = 2*pi*900*kHz; % internal loss rates of axion (Y) mode
-gAB = [sqrt(kBl*kA)/2*1.00, 2*pi*7.2*MHz]; % SWAP rate: 1st parameter: C.C; 2nd parameter: GC
+gAB = [sqrt(kBl*kA)/2*1, 2*pi*7.2*MHz]; % SWAP rate: 1st parameter: C.C; 2nd parameter: GC
 hAB = [0, 2*pi*7.2*MHz];
 sA = [0, 2*pi*0*MHz]; % SMS rate on A mode
 sB = [0, 2*pi*0*MHz];
@@ -34,7 +34,7 @@ phi = 0*pi; % relative phase between G, C pumps
 
 % other parameters
 theta = pi/2 - phi/2; % readout quadrature
-na = 2*pi*2.3e-6*2.4e7/kB*1.8e6/1.9; % axion occupation
+na = 2*pi*2.3e-6*2.4e7/kB*1.8e6/1.4; % axion occupation
 nT = 0; % thermal occupation
 
 % input matrix: noise + axion
@@ -63,8 +63,8 @@ ws = -wmax:wstep:wmax;
 
 %% CC: JPA gain profile
 % 5.5GHz JPA gain profile taken by ENA
-folder = 'C:\Users\Lehnert Lab\Desktop\LehnertLab-Codebase\Axions\TestingScripts\07-Jul-2023\ascii';
-JPAdata = importdata([folder,'\s21ampenaf_76.dat']);
+folder = 'C:\Users\Lehnert Lab\Desktop\LehnertLab-Codebase\Axions\TestingScripts\04-Aug-2023\ascii';
+JPAdata = importdata([folder,'\s21ampenaf_78.dat']);
 JPAfreq = JPAdata.data(:,1);
 JPAgain = JPAdata.data(:,2)-mean(JPAdata.data(1:20,2));
 res_idx = find(JPAgain == max(JPAgain));
@@ -87,7 +87,7 @@ f0_JPA = fit_JPA.f0;
 
 % resample the fitted curve at ws freqs
 G_JPA_CC = abs(1 -k_JPA./(1i.*(ws/(2*pi*MHz)-JPA_det)+k_JPA/2-p_JPA^2./(k_JPA/2+1i.*((ws/(2*pi*MHz)-JPA_det))))).^2; % *4 count for single quad. gain
-
+% 
 % figure();
 % plot((JPAfreq-JPA_res)*10^3, JPAgain)
 % hold on
@@ -248,13 +248,24 @@ SRE_SQ = SR_SQ(2)/SR_SQ(1);
 % savefile = ['S:\lehnert\common\Quantum Metrology for Dark Matter\Joyce Jiang\measurement\02-May-2022\Vis_Theory.mat'];
 % save(fullfile(savefile),'ws','vis_mat')
 
+
+%%
 experimentalVisCurve = readmatrix('visCurve.csv');
 experimentalFreqs = readmatrix('trueProbeFreqs.csv');
+
+sortedData = sortrows([experimentalFreqs', experimentalVisCurve'], 1);
+
+
 figure();
 plot(ws/(2*pi*MHz), vis_mat(1,:));
 hold on
-plot(experimentalFreqs, experimentalVisCurve);
+plot(sortedData(:,1), sortedData(:,2));
 xlim([-10 10]);
 xlabel('Probe Det. [MHz]');
 ylabel('Visibility');
 legend('CC')
+
+
+% writematrix(vis_mat(1,:), 'visTheory.csv');
+% writematrix(ws/(2*pi*MHz), 'visTheoryFreqAxis.csv');
+
