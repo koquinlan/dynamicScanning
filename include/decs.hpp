@@ -17,6 +17,8 @@
  * GLOBAL MACROS AND DEFINITIONS                                               *
  *                                                                            *
  ******************************************************************************/
+#define _CRTDBG_MAP_ALLOC // leak detection
+
 #define BUFFER_COUNT (8)
 
 #define VERBOSE_OUTPUT (0)

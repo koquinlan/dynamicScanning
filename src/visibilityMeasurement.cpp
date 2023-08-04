@@ -9,7 +9,6 @@
  * 
  */
 
-#define _CRTDBG_MAP_ALLOC // leak detection
 #include "decs.hpp"
 
 std::tuple<double, double> getVisibility(std::vector<double> fftPowerProbeOn, std::vector<double> fftPowerBackground, std::vector<double> probeFreqs, std::vector<double> freqAxis, double probeFreq, double yModeFreq);
