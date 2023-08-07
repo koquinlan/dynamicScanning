@@ -95,6 +95,12 @@
  * STRUCTS AND GLOBALS                                                        *
  *                                                                            *
  ******************************************************************************/
+// Struct for holding spectrum information
+struct Spectrum {
+    std::vector<double> powers;
+    std::vector<double> freqAxis;
+};
+
 
 // Struct for storing data shared between threads. Used for multithreaded data acquisition.
 struct SharedData {
@@ -156,6 +162,7 @@ int findMaxIndex(std::vector<double> vec, int startIndex, int endIndex);
 void unwrapPhase(std::vector<double>& phase);
 std::tuple<double, double> vectorStats(std::vector<double> vec);
 void trimVector(std::vector<double>& vec, double cutPercentage);
+void trimSpectrum(Spectrum& spec, double cutPercentage);
 
 // fileIO.cpp
 std::vector<std::vector<double>> readCSV(std::string filename, int maxLines);

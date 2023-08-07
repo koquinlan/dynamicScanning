@@ -58,6 +58,12 @@ void trimVector(std::vector<double>& vec, double cutPercentage) {
 }
 
 
+void trimSpectrum(Spectrum& spec, double cutPercentage) {
+    trimVector(spec.powers, cutPercentage);
+    trimVector(spec.freqAxis, cutPercentage);
+}
+
+
 
 std::vector<int> findOutliers(const std::vector<double>& data, int windowSize, double multiplier) {
     int halfWindow = windowSize / 2;
