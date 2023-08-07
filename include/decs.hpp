@@ -99,6 +99,14 @@
 struct Spectrum {
     std::vector<double> powers;
     std::vector<double> freqAxis;
+    
+    double trueCenterFreq;
+};
+
+struct CombinedSpectrum : public Spectrum {
+    std::vector<double> weightSum;
+    std::vector<double> sigmaCombined;
+    std::vector<int> numTraces;
 };
 
 
@@ -167,6 +175,7 @@ void trimSpectrum(Spectrum& spec, double cutPercentage);
 // fileIO.cpp
 std::vector<std::vector<double>> readCSV(std::string filename, int maxLines);
 std::vector<double> readVector(const std::string& filename);
+void saveCombinedSpectrum(CombinedSpectrum data, std::string filename);
 void saveSpectrum(Spectrum data, std::string filename);
 void saveVector(std::vector<int> data, std::string filename);
 void saveVector(std::vector<double> data, std::string filename);
