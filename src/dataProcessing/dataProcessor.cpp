@@ -122,17 +122,17 @@ void DataProcessor::updateBaseline() {
 }
 
 
-std::tuple<std::vector<double>, std::vector<double>> DataProcessor::rawToProcessed(std::vector<double> rawSpectrum) {
-    std::vector<double> intermediateSpectrum(rawSpectrum.size());
+std::tuple<Spectrum, Spectrum> DataProcessor::rawToProcessed(Spectrum rawSpectrum) {
+    Spectrum intermediateSpectrum = rawSpectrum;
 
-    for (int i = 0; i < rawSpectrum.size(); i++) {
-        intermediateSpectrum[i] = rawSpectrum[i]/currentBaseline[i];
+    for (int i = 0; i < rawSpectrum.powers.size(); i++) {
+        intermediateSpectrum.powers[i] = rawSpectrum.powers[i]/currentBaseline[i];
     }
 
 
     // Set up containers for the baselining process
-    std::vector<double> processedSpectrum(intermediateSpectrum.size());
-    std::vector<double> processedBaseline = intermediateSpectrum;
+    Spectrum processedSpectrum = intermediateSpectrum;
+    std::vector<double> processedBaseline = intermediateSpectrum.powers;
 
     double* processedBaselineData[1];
     processedBaselineData[0] = processedBaseline.data();
@@ -147,11 +147,15 @@ std::tuple<std::vector<double>, std::vector<double>> DataProcessor::rawToProcess
 
 
     // Divide the intermediate spectrum by the processed baseline to get the processed spectrum
-    for (int i = 0; i < intermediateSpectrum.size(); i++) {
-        processedSpectrum[i] = intermediateSpectrum[i]/processedBaseline[i]-1;
+    for (int i = 0; i < intermediateSpectrum.powers.size(); i++) {
+        processedSpectrum.powers[i] = intermediateSpectrum.powers[i]/processedBaseline[i]-1;
     }
 
-    return std::make_tuple(processedSpectrum, processedBaseline);
+    Spectrum processedBaselineSpectrum;
+    processedBaselineSpectrum.powers = processedBaseline;
+    processedBaselineSpectrum.freqAxis = processedSpectrum.freqAxis;
+
+    return std::make_tuple(processedSpectrum, processedBaselineSpectrum);
 }
 
 
@@ -228,22 +232,27 @@ std::vector<std::vector<double>> DataProcessor::acquiredToRaw(fftw_complex* rawS
 }
 
 
-std::vector<double> DataProcessor::loadSNR(std::string filename) {
-    SNR = readVector(filename);
+Spectrum DataProcessor::loadSNR(std::string filenameSNR, std::string filenameSNRfreqs) {
+    SNR.powers = readVector(filenameSNR);
+    SNR.freqAxis = readVector(filenameSNRfreqs);
 
     return SNR;
 }
 
 
 
-std::vector<double> DataProcessor::processedToRescaled(std::vector<double> processedSpectrum) {
-    std::vector<double> rescaledSpectrum = processedSpectrum;
+Spectrum DataProcessor::processedToRescaled(Spectrum processedSpectrum) {
+    Spectrum rescaledSpectrum = processedSpectrum;
 
     double mean, stddev;
-    std::tie(mean, stddev) = vectorStats(rescaledSpectrum);
+    std::tie(mean, stddev) = vectorStats(rescaledSpectrum.powers);
 
-    for (int i=0; i < rescaledSpectrum.size(); i++){
-        rescaledSpectrum[i] /= (stddev*SNR[i]);
+    int startIndex=0;
+    while (SNR.freqAxis[startIndex] < processedSpectrum.freqAxis[0]) {
+        startIndex++;
+    }
+    for (int i=0; i < rescaledSpectrum.powers.size(); i++){
+        rescaledSpectrum.powers[i] /= (stddev*SNR.powers[startIndex+i]);
     }
     
     return rescaledSpectrum;

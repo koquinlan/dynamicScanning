@@ -84,7 +84,7 @@ int main() {
     double stopbandAttenuation = 15.0;
     dataProcessor.setFilterParams(alazarCard.acquisitionParams.sampleRate, poleNumber, cutoffFrequency, stopbandAttenuation);
 
-    dataProcessor.loadSNR("../../../src/dataProcessing/visTheory.csv");
+    dataProcessor.loadSNR("../../../src/dataProcessing/visTheory.csv", "../../../src/dataProcessing/visTheoryFreqAxis.csv");
 
     std::vector<std::vector<double>> rawData = dataProcessor.acquiredToRaw(rawStream, spectraPerAcquisition, samplesPerSpectrum, plan);
     fftw_free(rawStream);
@@ -97,28 +97,37 @@ int main() {
 
     dataProcessor.updateBaseline();
 
-    std::vector<double> rawSpectrum = averageVectors(rawData);
+    Spectrum rawSpectrum;
+    rawSpectrum.powers = averageVectors(rawData);
 
-    std::vector<double> processedSpectrum, processedBaseline;
-    std::tie(processedSpectrum, processedBaseline) = dataProcessor.rawToProcessed(rawSpectrum);
-    trimVector(processedSpectrum, 0.1);
-    trimVector(processedBaseline, 0.1);
-
-
-    // Save data for plotting
     std::vector<double> freqAxis(samplesPerSpectrum);
     for (int i = 0; i < samplesPerSpectrum; ++i) {
         freqAxis[i] = (static_cast<double>(i)-static_cast<double>(samplesPerSpectrum)/2)*alazarCard.acquisitionParams.sampleRate/samplesPerSpectrum/1e6;
     }
+
+    rawSpectrum.freqAxis = freqAxis;
+
+    Spectrum processedSpectrum, processedBaseline;
+    std::tie(processedSpectrum, processedBaseline) = dataProcessor.rawToProcessed(rawSpectrum);
+    trimSpectrum(processedSpectrum, 0.1);
+    trimSpectrum(processedBaseline, 0.1);
+
+    Spectrum rescaledSpectrum = dataProcessor.processedToRescaled(processedSpectrum);
+
+
+    // Save data for plotting
     saveVector(freqAxis, "../../../plotting/processorTests/freqAxis.csv");
 
     trimVector(freqAxis, 0.1);
 
     saveVector(freqAxis, "../../../plotting/processorTests/trimmedFreqAxis.csv");
-    saveVector(rawSpectrum, "../../../plotting/processorTests/rawSpectrum.csv");
+    saveSpectrum(rawSpectrum, "../../../plotting/processorTests/rawSpectrum.csv");
     saveVector(dataProcessor.currentBaseline, "../../../plotting/processorTests/fullBaseline.csv");
-    saveVector(processedSpectrum, "../../../plotting/processorTests/processedSpectrum.csv");
-    saveVector(processedBaseline, "../../../plotting/processorTests/processedBaseline.csv");
+
+    saveSpectrum(processedSpectrum, "../../../plotting/processorTests/processedSpectrum.csv");
+    saveSpectrum(processedBaseline, "../../../plotting/processorTests/processedBaseline.csv");
+
+    saveSpectrum(rescaledSpectrum, "../../../plotting/processorTests/rescaledSpectrum.csv");
 
 
     // Cleanup
