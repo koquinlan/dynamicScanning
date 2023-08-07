@@ -226,3 +226,25 @@ std::vector<std::vector<double>> DataProcessor::acquiredToRaw(fftw_complex* rawS
 
     return fftPower;
 }
+
+
+std::vector<double> DataProcessor::loadSNR(std::string filename) {
+    SNR = readVector(filename);
+
+    return SNR;
+}
+
+
+
+std::vector<double> DataProcessor::processedToRescaled(std::vector<double> processedSpectrum) {
+    std::vector<double> rescaledSpectrum = processedSpectrum;
+
+    double mean, stddev;
+    std::tie(mean, stddev) = vectorStats(rescaledSpectrum);
+
+    for (int i=0; i < rescaledSpectrum.size(); i++){
+        rescaledSpectrum[i] /= (stddev*SNR[i]);
+    }
+    
+    return rescaledSpectrum;
+}

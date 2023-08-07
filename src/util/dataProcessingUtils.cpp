@@ -23,7 +23,7 @@ void unwrapPhase(std::vector<double>& phase) {
 }
 
 
-std::tuple<double, double> vectorStats(const std::vector<double>& vec) {
+std::tuple<double, double> vectorStats(std::vector<double> vec) {
     if (vec.empty()) {
         // Return NaN to indicate that the mean is undefined for an empty vector.
         return std::make_tuple(std::numeric_limits<double>::quiet_NaN(), std::numeric_limits<double>::quiet_NaN());

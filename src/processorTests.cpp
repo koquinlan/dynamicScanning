@@ -84,6 +84,8 @@ int main() {
     double stopbandAttenuation = 15.0;
     dataProcessor.setFilterParams(alazarCard.acquisitionParams.sampleRate, poleNumber, cutoffFrequency, stopbandAttenuation);
 
+    dataProcessor.loadSNR("../../../src/dataProcessing/visTheory.csv");
+
     std::vector<std::vector<double>> rawData = dataProcessor.acquiredToRaw(rawStream, spectraPerAcquisition, samplesPerSpectrum, plan);
     fftw_free(rawStream);
 

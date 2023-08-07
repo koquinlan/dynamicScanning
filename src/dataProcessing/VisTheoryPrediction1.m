@@ -56,8 +56,8 @@ Sin_mat_N(5,5) = nT + 1;
 Sin_mat_N(6,6) = 1;
 
 % Loop Parameters
-wmax = 20*2*pi*MHz;
-wstep = 0.01*2*pi*MHz;
+wmax = 16*2*pi*MHz;
+wstep = 100*2*pi*Hz;
 points = 2*wmax/wstep+1;
 ws = -wmax:wstep:wmax;
 

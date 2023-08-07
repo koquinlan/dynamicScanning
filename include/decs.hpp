@@ -154,7 +154,7 @@ int findClosestIndex(std::vector<double> vec, double target);
 std::vector<int> findOutliers(const std::vector<double>& data, int windowSize = 50, double multiplier = 5);
 int findMaxIndex(std::vector<double> vec, int startIndex, int endIndex);
 void unwrapPhase(std::vector<double>& phase);
-std::tuple<double, double> vectorStats(const std::vector<double>& vec);
+std::tuple<double, double> vectorStats(std::vector<double> vec);
 void trimVector(std::vector<double>& vec, double cutPercentage);
 
 // fileIO.cpp
