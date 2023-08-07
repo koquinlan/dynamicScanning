@@ -58,7 +58,7 @@ Sin_mat_N(6,6) = 1;
 % Loop Parameters
 wmax = 16*2*pi*MHz;
 wstep = 100*2*pi*Hz;
-points = 2*wmax/wstep+1;
+points = 2*wmax/wstep + 1;
 ws = -wmax:wstep:wmax;
 
 %% CC: JPA gain profile
@@ -257,7 +257,7 @@ sortedData = sortrows([experimentalFreqs', experimentalVisCurve'], 1);
 
 
 figure();
-plot(ws/(2*pi*MHz), vis_mat(1,:));
+plot(ws/(2*pi*MHz), real(vis_mat(1,:)));
 hold on
 plot(sortedData(:,1), sortedData(:,2));
 xlim([-10 10]);
@@ -266,6 +266,6 @@ ylabel('Visibility');
 legend('CC')
 
 
-% writematrix(vis_mat(1,:), 'visTheory.csv');
-% writematrix(ws/(2*pi*MHz), 'visTheoryFreqAxis.csv');
+writematrix(real(vis_mat(1,:)), 'visTheory.csv');
+writematrix(ws/(2*pi*MHz), 'visTheoryFreqAxis.csv');
 
