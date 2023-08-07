@@ -241,19 +241,138 @@ Spectrum DataProcessor::loadSNR(std::string filenameSNR, std::string filenameSNR
 
 
 
+void DataProcessor::trimSNRtoMatch(Spectrum spectrum) {
+    int startIndex=0;
+    while (SNR.freqAxis[startIndex+1] < spectrum.freqAxis[0]) {
+        startIndex++;
+    }
+
+    trimmedSNR.powers.clear();
+    trimmedSNR.freqAxis.clear();
+
+    trimmedSNR.powers.resize(spectrum.freqAxis.size());
+    trimmedSNR.freqAxis.resize(spectrum.freqAxis.size());
+
+    for(int i=0; i < trimmedSNR.powers.size(); i++){
+        trimmedSNR.powers[i] = SNR.powers[i+startIndex];
+        trimmedSNR.freqAxis[i] = SNR.freqAxis[i+startIndex];
+    }
+}
+
+
+
 Spectrum DataProcessor::processedToRescaled(Spectrum processedSpectrum) {
     Spectrum rescaledSpectrum = processedSpectrum;
 
     double mean, stddev;
     std::tie(mean, stddev) = vectorStats(rescaledSpectrum.powers);
 
-    int startIndex=0;
-    while (SNR.freqAxis[startIndex] < processedSpectrum.freqAxis[0]) {
-        startIndex++;
-    }
     for (int i=0; i < rescaledSpectrum.powers.size(); i++){
-        rescaledSpectrum.powers[i] /= (stddev*SNR.powers[startIndex+i]);
+        rescaledSpectrum.powers[i] /= (stddev*trimmedSNR.powers[i]);
     }
     
     return rescaledSpectrum;
+}
+
+
+
+
+void DataProcessor::addRescaledToCombined(Spectrum rescaledSpectrum, CombinedSpectrum &combinedSpectrum)
+{
+    std::vector<double> trueRescaledRange = rescaledSpectrum.freqAxis;
+    double shift = rescaledSpectrum.trueCenterFreq;
+
+    // Shift the frequency range to be absolute rather than relative
+    for(int i=0; i<trueRescaledRange.size(); i++){
+        trueRescaledRange[i] += shift;
+    }
+
+    // Either set the combined spectrum frequency range and powers or expand it as necessary
+    if(combinedSpectrum.freqAxis.empty()){
+        combinedSpectrum.freqAxis = trueRescaledRange;
+        combinedSpectrum.powers = rescaledSpectrum.powers;
+
+        
+        for(int i=0; i<trimmedSNR.powers.size(); i++){
+            combinedSpectrum.sigmaCombined.push_back(1/trimmedSNR.powers[i]);
+            combinedSpectrum.weightSum.push_back(trimmedSNR.powers[i]*trimmedSNR.powers[i]);
+            combinedSpectrum.numTraces.push_back(1);
+        }
+    }
+    // Case where there may be a shift that needs to occur
+    else{
+        // Logic if the trace we're trying to add comes before the current combined spectrum for some reason
+        // Note the performance here is horrible since we have to "push_front" a vector -- avoid this at all costs!!
+        int shiftStart = 0;
+        double currFront = combinedSpectrum.freqAxis.front();
+
+        while(trueRescaledRange[shiftStart] < currFront){
+            shiftStart += 1;
+
+            // Maximum value of shiftStart is the final index of the rescaled range
+            if(shiftStart==(trueRescaledRange.size())) break;
+        }
+        shiftStart = shiftStart-1; // Value of negative one corresponds to no dangling values, the two ranges overlap completely
+
+        for(int i=shiftStart; i >= 0; i--){
+            combinedSpectrum.freqAxis.insert(combinedSpectrum.freqAxis.begin(), 1, trueRescaledRange[i]);
+            combinedSpectrum.weightSum.insert(combinedSpectrum.freqAxis.begin(), 1, 0);
+            combinedSpectrum.sigmaCombined.insert(combinedSpectrum.freqAxis.begin(), 1, 0);
+            combinedSpectrum.powers.insert(combinedSpectrum.freqAxis.begin(), 1, 0);
+        }
+
+
+        // Logic if the trace we're trying to add comes after the current combined spectrum (this is the case when we step forward)
+        int shiftBack = (int)trueRescaledRange.size()-1;
+        double currBack = combinedSpectrum.freqAxis.back();
+
+        while(trueRescaledRange[shiftBack] > currBack){
+            shiftBack -= 1;
+
+            // Minimum value of shiftStart is 0 
+            if(shiftBack==-1) break;     
+        }
+        shiftBack = shiftBack+1; // Value of trueRescaledRange.size() corresponds to no dangling values, the two ranges overlap completely
+
+        for(int i=shiftBack; i <trueRescaledRange.size(); i++){
+            combinedSpectrum.freqAxis.push_back(trueRescaledRange[i]);
+            combinedSpectrum.weightSum.push_back(0);
+            combinedSpectrum.sigmaCombined.push_back(0);
+            combinedSpectrum.powers.push_back(0);
+        }
+
+
+
+        // Now do the vertical recombination
+        int fullRangeIndex = 0;
+        while(combinedSpectrum.freqAxis[fullRangeIndex] != trueRescaledRange.front()){
+            fullRangeIndex++;
+
+            if(fullRangeIndex==combinedSpectrum.freqAxis.size()){
+                std::cout << "An issue occured in adding this rescaled spectrum to the combined spectrum" << std::endl;
+                exit(-1);
+            }
+        }
+
+        double newSNRsq;
+        double oldSum;
+        double newSum;
+        for(int i=0; i<trueRescaledRange.size(); i++){
+            // Increase the number of contributing traces
+            combinedSpectrum.numTraces[i+fullRangeIndex] += 1;
+
+            // Add SNR (R_ij) squared to the sum
+            oldSum = combinedSpectrum.weightSum[i+fullRangeIndex];
+            newSNRsq = trimmedSNR.powers[i]*trimmedSNR.powers[i];
+            newSum = oldSum+newSNRsq;
+
+            // Update the sum normalization term and sigma in each bin
+            combinedSpectrum.weightSum[i+fullRangeIndex] = newSum;
+            combinedSpectrum.sigmaCombined[i+fullRangeIndex] = std::sqrt(1/newSum);
+
+            // Update the powers based on the reweighted contrubting traces
+            combinedSpectrum.powers[i+fullRangeIndex] *= (oldSum/newSum);
+            combinedSpectrum.powers[i+fullRangeIndex] += (newSNRsq/newSum)*rescaledSpectrum.powers[i]; 
+        }
+    }
 }

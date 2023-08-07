@@ -106,13 +106,19 @@ int main() {
     }
 
     rawSpectrum.freqAxis = freqAxis;
+    rawSpectrum.trueCenterFreq = yModeFreq;
 
     Spectrum processedSpectrum, processedBaseline;
     std::tie(processedSpectrum, processedBaseline) = dataProcessor.rawToProcessed(rawSpectrum);
+    
     trimSpectrum(processedSpectrum, 0.1);
     trimSpectrum(processedBaseline, 0.1);
+    dataProcessor.trimSNRtoMatch(processedSpectrum);
 
     Spectrum rescaledSpectrum = dataProcessor.processedToRescaled(processedSpectrum);
+
+    CombinedSpectrum combinedSpectrum;
+    dataProcessor.addRescaledToCombined(rescaledSpectrum, combinedSpectrum);
 
 
     // Save data for plotting
@@ -128,6 +134,8 @@ int main() {
     saveSpectrum(processedBaseline, "../../../plotting/processorTests/processedBaseline.csv");
 
     saveSpectrum(rescaledSpectrum, "../../../plotting/processorTests/rescaledSpectrum.csv");
+
+    saveCombinedSpectrum(combinedSpectrum, "../../../plotting/processorTests/combinedSpectrum.csv");
 
 
     // Cleanup
