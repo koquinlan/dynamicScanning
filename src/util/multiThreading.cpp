@@ -100,11 +100,13 @@ void magnitudeThread(int N, SharedData& sharedData, SynchronizationFlags& syncFl
                 procData[i] = std::abs(std::complex<double>(FFTData[i][0], FFTData[i][1]));
             }
 
-            std::vector<double> filteredData = dataProcessor.removeBadBins(procData);
+            Spectrum rawSpectrum;
+            rawSpectrum.powers = dataProcessor.removeBadBins(procData);
+            rawSpectrum.freqAxis = dataProcessor.SNR.freqAxis; // This actually adds an appreciable, rather large amount of time...
 
             // Update the running average using DataProcessor
-            dataProcessor.addRawSpectrumToRunningAverage(filteredData);
-
+            dataProcessor.addRawSpectrumToRunningAverage(rawSpectrum.powers);
+            
             // Free the memory allocated for the fft data
             fftw_free(FFTData);
             numProcessed++;
@@ -113,9 +115,9 @@ void magnitudeThread(int N, SharedData& sharedData, SynchronizationFlags& syncFl
             // Acquire a new lock_guard and push the processed data to the shared queue
             {
                 std::lock_guard<std::mutex> lock(sharedData.mutex);
-                sharedData.processedDataQueue.push(filteredData);
+                sharedData.rawDataQueue.push(rawSpectrum);
             }
-            sharedData.processedDataReadyCondition.notify_one();
+            sharedData.rawDataReadyCondition.notify_one();
             
             lock.lock();  // Reacquire lock before checking the data queue
         }
@@ -146,17 +148,17 @@ void decisionMakingThread(SharedData& sharedData, SynchronizationFlags& syncFlag
     while (true) {
         // Check if processed data queue is empty
         std::unique_lock<std::mutex> lock(sharedData.mutex);
-        sharedData.processedDataReadyCondition.wait(lock, [&sharedData]() {
-            return !sharedData.processedDataQueue.empty();
+        sharedData.rawDataReadyCondition.wait(lock, [&sharedData]() {
+            return !sharedData.rawDataQueue.empty();
         });
 
 
         // Process data if the data queue is not empty
         startTimer(TIMER_DECISION);
-        while (!sharedData.processedDataQueue.empty()) {
+        while (!sharedData.rawDataQueue.empty()) {
             // Get the pointer to the data from the queue
-            std::vector<double> processedOutput = sharedData.processedDataQueue.front();
-            sharedData.processedDataQueue.pop();
+            Spectrum rawSpectrum = sharedData.rawDataQueue.front();
+            sharedData.rawDataQueue.pop();
             lock.unlock();
 
 

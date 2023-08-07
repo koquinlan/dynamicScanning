@@ -119,12 +119,12 @@ struct SharedData {
     std::queue<fftw_complex*> dataQueue;
     std::queue<fftw_complex*> dataSavingQueue;
     std::queue<fftw_complex*> FFTDataQueue;
-    std::queue<std::vector<double>> processedDataQueue;
+    std::queue<Spectrum> rawDataQueue;
 
     std::condition_variable dataReadyCondition;
     std::condition_variable saveReadyCondition;
     std::condition_variable FFTDataReadyCondition;
-    std::condition_variable processedDataReadyCondition;
+    std::condition_variable rawDataReadyCondition;
 };
 
 // Struct for storing synchronization flags. Used for multithreaded data acquisition.

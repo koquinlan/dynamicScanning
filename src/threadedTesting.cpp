@@ -69,6 +69,13 @@ int main() {
     double stopbandAttenuation = 15.0;
     dataProcessor.setFilterParams(alazarCard.acquisitionParams.sampleRate, poleNumber, cutoffFrequency, stopbandAttenuation);
 
+    std::vector<double> freq(N);
+    for (int i = 0; i < N; ++i) {
+        freq[i] = (static_cast<double>(i)-static_cast<double>(N)/2)*sampleRate/N/1e6;
+    }
+
+    dataProcessor.loadSNR("../../../src/dataProcessing/visTheory.csv", "../../../src/dataProcessing/visTheoryFreqAxis.csv");
+
     // Try to import bad bins if available
     #if !DETECT_BAD_BINS
     std::vector<double> badBins = readVector("badBins.csv");
@@ -114,11 +121,11 @@ int main() {
         std::cerr << e.what() << '\n';
     }
 
-    startTimer(TIMER_PROCESS);
-    dataProcessor.updateBaseline();
-    std::vector<double> processedData, processedBaseline;
-    std::tie(processedData, processedBaseline) = dataProcessor.rawToProcessed(dataProcessor.runningAverage);
-    stopTimer(TIMER_PROCESS);
+    // startTimer(TIMER_PROCESS);
+    // dataProcessor.updateBaseline();
+    // Spectrum processedData, processedBaseline;
+    // std::tie(processedData, processedBaseline) = dataProcessor.rawToProcessed(dataProcessor.runningAverage);
+    // stopTimer(TIMER_PROCESS);
 
 
     // Cleanup
@@ -136,11 +143,6 @@ int main() {
 
 
     // Save the data
-    std::vector<double> freq(N);
-    for (int i = 0; i < N; ++i) {
-        freq[i] = (static_cast<double>(i)-static_cast<double>(N)/2)*alazarCard.acquisitionParams.sampleRate/N/1e6;
-    }
-
     std::vector<int> outliers = findOutliers(dataProcessor.runningAverage, 50, 5);
 
     saveVector(freq, "../../../plotting/threadTests/freq.csv");
@@ -148,9 +150,6 @@ int main() {
 
     saveVector(dataProcessor.currentBaseline, "../../../plotting/threadTests/baseline.csv");
     saveVector(dataProcessor.runningAverage, "../../../plotting/threadTests/runningAverage.csv");
-
-    saveVector(processedData, "../../../plotting/threadTests/processedData.csv");
-    saveVector(processedBaseline, "../../../plotting/threadTests/processedBaseline.csv");
 
     #if DETECT_BAD_BINS
     saveVector(outliers, "badBins.csv");
