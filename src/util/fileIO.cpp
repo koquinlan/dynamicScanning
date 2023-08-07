@@ -98,3 +98,25 @@ void saveVector(std::vector<int> data, std::string filename) {
         std::cerr << "Unable to open the file to save data." << std::endl;
     }
 }
+
+
+void saveSpectrum(Spectrum data, std::string filename) {
+    std::ofstream dataFile(filename);
+    if (dataFile.is_open()) {
+        dataFile << data.powers[0];
+        for (size_t i = 1; i < data.powers.size(); i++) {
+            dataFile << "," << data.powers[i];
+        }
+
+        dataFile << "\n";
+
+        dataFile << data.freqAxis[0];
+        for (size_t i = 1; i < data.freqAxis.size(); i++) {
+            dataFile << "," << data.freqAxis[i];
+        }
+
+        dataFile.close();
+    } else {
+        std::cerr << "Unable to open the file to save data." << std::endl;
+    }
+}
