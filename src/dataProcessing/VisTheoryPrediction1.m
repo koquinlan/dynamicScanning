@@ -59,7 +59,7 @@ Sin_mat_N(6,6) = 1;
 wmax = 16*2*pi*MHz;
 wstep = 100*2*pi*Hz;
 points = 2*wmax/wstep + 1;
-ws = -wmax:wstep:wmax;
+ws = -wmax:wstep:(wmax-wstep);
 
 %% CC: JPA gain profile
 % 5.5GHz JPA gain profile taken by ENA
