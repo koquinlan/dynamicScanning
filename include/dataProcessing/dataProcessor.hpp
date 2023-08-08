@@ -35,9 +35,9 @@ public:
     void updateBaseline();
 
     std::vector<std::vector<double>> acquiredToRaw(fftw_complex* rawStream, int spectraPerAcquisition, int samplesPerSpectrum, fftw_plan plan);
-    std::tuple<Spectrum, Spectrum> rawToProcessed(Spectrum rawSpectrum);
-    Spectrum DataProcessor::processedToRescaled(Spectrum processedSpectrum);
-    void DataProcessor::addRescaledToCombined(Spectrum rescaledSpectrum, CombinedSpectrum &combinedSpectrum);
+    std::tuple<Spectrum, Spectrum> rawToProcessed(const Spectrum &rawSpectrum);
+    Spectrum DataProcessor::processedToRescaled(const Spectrum &processedSpectrum);
+    void DataProcessor::addRescaledToCombined(const Spectrum &rescaledSpectrum, CombinedSpectrum &combinedSpectrum);
 
 
     std::vector<int> badBins;

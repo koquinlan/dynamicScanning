@@ -29,10 +29,12 @@
 #define TIMER_ACQUISITION   (0)
 #define TIMER_FFT           (1)
 #define TIMER_MAG           (2)
-#define TIMER_DECISION      (3)
+#define TIMER_AVERAGE       (3)
 #define TIMER_PROCESS       (4)
-#define TIMER_SAVE          (5)
-#define NUM_TIMERS          (6)
+#define TIMER_RESCALE       (5)
+#define TIMER_DECISION      (6)
+#define TIMER_SAVE          (7)
+#define NUM_TIMERS          (8)
 
 
 /*******************************************************************************
@@ -119,12 +121,14 @@ struct SharedData {
     std::queue<fftw_complex*> dataQueue;
     std::queue<fftw_complex*> dataSavingQueue;
     std::queue<fftw_complex*> FFTDataQueue;
+    std::queue<std::vector<double>> magDataQueue;
     std::queue<Spectrum> rawDataQueue;
     std::queue<Spectrum> rescaledDataQueue;
 
     std::condition_variable dataReadyCondition;
     std::condition_variable saveReadyCondition;
     std::condition_variable FFTDataReadyCondition;
+    std::condition_variable magDataReadyCondition;
     std::condition_variable rawDataReadyCondition;
     std::condition_variable rescaledDataReadyCondition;
 
@@ -166,7 +170,7 @@ struct SynchronizationFlags {
  ******************************************************************************/
 
 // dataProcessingUtils.cpp
-std::vector<double> averageVectors(std::vector<std::vector<double>> vecs);
+std::vector<double> averageVectors(const std::vector<std::vector<double>>& vecs);
 int findClosestIndex(std::vector<double> vec, double target);
 std::vector<int> findOutliers(const std::vector<double>& data, int windowSize = 50, double multiplier = 5);
 int findMaxIndex(std::vector<double> vec, int startIndex, int endIndex);
@@ -184,6 +188,7 @@ void saveVector(std::vector<int> data, std::string filename);
 void saveVector(std::vector<double> data, std::string filename);
 
 // multiThreading.cpp
+void averagingThread(SharedData& sharedData, SynchronizationFlags& syncFlags, DataProcessor& dataProcessor);
 void decisionMakingThread(SharedData& sharedData, SynchronizationFlags& syncFlags);
 void FFTThread(fftw_plan plan, int N, SharedData& sharedData, SynchronizationFlags& syncFlags);
 void magnitudeThread(int N, SharedData& sharedData, SynchronizationFlags& syncFlags, DataProcessor& dataProcessor);

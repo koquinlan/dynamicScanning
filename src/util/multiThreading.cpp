@@ -100,12 +100,7 @@ void magnitudeThread(int N, SharedData& sharedData, SynchronizationFlags& syncFl
                 magData[i] = std::abs(std::complex<double>(FFTData[i][0], FFTData[i][1]));
             }
 
-            Spectrum rawSpectrum;
-            rawSpectrum.powers = dataProcessor.removeBadBins(magData);
-            rawSpectrum.freqAxis = dataProcessor.SNR.freqAxis; // This actually adds an appreciable, rather large amount of time...
-
-            // Update the running average using DataProcessor
-            dataProcessor.addRawSpectrumToRunningAverage(rawSpectrum.powers);
+            magData = dataProcessor.removeBadBins(magData);
             
             // Free the memory allocated for the fft data
             fftw_free(FFTData);
@@ -115,9 +110,9 @@ void magnitudeThread(int N, SharedData& sharedData, SynchronizationFlags& syncFl
             // Acquire a new lock_guard and push the processed data to the shared queue
             {
                 std::lock_guard<std::mutex> lock(sharedData.mutex);
-                sharedData.rawDataQueue.push(rawSpectrum);
+                sharedData.magDataQueue.push(magData);
             }
-            sharedData.rawDataReadyCondition.notify_one();
+            sharedData.magDataReadyCondition.notify_one();
             
             lock.lock();  // Reacquire lock before checking the data queue
         }
@@ -127,6 +122,60 @@ void magnitudeThread(int N, SharedData& sharedData, SynchronizationFlags& syncFl
         {
             std::lock_guard<std::mutex> lock(syncFlags.mutex);
             if (syncFlags.acquisitionComplete && sharedData.FFTDataQueue.empty()) {
+                syncFlags.dataProcessingComplete = true;
+                sharedData.magDataReadyCondition.notify_one();
+                break;  // Exit the processing thread
+            }
+        }
+    }
+    
+}
+
+
+
+void averagingThread(SharedData& sharedData, SynchronizationFlags& syncFlags, DataProcessor& dataProcessor) {
+    int subSpectraAveragingNumber = 32;
+    while (true) {
+        // Wait for signal from dataReadyCondition or immediately continue if the data queue is not empty (lock releases while waiting)
+        std::unique_lock<std::mutex> lock(sharedData.mutex);
+        sharedData.magDataReadyCondition.wait(lock, [&sharedData, &subSpectraAveragingNumber, &syncFlags]() {
+            return (sharedData.magDataQueue.size() >= subSpectraAveragingNumber) || syncFlags.dataProcessingComplete;
+        });
+
+        startTimer(TIMER_AVERAGE);
+
+        int procNumber = min(subSpectraAveragingNumber, (int) sharedData.magDataQueue.size());
+        std::vector<std::vector<double>> subSpectra(procNumber);
+
+        for(int i = 0; i < procNumber; i++) {
+            // Get the pointer to the data from the queue
+            subSpectra[i] = sharedData.magDataQueue.front();
+            sharedData.magDataQueue.pop();
+
+            // Update the running average using DataProcessor
+            dataProcessor.addRawSpectrumToRunningAverage(subSpectra[i]);
+        }
+        lock.unlock();
+
+        Spectrum rawSpectrum;
+        rawSpectrum.powers = averageVectors(subSpectra);
+        rawSpectrum.freqAxis = dataProcessor.SNR.freqAxis;
+
+
+        // Acquire a new lock_guard and push the processed data to the shared queue
+        {
+            std::lock_guard<std::mutex> lock(sharedData.mutex);
+            sharedData.rawDataQueue.push(rawSpectrum);
+        }
+        sharedData.rawDataReadyCondition.notify_one();
+        
+        lock.lock();  // Reacquire lock before checking the data queue
+        stopTimer(TIMER_AVERAGE);
+
+        // Check if the acquisition and processing is complete
+        {
+            std::lock_guard<std::mutex> lock(syncFlags.mutex);
+            if (syncFlags.acquisitionComplete && sharedData.magDataQueue.empty()) {
                 break;  // Exit the processing thread
             }
         }
@@ -153,7 +202,7 @@ void processingThread(SharedData& sharedData, SynchronizationFlags& syncFlags, D
 
 
         // Process data if the data queue is not empty
-        startTimer(TIMER_PROCESS);
+        
         while (!sharedData.rawDataQueue.empty()) {
             // Get the pointer to the data from the queue
             Spectrum rescaledSpectrum = sharedData.rawDataQueue.front();
@@ -161,8 +210,14 @@ void processingThread(SharedData& sharedData, SynchronizationFlags& syncFlags, D
             lock.unlock();
 
             Spectrum foo;
+
+            startTimer(TIMER_PROCESS);
             std::tie(rescaledSpectrum, foo) = dataProcessor.rawToProcessed(rescaledSpectrum);
+            stopTimer(TIMER_PROCESS);
+
+            startTimer(TIMER_RESCALE);
             rescaledSpectrum = dataProcessor.processedToRescaled(rescaledSpectrum);
+            stopTimer(TIMER_RESCALE);
 
             buffersProcessed++;
 
@@ -175,7 +230,7 @@ void processingThread(SharedData& sharedData, SynchronizationFlags& syncFlags, D
 
             lock.lock();  // Lock again before checking the data queue
         }
-        stopTimer(TIMER_PROCESS);
+        
 
         // Check if the acquisition is complete
         {

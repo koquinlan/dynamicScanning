@@ -32,7 +32,7 @@ set(ALAZAR_LIBRARY ${CMAKE_CURRENT_SOURCE_DIR}/libs/AtsApi.lib)
 set(ALAZAR_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include/ALAZAR) # Replace with the actual path to the VISA include directory
 
 # Set compiler flags
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Ot")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /O2 /openmp:experimental") # /Qvec-report:2")
 message(STATUS "Compiler flags set to: ${CMAKE_CXX_FLAGS}")
 
 # Find various external libraries to link against

@@ -45,8 +45,10 @@ void reportPerformance()
     fprintf(stdout, "   DATA ACQUISITION:    %8.4g s\n", times[TIMER_ACQUISITION]);
     fprintf(stdout, "   FOURIER TRANSFORM:   %8.4g s\n", times[TIMER_FFT]);
     fprintf(stdout, "   FFT MAGNITUDE:       %8.4g s\n", times[TIMER_MAG]);
-    fprintf(stdout, "   DECISION MAKING:     %8.4g s\n", times[TIMER_DECISION]);
+    fprintf(stdout, "   AVERAGING:           %8.4g s\n", times[TIMER_AVERAGE]);
     fprintf(stdout, "   PROCESSING:          %8.4g s\n", times[TIMER_PROCESS]);
+    fprintf(stdout, "   RESCALING:           %8.4g s\n", times[TIMER_RESCALE]);
+    fprintf(stdout, "   DECISION MAKING:     %8.4g s\n", times[TIMER_DECISION]);
     #if SAVE_DATA
     fprintf(stdout, "   DATA SAVING:         %8.4g s\n", times[TIMER_SAVE]);
     #endif

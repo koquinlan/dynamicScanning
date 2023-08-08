@@ -99,6 +99,7 @@ int main() {
         std::thread magnitudeThread(magnitudeThread, N, std::ref(sharedData), std::ref(syncFlags), std::ref(dataProcessor));
 
         #if !REFRESH_BASELINE_AND_BAD_BINS
+        std::thread averagingThread(averagingThread, std::ref(sharedData), std::ref(syncFlags), std::ref(dataProcessor));
         std::thread processingThread(processingThread, std::ref(sharedData), std::ref(syncFlags), std::ref(dataProcessor));
         std::thread decisionMakingThread(decisionMakingThread, std::ref(sharedData), std::ref(syncFlags));
         #endif
@@ -113,6 +114,7 @@ int main() {
         magnitudeThread.join();
 
         #if !REFRESH_BASELINE_AND_BAD_BINS
+        averagingThread.join();
         processingThread.join();
         decisionMakingThread.join();
         #endif

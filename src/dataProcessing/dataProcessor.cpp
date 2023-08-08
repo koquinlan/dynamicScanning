@@ -122,33 +122,35 @@ void DataProcessor::updateBaseline() {
 }
 
 
-std::tuple<Spectrum, Spectrum> DataProcessor::rawToProcessed(Spectrum rawSpectrum) {
+std::tuple<Spectrum, Spectrum> DataProcessor::rawToProcessed(const Spectrum &rawSpectrum) {
     Spectrum intermediateSpectrum = rawSpectrum;
+    Spectrum processedSpectrum;
 
-    for (int i = 0; i < rawSpectrum.powers.size(); i++) {
-        intermediateSpectrum.powers[i] = rawSpectrum.powers[i]/currentBaseline[i];
-    }
-
-
-    // Set up containers for the baselining process
-    Spectrum processedSpectrum = intermediateSpectrum;
-    std::vector<double> processedBaseline = intermediateSpectrum.powers;
+    // Calculate the size once to avoid redundancy
+    int size = (int)rawSpectrum.powers.size();
 
     double* processedBaselineData[1];
+    std::vector<double> processedBaseline(size);
     processedBaselineData[0] = processedBaseline.data();
+    processedBaseline = currentBaseline;
 
+    // Calculate denominator and perform Chebyshev filtering
+    #pragma omp simd
+    for (int i = 0; i < size; i++) {
+        intermediateSpectrum.powers[i] = rawSpectrum.powers[i] / currentBaseline[i];
+    }
 
-    // Apply bidirectional filter to running average to extract the baseline
-    chebyshevFilter.process((int) processedBaseline.size(), processedBaselineData);
+    // chebyshevFilter.process(static_cast<int>(size), processedBaselineData);
+    // std::reverse(processedBaseline.begin(), processedBaseline.end());
+    // chebyshevFilter.process(static_cast<int>(size), processedBaselineData);
+    // std::reverse(processedBaseline.begin(), processedBaseline.end());
 
-    std::reverse(processedBaseline.begin(), processedBaseline.end());
-    chebyshevFilter.process((int) processedBaseline.size(), processedBaselineData);
-    std::reverse(processedBaseline.begin(), processedBaseline.end());
+    // Calculate processed spectrum
+    processedSpectrum.powers.resize(size);
+    processedSpectrum.freqAxis = rawSpectrum.freqAxis;
 
-
-    // Divide the intermediate spectrum by the processed baseline to get the processed spectrum
-    for (int i = 0; i < intermediateSpectrum.powers.size(); i++) {
-        processedSpectrum.powers[i] = intermediateSpectrum.powers[i]/processedBaseline[i]-1;
+    for (size_t i = 0; i < size; ++i) {
+        processedSpectrum.powers[i] = intermediateSpectrum.powers[i] / processedBaseline[i] - 1;
     }
 
     Spectrum processedBaselineSpectrum;
@@ -263,7 +265,7 @@ void DataProcessor::trimSNRtoMatch(Spectrum spectrum) {
 
 
 
-Spectrum DataProcessor::processedToRescaled(Spectrum processedSpectrum) {
+Spectrum DataProcessor::processedToRescaled(const Spectrum &processedSpectrum) {
     Spectrum rescaledSpectrum = processedSpectrum;
 
     double mean, stddev;
@@ -279,7 +281,7 @@ Spectrum DataProcessor::processedToRescaled(Spectrum processedSpectrum) {
 
 
 
-void DataProcessor::addRescaledToCombined(Spectrum rescaledSpectrum, CombinedSpectrum &combinedSpectrum)
+void DataProcessor::addRescaledToCombined(const Spectrum &rescaledSpectrum, CombinedSpectrum &combinedSpectrum)
 {
     std::vector<double> trueRescaledRange = rescaledSpectrum.freqAxis;
     double shift = rescaledSpectrum.trueCenterFreq;
