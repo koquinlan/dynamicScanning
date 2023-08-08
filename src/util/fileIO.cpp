@@ -88,6 +88,8 @@ void saveVector(std::vector<double> data, std::string filename) {
 
 void saveVector(std::vector<int> data, std::string filename) {
     std::ofstream dataFile(filename);
+    if (data.size() == 0){ return; }
+    
     if (dataFile.is_open()) {
         dataFile << data[0];
         for (size_t i = 1; i < data.size(); i++) {
