@@ -10,26 +10,22 @@
  */
 #include "decs.hpp"
 
-#define REFRESH_BASELINE_AND_BAD_BINS (0)
+#define REFRESH_BAD_BINS (0)
+#define REFRESH_BASELINE (1)
 
 int main() {
-    // std::chrono::seconds dura(5);
-    // std::this_thread::sleep_for(dura);
+    // Get ready for acquisition
+    // Pumping parameters
+    double xModeFreq = 4.98525;  // GHz
+    double yModeFreq = 7.455646; // GHz
 
-    // Set up PSGs
-    PSG psg1_Diff(27);
-    PSG psg4_JPA(30);
+    double diffFreq = yModeFreq - xModeFreq;
+    double jpaFreq = xModeFreq * 2;
 
-    psg1_Diff.setFreq(2.470396);
-    psg1_Diff.setPow(6.73);
-    psg1_Diff.onOff(true);
+    double diffPower = 6.73; //dBm
+    double jpaPower = 12.96; //dBm
 
-    psg4_JPA.setFreq(9.970151);
-    psg4_JPA.setPow(13.08);
-    psg4_JPA.onOff(true);
-
-
-    // Set up acquisition parameters
+    // Acquisition parameters
     double sampleRate = 32e6;
     double RBW = 100;
     int maxSpectraPerAcquisition = 250;
@@ -37,6 +33,24 @@ int main() {
     double samplesPerSpectrum = sampleRate/RBW;
     double samplesPerAcquisition = samplesPerSpectrum*maxSpectraPerAcquisition;
 
+    // Set up PSGs
+    printAvailableResources();
+
+    PSG psg1_Diff(27);
+    PSG psg4_JPA(30);
+
+    psg1_Diff.setFreq(diffFreq);
+    psg1_Diff.setPow(diffPower);
+    psg1_Diff.onOff(true);
+
+    psg4_JPA.setFreq(jpaFreq);
+    psg4_JPA.setPow(jpaPower);
+    psg4_JPA.onOff(true);
+
+    // Set up alazar card
+    ATS alazarCard(1, 1);
+    alazarCard.setAcquisitionParameters((U32)sampleRate, (U32)samplesPerAcquisition, maxSpectraPerAcquisition);
+    std::cout << "Acquisition parameters set. Collecting " << std::to_string(alazarCard.acquisitionParams.buffersPerAcquisition) << " buffers." << std::endl;
 
     // Try to import an FFTW plan if available
     const char* wisdomFilePath = "fftw_wisdom.txt";
@@ -47,19 +61,13 @@ int main() {
         std::cout << "Failed to import FFTW wisdom from file." << std::endl;
     }
 
-
-    // Prepare for acquisition and create FFTW plan
-    ATS alazarCard(1, 1);
-    alazarCard.setAcquisitionParameters((U32)sampleRate, (U32)samplesPerAcquisition, maxSpectraPerAcquisition);
-    std::cout << "Acquisition parameters set. Collecting " << std::to_string(alazarCard.acquisitionParams.buffersPerAcquisition) << " buffers." << std::endl;
-
+    // Create an FFTW plan
     int N = (int)alazarCard.acquisitionParams.samplesPerBuffer;
     std::cout << "Creating plan for N = " << std::to_string(N) << std::endl;
     fftw_complex* fftwInput = reinterpret_cast<fftw_complex*>(fftw_malloc(sizeof(fftw_complex) * N));
     fftw_complex* fftwOutput = reinterpret_cast<fftw_complex*>(fftw_malloc(sizeof(fftw_complex) * N));
     fftw_plan plan = fftw_plan_dft_1d(N, fftwInput, fftwOutput, FFTW_FORWARD, FFTW_MEASURE);
     std::cout << "Plan created!" << std::endl;
-
 
     // Create data processor
     DataProcessor dataProcessor;
@@ -76,31 +84,35 @@ int main() {
     dataProcessor.loadSNR("../../../src/dataProcessing/visTheory.csv", "../../../src/dataProcessing/visTheoryFreqAxis.csv");
 
     // Try to import bad bins if available
-    #if !REFRESH_BASELINE_AND_BAD_BINS
+    #if !REFRESH_BAD_BINS
     std::vector<double> badBins = readVector("badBins.csv");
     dataProcessor.badBins.reserve(badBins.size());
 
     std::transform(badBins.begin(), badBins.end(), std::back_inserter(dataProcessor.badBins), [](double d) { return static_cast<int>(d); }); // convert to int
-
-    dataProcessor.currentBaseline = readVector("baseline.csv");
     #endif
 
+    #if !REFRESH_BASELINE
+    dataProcessor.currentBaseline = readVector("baseline.csv");
+    #endif
 
     // Create shared data structures
     SharedData sharedData;
     SynchronizationFlags syncFlags;
+    CombinedSpectrum combinedSpectrum;
 
     sharedData.samplesPerBuffer = N;
 
+    
+    // Begin acquisition
     try{
         // Start the threads
         std::thread acquisitionThread(&ATS::AcquireDataMultithreadedContinuous, &alazarCard, std::ref(sharedData), std::ref(syncFlags));
         std::thread FFTThread(FFTThread, plan, N, std::ref(sharedData), std::ref(syncFlags));
         std::thread magnitudeThread(magnitudeThread, N, std::ref(sharedData), std::ref(syncFlags), std::ref(dataProcessor));
+        std::thread averagingThread(averagingThread, std::ref(sharedData), std::ref(syncFlags), std::ref(dataProcessor), std::ref(yModeFreq));
 
-        #if !REFRESH_BASELINE_AND_BAD_BINS
-        std::thread averagingThread(averagingThread, std::ref(sharedData), std::ref(syncFlags), std::ref(dataProcessor));
-        std::thread processingThread(processingThread, std::ref(sharedData), std::ref(syncFlags), std::ref(dataProcessor));
+        #if (!REFRESH_BASELINE && !REFRESH_BAD_BINS)
+        std::thread processingThread(processingThread, std::ref(sharedData), std::ref(syncFlags), std::ref(dataProcessor), std::ref(combinedSpectrum));
         std::thread decisionMakingThread(decisionMakingThread, std::ref(sharedData), std::ref(syncFlags));
         #endif
 
@@ -112,9 +124,9 @@ int main() {
         acquisitionThread.join();
         FFTThread.join();
         magnitudeThread.join();
-
-        #if !REFRESH_BASELINE_AND_BAD_BINS
         averagingThread.join();
+
+        #if (!REFRESH_BASELINE && !REFRESH_BAD_BINS)
         processingThread.join();
         decisionMakingThread.join();
         #endif
@@ -153,9 +165,14 @@ int main() {
     saveVector(dataProcessor.currentBaseline, "../../../plotting/threadTests/baseline.csv");
     saveVector(dataProcessor.runningAverage, "../../../plotting/threadTests/runningAverage.csv");
 
-    #if REFRESH_BASELINE_AND_BAD_BINS
-    saveVector(outliers, "badBins.csv");
+    #if (!REFRESH_BASELINE && !REFRESH_BAD_BINS)
+    saveCombinedSpectrum(combinedSpectrum, "../../../plotting/threadTests/combinedSpectrum.csv");
+    #endif
+    #if REFRESH_BASELINE
     saveVector(dataProcessor.currentBaseline, "baseline.csv");
+    #endif
+    #if REFRESH_BAD_BINS
+    saveVector(outliers, "badBins.csv");
     #endif
 
     return 0;

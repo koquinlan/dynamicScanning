@@ -31,10 +31,9 @@
 #define TIMER_MAG           (2)
 #define TIMER_AVERAGE       (3)
 #define TIMER_PROCESS       (4)
-#define TIMER_RESCALE       (5)
-#define TIMER_DECISION      (6)
-#define TIMER_SAVE          (7)
-#define NUM_TIMERS          (8)
+#define TIMER_DECISION      (5)
+#define TIMER_SAVE          (6)
+#define NUM_TIMERS          (7)
 
 
 /*******************************************************************************
@@ -188,11 +187,11 @@ void saveVector(std::vector<int> data, std::string filename);
 void saveVector(std::vector<double> data, std::string filename);
 
 // multiThreading.cpp
-void averagingThread(SharedData& sharedData, SynchronizationFlags& syncFlags, DataProcessor& dataProcessor);
+void averagingThread(SharedData& sharedData, SynchronizationFlags& syncFlags, DataProcessor& dataProcessor, double trueCenterFreq);
 void decisionMakingThread(SharedData& sharedData, SynchronizationFlags& syncFlags);
 void FFTThread(fftw_plan plan, int N, SharedData& sharedData, SynchronizationFlags& syncFlags);
 void magnitudeThread(int N, SharedData& sharedData, SynchronizationFlags& syncFlags, DataProcessor& dataProcessor);
-void processingThread(SharedData& sharedData, SynchronizationFlags& syncFlags, DataProcessor& dataProcessor);
+void processingThread(SharedData& sharedData, SynchronizationFlags& syncFlags, DataProcessor& dataProcessor, CombinedSpectrum& combinedSpectrum);
 void saveDataToBin(SharedData& sharedData, SynchronizationFlags& syncFlags);
 void saveDataToHDF5(SharedData& sharedData, SynchronizationFlags& syncFlags);
 

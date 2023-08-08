@@ -133,7 +133,7 @@ void magnitudeThread(int N, SharedData& sharedData, SynchronizationFlags& syncFl
 
 
 
-void averagingThread(SharedData& sharedData, SynchronizationFlags& syncFlags, DataProcessor& dataProcessor) {
+void averagingThread(SharedData& sharedData, SynchronizationFlags& syncFlags, DataProcessor& dataProcessor, double trueCenterFreq) {
     int subSpectraAveragingNumber = 32;
     while (true) {
         // Wait for signal from dataReadyCondition or immediately continue if the data queue is not empty (lock releases while waiting)
@@ -160,6 +160,7 @@ void averagingThread(SharedData& sharedData, SynchronizationFlags& syncFlags, Da
         Spectrum rawSpectrum;
         rawSpectrum.powers = averageVectors(subSpectra);
         rawSpectrum.freqAxis = dataProcessor.SNR.freqAxis;
+        rawSpectrum.trueCenterFreq = trueCenterFreq;
 
 
         // Acquire a new lock_guard and push the processed data to the shared queue
@@ -191,7 +192,7 @@ void averagingThread(SharedData& sharedData, SynchronizationFlags& syncFlags, Da
  * @param sharedData - Struct containing data shared between threads
  * @param syncFlags - Struct containing synchronization flags shared between threads
  */
-void processingThread(SharedData& sharedData, SynchronizationFlags& syncFlags, DataProcessor& dataProcessor) {
+void processingThread(SharedData& sharedData, SynchronizationFlags& syncFlags, DataProcessor& dataProcessor, CombinedSpectrum& combinedSpectrum) {
     int buffersProcessed = 0;
     while (true) {
         // Check if processed data queue is empty
@@ -202,7 +203,7 @@ void processingThread(SharedData& sharedData, SynchronizationFlags& syncFlags, D
 
 
         // Process data if the data queue is not empty
-        
+        startTimer(TIMER_PROCESS);
         while (!sharedData.rawDataQueue.empty()) {
             // Get the pointer to the data from the queue
             Spectrum rescaledSpectrum = sharedData.rawDataQueue.front();
@@ -211,13 +212,10 @@ void processingThread(SharedData& sharedData, SynchronizationFlags& syncFlags, D
 
             Spectrum foo;
 
-            startTimer(TIMER_PROCESS);
+            
             std::tie(rescaledSpectrum, foo) = dataProcessor.rawToProcessed(rescaledSpectrum);
-            stopTimer(TIMER_PROCESS);
-
-            startTimer(TIMER_RESCALE);
             rescaledSpectrum = dataProcessor.processedToRescaled(rescaledSpectrum);
-            stopTimer(TIMER_RESCALE);
+            dataProcessor.addRescaledToCombined(rescaledSpectrum, combinedSpectrum);
 
             buffersProcessed++;
 
@@ -230,6 +228,7 @@ void processingThread(SharedData& sharedData, SynchronizationFlags& syncFlags, D
 
             lock.lock();  // Lock again before checking the data queue
         }
+        stopTimer(TIMER_PROCESS);
         
 
         // Check if the acquisition is complete
