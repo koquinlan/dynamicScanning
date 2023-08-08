@@ -8,10 +8,9 @@
  * @copyright Copyright (c) 2023
  * 
  */
-
 #include "decs.hpp"
-#define DETECT_BAD_BINS (0)
-#define REFRESH_BASELINE (0)
+
+#define REFRESH_BASELINE_AND_BAD_BINS (0)
 
 int main() {
     // std::chrono::seconds dura(5);
@@ -77,14 +76,12 @@ int main() {
     dataProcessor.loadSNR("../../../src/dataProcessing/visTheory.csv", "../../../src/dataProcessing/visTheoryFreqAxis.csv");
 
     // Try to import bad bins if available
-    #if !DETECT_BAD_BINS
+    #if !REFRESH_BASELINE_AND_BAD_BINS
     std::vector<double> badBins = readVector("badBins.csv");
     dataProcessor.badBins.reserve(badBins.size());
 
-    std::transform(badBins.begin(), badBins.end(), std::back_inserter(dataProcessor.badBins), [](double d) { return static_cast<int>(d); });
-    #endif
+    std::transform(badBins.begin(), badBins.end(), std::back_inserter(dataProcessor.badBins), [](double d) { return static_cast<int>(d); }); // convert to int
 
-    #if !REFRESH_BASELINE
     dataProcessor.currentBaseline = readVector("baseline.csv");
     #endif
 
@@ -100,7 +97,11 @@ int main() {
         std::thread acquisitionThread(&ATS::AcquireDataMultithreadedContinuous, &alazarCard, std::ref(sharedData), std::ref(syncFlags));
         std::thread FFTThread(FFTThread, plan, N, std::ref(sharedData), std::ref(syncFlags));
         std::thread magnitudeThread(magnitudeThread, N, std::ref(sharedData), std::ref(syncFlags), std::ref(dataProcessor));
+
+        #if !REFRESH_BASELINE_AND_BAD_BINS
+        std::thread processingThread(processingThread, std::ref(sharedData), std::ref(syncFlags), std::ref(dataProcessor));
         std::thread decisionMakingThread(decisionMakingThread, std::ref(sharedData), std::ref(syncFlags));
+        #endif
 
         #if SAVE_DATA
         std::thread savingThread(saveDataToBin, std::ref(sharedData), std::ref(syncFlags));
@@ -110,7 +111,11 @@ int main() {
         acquisitionThread.join();
         FFTThread.join();
         magnitudeThread.join();
+
+        #if !REFRESH_BASELINE_AND_BAD_BINS
+        processingThread.join();
         decisionMakingThread.join();
+        #endif
 
         #if SAVE_DATA
         savingThread.join();
@@ -120,12 +125,6 @@ int main() {
     {
         std::cerr << e.what() << '\n';
     }
-
-    // startTimer(TIMER_PROCESS);
-    // dataProcessor.updateBaseline();
-    // Spectrum processedData, processedBaseline;
-    // std::tie(processedData, processedBaseline) = dataProcessor.rawToProcessed(dataProcessor.runningAverage);
-    // stopTimer(TIMER_PROCESS);
 
 
     // Cleanup
@@ -148,11 +147,13 @@ int main() {
     saveVector(freq, "../../../plotting/threadTests/freq.csv");
     saveVector(outliers, "../../../plotting/threadTests/outliers.csv");
 
+    dataProcessor.updateBaseline();
     saveVector(dataProcessor.currentBaseline, "../../../plotting/threadTests/baseline.csv");
     saveVector(dataProcessor.runningAverage, "../../../plotting/threadTests/runningAverage.csv");
 
-    #if DETECT_BAD_BINS
+    #if REFRESH_BASELINE_AND_BAD_BINS
     saveVector(outliers, "badBins.csv");
+    saveVector(dataProcessor.currentBaseline, "baseline.csv");
     #endif
 
     return 0;

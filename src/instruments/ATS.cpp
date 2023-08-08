@@ -907,6 +907,13 @@ void ATS::AcquireDataMultithreadedContinuous(SharedData& sharedData, Synchroniza
 	}
 
 
+    // Signal the end of data acquisition if the decision making didn't stop it
+    {
+        std::lock_guard<std::mutex> lock(syncFlags.mutex);
+        syncFlags.acquisitionComplete = true;
+    }
+
+
 	// Abort the acquisition ("abort" is potentially misleading here - should call even if the acquisition completed normally)
 	retCode = AlazarAbortAsyncRead(boardHandle);
 	if (retCode != ApiSuccess) {

@@ -21,7 +21,7 @@
 
 #define BUFFER_COUNT (8)
 
-#define VERBOSE_OUTPUT (0)
+#define VERBOSE_OUTPUT (1)
 
 #define _USE_MATH_DEFINES
 
@@ -120,11 +120,14 @@ struct SharedData {
     std::queue<fftw_complex*> dataSavingQueue;
     std::queue<fftw_complex*> FFTDataQueue;
     std::queue<Spectrum> rawDataQueue;
+    std::queue<Spectrum> rescaledDataQueue;
 
     std::condition_variable dataReadyCondition;
     std::condition_variable saveReadyCondition;
     std::condition_variable FFTDataReadyCondition;
     std::condition_variable rawDataReadyCondition;
+    std::condition_variable rescaledDataReadyCondition;
+
 };
 
 // Struct for storing synchronization flags. Used for multithreaded data acquisition.
@@ -184,6 +187,7 @@ void saveVector(std::vector<double> data, std::string filename);
 void decisionMakingThread(SharedData& sharedData, SynchronizationFlags& syncFlags);
 void FFTThread(fftw_plan plan, int N, SharedData& sharedData, SynchronizationFlags& syncFlags);
 void magnitudeThread(int N, SharedData& sharedData, SynchronizationFlags& syncFlags, DataProcessor& dataProcessor);
+void processingThread(SharedData& sharedData, SynchronizationFlags& syncFlags, DataProcessor& dataProcessor);
 void saveDataToBin(SharedData& sharedData, SynchronizationFlags& syncFlags);
 void saveDataToHDF5(SharedData& sharedData, SynchronizationFlags& syncFlags);
 

@@ -236,6 +236,8 @@ Spectrum DataProcessor::loadSNR(std::string filenameSNR, std::string filenameSNR
     SNR.powers = readVector(filenameSNR);
     SNR.freqAxis = readVector(filenameSNRfreqs);
 
+    trimmedSNR = SNR;
+
     return SNR;
 }
 

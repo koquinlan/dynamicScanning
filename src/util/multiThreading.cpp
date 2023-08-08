@@ -95,13 +95,13 @@ void magnitudeThread(int N, SharedData& sharedData, SynchronizationFlags& syncFl
             sharedData.FFTDataQueue.pop();
             lock.unlock();
 
-            std::vector<double> procData(N);
+            std::vector<double> magData(N);
             for (int i = 0; i < N; i++) {
-                procData[i] = std::abs(std::complex<double>(FFTData[i][0], FFTData[i][1]));
+                magData[i] = std::abs(std::complex<double>(FFTData[i][0], FFTData[i][1]));
             }
 
             Spectrum rawSpectrum;
-            rawSpectrum.powers = dataProcessor.removeBadBins(procData);
+            rawSpectrum.powers = dataProcessor.removeBadBins(magData);
             rawSpectrum.freqAxis = dataProcessor.SNR.freqAxis; // This actually adds an appreciable, rather large amount of time...
 
             // Update the running average using DataProcessor
@@ -135,6 +135,61 @@ void magnitudeThread(int N, SharedData& sharedData, SynchronizationFlags& syncFl
 
 
 
+/**
+ * @brief Placeholder function to be run in a separate thread in parallel with ATS::AcquireDataMultithreadedContinuous. 
+ *        Currently just pops data from the processed data queue and frees the memory.
+ * 
+ * @param sharedData - Struct containing data shared between threads
+ * @param syncFlags - Struct containing synchronization flags shared between threads
+ */
+void processingThread(SharedData& sharedData, SynchronizationFlags& syncFlags, DataProcessor& dataProcessor) {
+    int buffersProcessed = 0;
+    while (true) {
+        // Check if processed data queue is empty
+        std::unique_lock<std::mutex> lock(sharedData.mutex);
+        sharedData.rawDataReadyCondition.wait(lock, [&sharedData]() {
+            return !sharedData.rawDataQueue.empty();
+        });
+
+
+        // Process data if the data queue is not empty
+        startTimer(TIMER_PROCESS);
+        while (!sharedData.rawDataQueue.empty()) {
+            // Get the pointer to the data from the queue
+            Spectrum rescaledSpectrum = sharedData.rawDataQueue.front();
+            sharedData.rawDataQueue.pop();
+            lock.unlock();
+
+            Spectrum foo;
+            std::tie(rescaledSpectrum, foo) = dataProcessor.rawToProcessed(rescaledSpectrum);
+            rescaledSpectrum = dataProcessor.processedToRescaled(rescaledSpectrum);
+
+            buffersProcessed++;
+
+            // Acquire a new lock_guard and push the processed data to the shared queue
+            {
+                std::lock_guard<std::mutex> lock(sharedData.mutex);
+                sharedData.rescaledDataQueue.push(rescaledSpectrum);
+            }
+            sharedData.rescaledDataReadyCondition.notify_one();
+
+            lock.lock();  // Lock again before checking the data queue
+        }
+        stopTimer(TIMER_PROCESS);
+
+        // Check if the acquisition is complete
+        {
+            std::lock_guard<std::mutex> lock(syncFlags.mutex);
+            if (syncFlags.acquisitionComplete) {
+                break;  // Exit the processing thread
+            }
+        }
+    }
+}
+
+
+
+
 
 /**
  * @brief Placeholder function to be run in a separate thread in parallel with ATS::AcquireDataMultithreadedContinuous. 
@@ -148,17 +203,17 @@ void decisionMakingThread(SharedData& sharedData, SynchronizationFlags& syncFlag
     while (true) {
         // Check if processed data queue is empty
         std::unique_lock<std::mutex> lock(sharedData.mutex);
-        sharedData.rawDataReadyCondition.wait(lock, [&sharedData]() {
-            return !sharedData.rawDataQueue.empty();
+        sharedData.rescaledDataReadyCondition.wait(lock, [&sharedData]() {
+            return !sharedData.rescaledDataQueue.empty();
         });
 
 
         // Process data if the data queue is not empty
         startTimer(TIMER_DECISION);
-        while (!sharedData.rawDataQueue.empty()) {
+        while (!sharedData.rescaledDataQueue.empty()) {
             // Get the pointer to the data from the queue
-            Spectrum rawSpectrum = sharedData.rawDataQueue.front();
-            sharedData.rawDataQueue.pop();
+            Spectrum rawSpectrum = sharedData.rescaledDataQueue.front();
+            sharedData.rescaledDataQueue.pop();
             lock.unlock();
 
 
