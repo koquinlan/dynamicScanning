@@ -223,6 +223,9 @@ void processingThread(SharedData& sharedData, SavedData& savedData, Synchronizat
                 savedData.processedSpectra.push_back(processedSpectrum);
             }
 
+            trimSpectrum(processedSpectrum, 0.1);
+            dataProcessor.trimSNRtoMatch(processedSpectrum);
+            
             Spectrum rescaledSpectrum = dataProcessor.processedToRescaled(processedSpectrum);
             dataProcessor.addRescaledToCombined(rescaledSpectrum, combinedSpectrum);
 

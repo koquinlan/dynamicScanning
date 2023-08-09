@@ -124,28 +124,31 @@ void DataProcessor::updateBaseline() {
 
 std::tuple<Spectrum, Spectrum> DataProcessor::rawToProcessed(const Spectrum &rawSpectrum) {
     Spectrum intermediateSpectrum = rawSpectrum;
-    Spectrum processedSpectrum;
 
-    // Calculate the size once to avoid redundancy
     int size = (int)rawSpectrum.powers.size();
 
-    double* processedBaselineData[1];
-    std::vector<double> processedBaseline(size);
-    processedBaselineData[0] = processedBaseline.data();
-    processedBaseline = currentBaseline;
-
-    // Calculate denominator and perform Chebyshev filtering
     #pragma omp simd
     for (int i = 0; i < size; i++) {
         intermediateSpectrum.powers[i] = rawSpectrum.powers[i] / currentBaseline[i];
     }
 
-    // chebyshevFilter.process(static_cast<int>(size), processedBaselineData);
-    // std::reverse(processedBaseline.begin(), processedBaseline.end());
-    // chebyshevFilter.process(static_cast<int>(size), processedBaselineData);
-    // std::reverse(processedBaseline.begin(), processedBaseline.end());
+
+    // Set up containers for the baselining process
+    std::vector<double> processedBaseline = intermediateSpectrum.powers;
+
+    double* processedBaselineData[1];
+    processedBaselineData[0] = processedBaseline.data();
+
+
+    // Calculate residual baseline
+    chebyshevFilter.process(static_cast<int>(size), processedBaselineData);
+    std::reverse(processedBaseline.begin(), processedBaseline.end());
+    chebyshevFilter.process(static_cast<int>(size), processedBaselineData);
+    std::reverse(processedBaseline.begin(), processedBaseline.end());
+
 
     // Calculate processed spectrum
+    Spectrum processedSpectrum;
     processedSpectrum.powers.resize(size);
     processedSpectrum.freqAxis = rawSpectrum.freqAxis;
 
