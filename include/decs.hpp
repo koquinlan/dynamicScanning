@@ -133,6 +133,15 @@ struct SharedData {
 
 };
 
+
+// Struct for saving data
+struct SavedData{
+    std::mutex mutex;
+
+    std::vector<Spectrum> rawSpectra;
+    std::vector<Spectrum> processedSpectra;
+};
+
 // Struct for storing synchronization flags. Used for multithreaded data acquisition.
 struct SynchronizationFlags {
     std::mutex mutex;
@@ -191,7 +200,7 @@ void averagingThread(SharedData& sharedData, SynchronizationFlags& syncFlags, Da
 void decisionMakingThread(SharedData& sharedData, SynchronizationFlags& syncFlags);
 void FFTThread(fftw_plan plan, int N, SharedData& sharedData, SynchronizationFlags& syncFlags);
 void magnitudeThread(int N, SharedData& sharedData, SynchronizationFlags& syncFlags, DataProcessor& dataProcessor);
-void processingThread(SharedData& sharedData, SynchronizationFlags& syncFlags, DataProcessor& dataProcessor, CombinedSpectrum& combinedSpectrum);
+void processingThread(SharedData& sharedData, SavedData& savedData, SynchronizationFlags& syncFlags, DataProcessor& dataProcessor, CombinedSpectrum& combinedSpectrum);
 void saveDataToBin(SharedData& sharedData, SynchronizationFlags& syncFlags);
 void saveDataToHDF5(SharedData& sharedData, SynchronizationFlags& syncFlags);
 

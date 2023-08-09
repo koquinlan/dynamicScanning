@@ -192,7 +192,7 @@ void averagingThread(SharedData& sharedData, SynchronizationFlags& syncFlags, Da
  * @param sharedData - Struct containing data shared between threads
  * @param syncFlags - Struct containing synchronization flags shared between threads
  */
-void processingThread(SharedData& sharedData, SynchronizationFlags& syncFlags, DataProcessor& dataProcessor, CombinedSpectrum& combinedSpectrum) {
+void processingThread(SharedData& sharedData, SavedData& savedData, SynchronizationFlags& syncFlags, DataProcessor& dataProcessor, CombinedSpectrum& combinedSpectrum) {
     int buffersProcessed = 0;
     while (true) {
         // Check if processed data queue is empty
@@ -206,15 +206,24 @@ void processingThread(SharedData& sharedData, SynchronizationFlags& syncFlags, D
         startTimer(TIMER_PROCESS);
         while (!sharedData.rawDataQueue.empty()) {
             // Get the pointer to the data from the queue
-            Spectrum rescaledSpectrum = sharedData.rawDataQueue.front();
+            Spectrum rawSpectrum = sharedData.rawDataQueue.front();
             sharedData.rawDataQueue.pop();
             lock.unlock();
 
-            Spectrum foo;
+            {
+                std::lock_guard<std::mutex> lock(savedData.mutex);
+                savedData.rawSpectra.push_back(rawSpectrum);
+            }
 
+            Spectrum processedSpectrum, foo;
+            std::tie(processedSpectrum, foo) = dataProcessor.rawToProcessed(rawSpectrum);
             
-            std::tie(rescaledSpectrum, foo) = dataProcessor.rawToProcessed(rescaledSpectrum);
-            rescaledSpectrum = dataProcessor.processedToRescaled(rescaledSpectrum);
+            {
+                std::lock_guard<std::mutex> lock(savedData.mutex);
+                savedData.processedSpectra.push_back(processedSpectrum);
+            }
+
+            Spectrum rescaledSpectrum = dataProcessor.processedToRescaled(processedSpectrum);
             dataProcessor.addRescaledToCombined(rescaledSpectrum, combinedSpectrum);
 
             buffersProcessed++;

@@ -32,7 +32,8 @@ outliers = np.loadtxt("outliers.csv", delimiter=",").astype(int)
 baseline = np.loadtxt("baseline.csv", delimiter=",")
 runningAverage = np.loadtxt("runningAverage.csv", delimiter=",")
 
-# processedData = np.loadtxt("processedData.csv", delimiter=",")
+rawSpectrum = np.loadtxt("rawSpectrum.csv", delimiter=",")
+processedSpectrum = np.loadtxt("processedSpectrum.csv", delimiter=",")
 # processedBaseline = np.loadtxt("processedBaseline.csv", delimiter=",")
 
 combinedSpectrum = np.loadtxt("combinedSpectrum.csv", delimiter=",")
@@ -43,6 +44,8 @@ processed = (runningAverage / baseline) - 1
 
 # Plot the data
 plt.figure()
+
+plt.plot(rawSpectrum[1], rawSpectrum[0], label="Raw data")
 
 plt.plot(freq, runningAverage, label="Raw Spectra Average")
 plt.plot(freq, baseline, label="Baseline")
@@ -56,8 +59,9 @@ plt.ylim([0, 1.3 * np.max(baseline)])
 plt.grid()
 plt.legend()
 
-# plt.figure()
-# plt.plot(freq, processed, label="Proc w/o Residuals")
+plt.figure()
+plt.plot(freq, processed, label="Proc w/o Residuals")
+plt.plot(processedSpectrum[1], processedSpectrum[0], label="Proc data")
 # plt.plot(freq, processedData, label="Proc w/ Residuals")
 # plt.plot(freq, processedBaseline - 1, label="Residuals", color="red")
 # plt.plot(freq[outliers], processed[outliers], "o", label="Outliers", color="red")

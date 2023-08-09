@@ -11,7 +11,7 @@
 #include "decs.hpp"
 
 #define REFRESH_BAD_BINS (0)
-#define REFRESH_BASELINE (1)
+#define REFRESH_BASELINE (0)
 
 int main() {
     // Get ready for acquisition
@@ -97,6 +97,7 @@ int main() {
 
     // Create shared data structures
     SharedData sharedData;
+    SavedData savedData;
     SynchronizationFlags syncFlags;
     CombinedSpectrum combinedSpectrum;
 
@@ -112,7 +113,7 @@ int main() {
         std::thread averagingThread(averagingThread, std::ref(sharedData), std::ref(syncFlags), std::ref(dataProcessor), std::ref(yModeFreq));
 
         #if (!REFRESH_BASELINE && !REFRESH_BAD_BINS)
-        std::thread processingThread(processingThread, std::ref(sharedData), std::ref(syncFlags), std::ref(dataProcessor), std::ref(combinedSpectrum));
+        std::thread processingThread(processingThread, std::ref(sharedData), std::ref(savedData), std::ref(syncFlags), std::ref(dataProcessor), std::ref(combinedSpectrum));
         std::thread decisionMakingThread(decisionMakingThread, std::ref(sharedData), std::ref(syncFlags));
         #endif
 
@@ -165,12 +166,16 @@ int main() {
     saveVector(dataProcessor.currentBaseline, "../../../plotting/threadTests/baseline.csv");
     saveVector(dataProcessor.runningAverage, "../../../plotting/threadTests/runningAverage.csv");
 
+    saveSpectrum(savedData.rawSpectra[0], "../../../plotting/threadTests/rawSpectrum.csv");
+
+    saveSpectrum(savedData.processedSpectra[0], "../../../plotting/threadTests/processedSpectrum.csv");
+
     #if (!REFRESH_BASELINE && !REFRESH_BAD_BINS)
     saveCombinedSpectrum(combinedSpectrum, "../../../plotting/threadTests/combinedSpectrum.csv");
     #endif
-    #if REFRESH_BASELINE
+    
     saveVector(dataProcessor.currentBaseline, "baseline.csv");
-    #endif
+
     #if REFRESH_BAD_BINS
     saveVector(outliers, "badBins.csv");
     #endif
