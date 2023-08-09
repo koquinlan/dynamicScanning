@@ -178,6 +178,7 @@ struct SynchronizationFlags {
 #include "instruments/AWG.hpp"
 #include "instruments/ATS.hpp"
 
+#include "dataProcessing/bayes.hpp"
 #include "dataProcessing/dataProcessor.hpp"
 
 

@@ -143,6 +143,10 @@ int main() {
     }
 
 
+    BayesFactors bayesFactors;
+    bayesFactors.updateExclusionLine(combinedSpectrum);
+    saveSpectrum(bayesFactors.exclusionLine, "../../../plotting/threadTests/exclusionLine.csv");
+
     // Cleanup
     psg1_Diff.onOff(false);
     psg4_JPA.onOff(false);

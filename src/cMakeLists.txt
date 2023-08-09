@@ -13,6 +13,7 @@ set(SOURCES
     util/tests.cpp
     util/timing.cpp
 
+    dataProcessing/bayes.cpp
     dataProcessing/dataProcessor.cpp
 
     dspFilters/Bessel.cpp

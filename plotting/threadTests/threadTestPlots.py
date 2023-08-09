@@ -38,6 +38,8 @@ processedSpectrum = np.loadtxt("processedSpectrum.csv", delimiter=",")
 
 combinedSpectrum = np.loadtxt("combinedSpectrum.csv", delimiter=",")
 
+exclusionLine = np.loadtxt("exclusionLine.csv", delimiter=",")
+
 
 # Get processed spectrum
 processed = (runningAverage / baseline) - 1
@@ -65,6 +67,10 @@ plt.plot(processedSpectrum[1], processedSpectrum[0], label="Proc data")
 # plt.plot(freq, processedData, label="Proc w/ Residuals")
 # plt.plot(freq, processedBaseline - 1, label="Residuals", color="red")
 # plt.plot(freq[outliers], processed[outliers], "o", label="Outliers", color="red")
+
+
+plt.figure()
+plt.plot(exclusionLine[1], exclusionLine[0], label="Exclusion Line")
 
 
 # Plot combined spectrum with distribution for comparison
