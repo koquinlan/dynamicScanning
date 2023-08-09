@@ -152,12 +152,16 @@ struct SavedData{
 struct SynchronizationFlags {
     std::mutex mutex;
     bool pauseDataCollection;
+
     bool acquisitionComplete;
-    bool dataReady;
-    bool dataProcessingComplete;
+    bool FFTComplete;
+    bool magnitudeComplete;
+    bool averagingComplete;
+    bool processingComplete;
 
     SynchronizationFlags() : pauseDataCollection(false), acquisitionComplete(false),
-                             dataReady(false), dataProcessingComplete(false) {}
+                             FFTComplete(false), magnitudeComplete(false), 
+                             averagingComplete(false), processingComplete(false) {}
 };
 
 

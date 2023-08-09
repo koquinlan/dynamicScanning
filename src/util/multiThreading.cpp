@@ -67,6 +67,10 @@ void FFTThread(fftw_plan plan, int N, SharedDataBasic& sharedData, Synchronizati
         {
             std::lock_guard<std::mutex> lock(syncFlags.mutex);
             if (syncFlags.acquisitionComplete && sharedData.dataQueue.empty()) {
+                std::cout << "FFT thread exiting. Processed " << std::to_string(numProcessed) << " spectra." << std::endl;
+
+                syncFlags.FFTComplete = true;
+                sharedData.FFTDataReadyCondition.notify_one();
                 break;  // Exit the processing thread
             }
         }
@@ -121,8 +125,10 @@ void magnitudeThread(int N, SharedDataBasic& sharedData, SharedDataProcessing& s
         // Check if the acquisition and processing is complete
         {
             std::lock_guard<std::mutex> lock(syncFlags.mutex);
-            if (syncFlags.acquisitionComplete && sharedData.FFTDataQueue.empty()) {
-                syncFlags.dataProcessingComplete = true;
+            if (syncFlags.FFTComplete && sharedData.FFTDataQueue.empty()) {
+                std::cout << "Magnitude thread exiting. Processed " << std::to_string(numProcessed) << " spectra." << std::endl;
+
+                syncFlags.magnitudeComplete = true;
                 sharedDataProc.magDataReadyCondition.notify_one();
                 break;  // Exit the processing thread
             }
@@ -134,12 +140,14 @@ void magnitudeThread(int N, SharedDataBasic& sharedData, SharedDataProcessing& s
 
 
 void averagingThread(SharedDataProcessing& sharedData, SynchronizationFlags& syncFlags, DataProcessor& dataProcessor, double trueCenterFreq) {
+    int subSpectraAveraged = 0;
+    int totalProcessed = 0;
     int subSpectraAveragingNumber = 32;
     while (true) {
         // Wait for signal from dataReadyCondition or immediately continue if the data queue is not empty (lock releases while waiting)
         std::unique_lock<std::mutex> lock(sharedData.mutex);
         sharedData.magDataReadyCondition.wait(lock, [&sharedData, &subSpectraAveragingNumber, &syncFlags]() {
-            return (sharedData.magDataQueue.size() >= subSpectraAveragingNumber) || syncFlags.dataProcessingComplete;
+            return (sharedData.magDataQueue.size() >= subSpectraAveragingNumber) || syncFlags.magnitudeComplete;
         });
 
         startTimer(TIMER_AVERAGE);
@@ -162,6 +170,9 @@ void averagingThread(SharedDataProcessing& sharedData, SynchronizationFlags& syn
         rawSpectrum.freqAxis = dataProcessor.SNR.freqAxis;
         rawSpectrum.trueCenterFreq = trueCenterFreq;
 
+        subSpectraAveraged += procNumber;
+        totalProcessed += 1;
+
 
         // Acquire a new lock_guard and push the processed data to the shared queue
         {
@@ -176,7 +187,12 @@ void averagingThread(SharedDataProcessing& sharedData, SynchronizationFlags& syn
         // Check if the acquisition and processing is complete
         {
             std::lock_guard<std::mutex> lock(syncFlags.mutex);
-            if (syncFlags.acquisitionComplete && sharedData.magDataQueue.empty()) {
+            if (syncFlags.magnitudeComplete && sharedData.magDataQueue.empty()) {
+                std::cout << "Averaging thread exiting. Averaged " << std::to_string(subSpectraAveraged) << " sub-spectra into " 
+                                                                   << std::to_string(totalProcessed) << " spectra." << std::endl;
+
+                syncFlags.averagingComplete = true;
+                sharedData.rawDataReadyCondition.notify_one();
                 break;  // Exit the processing thread
             }
         }
@@ -246,7 +262,11 @@ void processingThread(SharedDataProcessing& sharedData, SavedData& savedData, Sy
         // Check if the acquisition is complete
         {
             std::lock_guard<std::mutex> lock(syncFlags.mutex);
-            if (syncFlags.acquisitionComplete) {
+            if (syncFlags.averagingComplete && sharedData.rawDataQueue.empty()) {
+                std::cout << "Processing thread exiting. Processed " << std::to_string(buffersProcessed) << " spectra." << std::endl;
+
+                syncFlags.processingComplete = true;
+                sharedData.rescaledDataReadyCondition.notify_one();
                 break;  // Exit the processing thread
             }
         }
@@ -265,7 +285,7 @@ void processingThread(SharedDataProcessing& sharedData, SavedData& savedData, Sy
  * @param syncFlags - Struct containing synchronization flags shared between threads
  */
 void decisionMakingThread(SharedDataProcessing& sharedData, SynchronizationFlags& syncFlags) {
-    int buffersProcessed = 0;
+    int buffersDecided = 0;
     while (true) {
         // Check if processed data queue is empty
         std::unique_lock<std::mutex> lock(sharedData.mutex);
@@ -283,10 +303,9 @@ void decisionMakingThread(SharedDataProcessing& sharedData, SynchronizationFlags
             lock.unlock();
 
 
-            buffersProcessed++;
-            // std::cout << "Decided on " << std::to_string(buffersProcessed) << " buffers." << std::endl;
+            buffersDecided++;
 
-            if (buffersProcessed >= 100) {
+            if (buffersDecided >= 100) {
                 std::lock_guard<std::mutex> lock(syncFlags.mutex);
                 syncFlags.acquisitionComplete = true;
                 syncFlags.pauseDataCollection = true;
@@ -300,7 +319,8 @@ void decisionMakingThread(SharedDataProcessing& sharedData, SynchronizationFlags
         // Check if the acquisition is complete
         {
             std::lock_guard<std::mutex> lock(syncFlags.mutex);
-            if (syncFlags.acquisitionComplete) {
+            if (syncFlags.processingComplete && sharedData.rescaledDataQueue.empty()) {
+                std::cout<< "Decision making thread exiting. Decided on " << std::to_string(buffersDecided) << " spectra." << std::endl;
                 break;  // Exit the processing thread
             }
         }
