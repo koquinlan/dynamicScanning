@@ -16,14 +16,14 @@
 int main() {
     // Get ready for acquisition
     // Pumping parameters
-    double xModeFreq = 4.98525;  // GHz
-    double yModeFreq = 7.455646; // GHz
+    double xModeFreq = 4.985;  // GHz
+    double yModeFreq = 7.455396; // GHz
 
     double diffFreq = yModeFreq - xModeFreq;
     double jpaFreq = xModeFreq * 2;
 
     double diffPower = 6.73; //dBm
-    double jpaPower = 12.96; //dBm
+    double jpaPower = 1.72; //dBm
 
     // Acquisition parameters
     double sampleRate = 32e6;
