@@ -668,7 +668,7 @@ fftw_complex* processDataFFT(fftw_complex* sampleData, fftw_plan plan, int N) {
  * @param sharedData - Struct containing the shared data between threads. This function will write to dataQueue and signal dataReadyCondition
  * @param syncFlags - Struct containing the synchronization flags between threads. This function will read the pauseDataCollection flag
  */
-void ATS::AcquireDataMultithreadedContinuous(SharedData& sharedData, SynchronizationFlags& syncFlags) {
+void ATS::AcquireDataMultithreadedContinuous(SharedDataBasic& sharedData, SynchronizationFlags& syncFlags) {
     // Set basic flags
     U32 channelMask = CHANNEL_A | CHANNEL_B;
     U32 admaFlags = ADMA_TRIGGERED_STREAMING | ADMA_EXTERNAL_STARTCAPTURE;         // Start acquisition when AlazarStartCapture is called

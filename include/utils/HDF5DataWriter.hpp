@@ -42,7 +42,7 @@ private:
 
 
 
-void saveDataToHDF5(SharedData& sharedData, SynchronizationFlags& syncFlags) {
+void saveDataToHDF5(SharedDataBasic& sharedData, SynchronizationFlags& syncFlags) {
     HDF5DataWriter writer("test.h5");
     int numSaved = 0;
 

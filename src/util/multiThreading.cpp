@@ -25,7 +25,7 @@
  * @param sharedData - Struct containing data shared between threads
  * @param syncFlags - Struct containing synchronization flags shared between threads
  */
-void FFTThread(fftw_plan plan, int N, SharedData& sharedData, SynchronizationFlags& syncFlags) {
+void FFTThread(fftw_plan plan, int N, SharedDataBasic& sharedData, SynchronizationFlags& syncFlags) {
     int numProcessed = 0;
     while (true) {
         // std::cout << "Waiting for data..." << std::endl;
@@ -74,7 +74,7 @@ void FFTThread(fftw_plan plan, int N, SharedData& sharedData, SynchronizationFla
 }
 
 
-void magnitudeThread(int N, SharedData& sharedData, SynchronizationFlags& syncFlags, DataProcessor& dataProcessor) {
+void magnitudeThread(int N, SharedDataBasic& sharedData, SharedDataProcessing& sharedDataProc, SynchronizationFlags& syncFlags, DataProcessor& dataProcessor) {
     int numProcessed = 0;
     while (true) {
         // std::cout << "Waiting for data..." << std::endl;
@@ -110,9 +110,9 @@ void magnitudeThread(int N, SharedData& sharedData, SynchronizationFlags& syncFl
             // Acquire a new lock_guard and push the processed data to the shared queue
             {
                 std::lock_guard<std::mutex> lock(sharedData.mutex);
-                sharedData.magDataQueue.push(magData);
+                sharedDataProc.magDataQueue.push(magData);
             }
-            sharedData.magDataReadyCondition.notify_one();
+            sharedDataProc.magDataReadyCondition.notify_one();
             
             lock.lock();  // Reacquire lock before checking the data queue
         }
@@ -123,7 +123,7 @@ void magnitudeThread(int N, SharedData& sharedData, SynchronizationFlags& syncFl
             std::lock_guard<std::mutex> lock(syncFlags.mutex);
             if (syncFlags.acquisitionComplete && sharedData.FFTDataQueue.empty()) {
                 syncFlags.dataProcessingComplete = true;
-                sharedData.magDataReadyCondition.notify_one();
+                sharedDataProc.magDataReadyCondition.notify_one();
                 break;  // Exit the processing thread
             }
         }
@@ -133,7 +133,7 @@ void magnitudeThread(int N, SharedData& sharedData, SynchronizationFlags& syncFl
 
 
 
-void averagingThread(SharedData& sharedData, SynchronizationFlags& syncFlags, DataProcessor& dataProcessor, double trueCenterFreq) {
+void averagingThread(SharedDataProcessing& sharedData, SynchronizationFlags& syncFlags, DataProcessor& dataProcessor, double trueCenterFreq) {
     int subSpectraAveragingNumber = 32;
     while (true) {
         // Wait for signal from dataReadyCondition or immediately continue if the data queue is not empty (lock releases while waiting)
@@ -192,7 +192,7 @@ void averagingThread(SharedData& sharedData, SynchronizationFlags& syncFlags, Da
  * @param sharedData - Struct containing data shared between threads
  * @param syncFlags - Struct containing synchronization flags shared between threads
  */
-void processingThread(SharedData& sharedData, SavedData& savedData, SynchronizationFlags& syncFlags, DataProcessor& dataProcessor, CombinedSpectrum& combinedSpectrum) {
+void processingThread(SharedDataProcessing& sharedData, SavedData& savedData, SynchronizationFlags& syncFlags, DataProcessor& dataProcessor, CombinedSpectrum& combinedSpectrum) {
     int buffersProcessed = 0;
     while (true) {
         // Check if processed data queue is empty
@@ -225,7 +225,7 @@ void processingThread(SharedData& sharedData, SavedData& savedData, Synchronizat
 
             trimSpectrum(processedSpectrum, 0.1);
             dataProcessor.trimSNRtoMatch(processedSpectrum);
-            
+
             Spectrum rescaledSpectrum = dataProcessor.processedToRescaled(processedSpectrum);
             dataProcessor.addRescaledToCombined(rescaledSpectrum, combinedSpectrum);
 
@@ -264,7 +264,7 @@ void processingThread(SharedData& sharedData, SavedData& savedData, Synchronizat
  * @param sharedData - Struct containing data shared between threads
  * @param syncFlags - Struct containing synchronization flags shared between threads
  */
-void decisionMakingThread(SharedData& sharedData, SynchronizationFlags& syncFlags) {
+void decisionMakingThread(SharedDataProcessing& sharedData, SynchronizationFlags& syncFlags) {
     int buffersProcessed = 0;
     while (true) {
         // Check if processed data queue is empty
@@ -316,7 +316,7 @@ void decisionMakingThread(SharedData& sharedData, SynchronizationFlags& syncFlag
  * @param sharedData - Struct containing data shared between threads
  * @param syncFlags - Struct containing synchronization flags shared between threads
  */
-void saveDataToBin(SharedData& sharedData, SynchronizationFlags& syncFlags) {
+void saveDataToBin(SharedDataBasic& sharedData, SynchronizationFlags& syncFlags) {
     // Create the output directory
     std::filesystem::create_directory("output");
 

@@ -48,7 +48,7 @@ public:
     void toggleLowPass(char channel, bool enable);
 
     fftw_complex* AcquireData();
-    void AcquireDataMultithreadedContinuous(SharedData& sharedData, SynchronizationFlags& syncFlags);
+    void AcquireDataMultithreadedContinuous(SharedDataBasic& sharedData, SynchronizationFlags& syncFlags);
 
     U32 suggestBufferNumber(U32 sampleRate, U32 samplesPerAcquisition);
     void printBufferSize(U32 samplesPerAcquisition, U32 buffersPerAcquisition);

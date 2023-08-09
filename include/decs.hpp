@@ -112,7 +112,7 @@ struct CombinedSpectrum : public Spectrum {
 
 
 // Struct for storing data shared between threads. Used for multithreaded data acquisition.
-struct SharedData {
+struct SharedDataBasic{
     std::mutex mutex;
 
     int samplesPerBuffer;
@@ -120,13 +120,19 @@ struct SharedData {
     std::queue<fftw_complex*> dataQueue;
     std::queue<fftw_complex*> dataSavingQueue;
     std::queue<fftw_complex*> FFTDataQueue;
-    std::queue<std::vector<double>> magDataQueue;
-    std::queue<Spectrum> rawDataQueue;
-    std::queue<Spectrum> rescaledDataQueue;
 
     std::condition_variable dataReadyCondition;
     std::condition_variable saveReadyCondition;
     std::condition_variable FFTDataReadyCondition;
+};
+
+struct SharedDataProcessing {
+    std::mutex mutex;
+
+    std::queue<std::vector<double>> magDataQueue;
+    std::queue<Spectrum> rawDataQueue;
+    std::queue<Spectrum> rescaledDataQueue;
+
     std::condition_variable magDataReadyCondition;
     std::condition_variable rawDataReadyCondition;
     std::condition_variable rescaledDataReadyCondition;
@@ -196,13 +202,13 @@ void saveVector(std::vector<int> data, std::string filename);
 void saveVector(std::vector<double> data, std::string filename);
 
 // multiThreading.cpp
-void averagingThread(SharedData& sharedData, SynchronizationFlags& syncFlags, DataProcessor& dataProcessor, double trueCenterFreq);
-void decisionMakingThread(SharedData& sharedData, SynchronizationFlags& syncFlags);
-void FFTThread(fftw_plan plan, int N, SharedData& sharedData, SynchronizationFlags& syncFlags);
-void magnitudeThread(int N, SharedData& sharedData, SynchronizationFlags& syncFlags, DataProcessor& dataProcessor);
-void processingThread(SharedData& sharedData, SavedData& savedData, SynchronizationFlags& syncFlags, DataProcessor& dataProcessor, CombinedSpectrum& combinedSpectrum);
-void saveDataToBin(SharedData& sharedData, SynchronizationFlags& syncFlags);
-void saveDataToHDF5(SharedData& sharedData, SynchronizationFlags& syncFlags);
+void FFTThread(fftw_plan plan, int N, SharedDataBasic& sharedData, SynchronizationFlags& syncFlags);
+void magnitudeThread(int N, SharedDataBasic& sharedData, SharedDataProcessing& sharedDataProc, SynchronizationFlags& syncFlags, DataProcessor& dataProcessor);
+void averagingThread(SharedDataProcessing& sharedData, SynchronizationFlags& syncFlags, DataProcessor& dataProcessor, double trueCenterFreq);
+void processingThread(SharedDataProcessing& sharedData, SavedData& savedData, SynchronizationFlags& syncFlags, DataProcessor& dataProcessor, CombinedSpectrum& combinedSpectrum);
+void decisionMakingThread(SharedDataProcessing& sharedData, SynchronizationFlags& syncFlags);
+void saveDataToBin(SharedDataBasic& sharedData, SynchronizationFlags& syncFlags);
+void saveDataToHDF5(SharedDataBasic& sharedData, SynchronizationFlags& syncFlags);
 
 // tests.cpp
 void printAvailableResources();

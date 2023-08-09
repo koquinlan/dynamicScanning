@@ -96,29 +96,30 @@ int main() {
     #endif
 
     // Create shared data structures
-    SharedData sharedData;
+    SharedDataBasic sharedDataBasic;
+    SharedDataProcessing sharedDataProc;
     SavedData savedData;
     SynchronizationFlags syncFlags;
     CombinedSpectrum combinedSpectrum;
 
-    sharedData.samplesPerBuffer = N;
+    sharedDataBasic.samplesPerBuffer = N;
 
-    
+
     // Begin acquisition
     try{
         // Start the threads
-        std::thread acquisitionThread(&ATS::AcquireDataMultithreadedContinuous, &alazarCard, std::ref(sharedData), std::ref(syncFlags));
-        std::thread FFTThread(FFTThread, plan, N, std::ref(sharedData), std::ref(syncFlags));
-        std::thread magnitudeThread(magnitudeThread, N, std::ref(sharedData), std::ref(syncFlags), std::ref(dataProcessor));
-        std::thread averagingThread(averagingThread, std::ref(sharedData), std::ref(syncFlags), std::ref(dataProcessor), std::ref(yModeFreq));
+        std::thread acquisitionThread(&ATS::AcquireDataMultithreadedContinuous, &alazarCard, std::ref(sharedDataBasic), std::ref(syncFlags));
+        std::thread FFTThread(FFTThread, plan, N, std::ref(sharedDataBasic), std::ref(syncFlags));
+        std::thread magnitudeThread(magnitudeThread, N, std::ref(sharedDataBasic), std::ref(sharedDataProc), std::ref(syncFlags), std::ref(dataProcessor));
+        std::thread averagingThread(averagingThread, std::ref(sharedDataProc), std::ref(syncFlags), std::ref(dataProcessor), std::ref(yModeFreq));
 
         #if (!REFRESH_BASELINE && !REFRESH_BAD_BINS)
-        std::thread processingThread(processingThread, std::ref(sharedData), std::ref(savedData), std::ref(syncFlags), std::ref(dataProcessor), std::ref(combinedSpectrum));
-        std::thread decisionMakingThread(decisionMakingThread, std::ref(sharedData), std::ref(syncFlags));
+        std::thread processingThread(processingThread, std::ref(sharedDataProc), std::ref(savedData), std::ref(syncFlags), std::ref(dataProcessor), std::ref(combinedSpectrum));
+        std::thread decisionMakingThread(decisionMakingThread, std::ref(sharedDataProc), std::ref(syncFlags));
         #endif
 
         #if SAVE_DATA
-        std::thread savingThread(saveDataToBin, std::ref(sharedData), std::ref(syncFlags));
+        std::thread savingThread(saveDataToBin, std::ref(sharedDataBasic), std::ref(syncFlags));
         #endif
 
         // Wait for the threads to finish
@@ -173,7 +174,7 @@ int main() {
     #if (!REFRESH_BASELINE && !REFRESH_BAD_BINS)
     saveCombinedSpectrum(combinedSpectrum, "../../../plotting/threadTests/combinedSpectrum.csv");
     #endif
-    
+
     saveVector(dataProcessor.currentBaseline, "baseline.csv");
 
     #if REFRESH_BAD_BINS
