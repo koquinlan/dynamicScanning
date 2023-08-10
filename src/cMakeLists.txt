@@ -1,6 +1,8 @@
 project(lab_control)
 
 set(SOURCES
+    scanRunner.cpp
+
     instruments/ATS.cpp
     instruments/AWG.cpp
     instruments/instrument.cpp

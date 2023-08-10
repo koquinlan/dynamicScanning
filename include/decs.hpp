@@ -182,6 +182,8 @@ struct SynchronizationFlags {
 #include "dataProcessing/bayes.hpp"
 #include "dataProcessing/dataProcessor.hpp"
 
+#include "scanRunner.hpp"
+
 
 /*******************************************************************************
  *                                                                            *
