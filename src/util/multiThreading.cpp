@@ -208,7 +208,7 @@ void averagingThread(SharedDataProcessing& sharedData, SynchronizationFlags& syn
  * @param sharedData - Struct containing data shared between threads
  * @param syncFlags - Struct containing synchronization flags shared between threads
  */
-void processingThread(SharedDataProcessing& sharedData, SavedData& savedData, SynchronizationFlags& syncFlags, DataProcessor& dataProcessor, CombinedSpectrum& combinedSpectrum) {
+void processingThread(SharedDataProcessing& sharedData, SavedData& savedData, SynchronizationFlags& syncFlags, DataProcessor& dataProcessor, BayesFactors& bayesFactors) {
     int buffersProcessed = 0;
     while (true) {
         // Check if processed data queue is empty
@@ -226,26 +226,27 @@ void processingThread(SharedDataProcessing& sharedData, SavedData& savedData, Sy
             sharedData.rawDataQueue.pop();
             lock.unlock();
 
-            {
-                std::lock_guard<std::mutex> lock(savedData.mutex);
-                savedData.rawSpectra.push_back(rawSpectrum);
-            }
-
             Spectrum processedSpectrum, foo;
             std::tie(processedSpectrum, foo) = dataProcessor.rawToProcessed(rawSpectrum);
-            
-            {
-                std::lock_guard<std::mutex> lock(savedData.mutex);
-                savedData.processedSpectra.push_back(processedSpectrum);
-            }
 
             trimSpectrum(processedSpectrum, 0.1);
             dataProcessor.trimSNRtoMatch(processedSpectrum);
 
             Spectrum rescaledSpectrum = dataProcessor.processedToRescaled(processedSpectrum);
+
+            CombinedSpectrum combinedSpectrum;
             dataProcessor.addRescaledToCombined(rescaledSpectrum, combinedSpectrum);
 
+            bayesFactors.updateExclusionLine(combinedSpectrum);
+
             buffersProcessed++;
+
+            {
+                std::lock_guard<std::mutex> lock(savedData.mutex);
+                savedData.rawSpectra.push_back(rawSpectrum);
+                savedData.processedSpectra.push_back(processedSpectrum);
+                savedData.rescaledSpectra.push_back(rescaledSpectrum);
+            }
 
             // Acquire a new lock_guard and push the processed data to the shared queue
             {

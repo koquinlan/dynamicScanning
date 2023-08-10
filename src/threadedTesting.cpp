@@ -100,7 +100,8 @@ int main() {
     SharedDataProcessing sharedDataProc;
     SavedData savedData;
     SynchronizationFlags syncFlags;
-    CombinedSpectrum combinedSpectrum;
+
+    BayesFactors bayesFactors;
 
     sharedDataBasic.samplesPerBuffer = N;
 
@@ -114,7 +115,7 @@ int main() {
         std::thread averagingThread(averagingThread, std::ref(sharedDataProc), std::ref(syncFlags), std::ref(dataProcessor), std::ref(yModeFreq));
 
         #if (!REFRESH_BASELINE && !REFRESH_BAD_BINS)
-        std::thread processingThread(processingThread, std::ref(sharedDataProc), std::ref(savedData), std::ref(syncFlags), std::ref(dataProcessor), std::ref(combinedSpectrum));
+        std::thread processingThread(processingThread, std::ref(sharedDataProc), std::ref(savedData), std::ref(syncFlags), std::ref(dataProcessor), std::ref(bayesFactors));
         std::thread decisionMakingThread(decisionMakingThread, std::ref(sharedDataProc), std::ref(syncFlags));
         #endif
 
@@ -143,10 +144,6 @@ int main() {
     }
 
 
-    BayesFactors bayesFactors;
-    bayesFactors.updateExclusionLine(combinedSpectrum);
-    saveSpectrum(bayesFactors.exclusionLine, "../../../plotting/threadTests/exclusionLine.csv");
-
     // Cleanup
     psg1_Diff.onOff(false);
     psg4_JPA.onOff(false);
@@ -162,7 +159,7 @@ int main() {
 
 
     // Save the data
-    std::vector<int> outliers = findOutliers(dataProcessor.runningAverage, 50, 5);
+    std::vector<int> outliers = findOutliers(dataProcessor.runningAverage, 50, 4.5);
 
     saveVector(freq, "../../../plotting/threadTests/freq.csv");
     saveVector(outliers, "../../../plotting/threadTests/outliers.csv");
@@ -176,7 +173,14 @@ int main() {
     saveSpectrum(savedData.processedSpectra[0], "../../../plotting/threadTests/processedSpectrum.csv");
 
     #if (!REFRESH_BASELINE && !REFRESH_BAD_BINS)
+    CombinedSpectrum combinedSpectrum;
+    
+    for (Spectrum rescaledSpectrum : savedData.rescaledSpectra){
+        dataProcessor.addRescaledToCombined(rescaledSpectrum, combinedSpectrum);
+    }
+    
     saveCombinedSpectrum(combinedSpectrum, "../../../plotting/threadTests/combinedSpectrum.csv");
+    saveSpectrum(bayesFactors.exclusionLine, "../../../plotting/threadTests/exclusionLine.csv");
     #endif
 
     saveVector(dataProcessor.currentBaseline, "baseline.csv");
