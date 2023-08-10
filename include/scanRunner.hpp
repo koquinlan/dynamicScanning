@@ -1,7 +1,8 @@
 /**
  * @file scanRunner.hpp
  * @author Kyle Quinlan (kyle.quinlan@colorado.edu)
- * @brief 
+ * @brief Class definition for ScanRunner class. This class is responsible for running a single scan, including data acquisition, 
+ *        processing, stepping, and saving.
  * @version 0.1
  * @date 2023-08-10
  * 
@@ -39,6 +40,9 @@ private:
     // Filter Parameters
     double cutoffFrequency, stopbandAttenuation;
     int poleNumber;
+
+    // Misc variables
+    const char* wisdomFilePath;
 
     // Member classes
     PSG psgList[NUM_PSGS];

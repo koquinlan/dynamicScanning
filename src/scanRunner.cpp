@@ -1,6 +1,27 @@
+/**
+ * @file scanRunner.cpp
+ * @author your name (you@domain.com)
+ * @brief Method definitions and documentation for ScanRunner class. See include\scanRunner.hpp for class definition.
+ * @version 0.1
+ * @date 2023-08-10
+ * 
+ * @copyright Copyright (c) 2023
+ * 
+ * @note I could consider making this a parent class and having specific experiments inherit from this class. This would
+ *       allow each experiment to define a different set of PSGs, or data acquisition method, for example.
+ * 
+ * @warning initAlazarCard() must be called before initFFTW() because the FFTW plan is dependent on the Alazar card's acquisition parameters.
+ * 
+ */
+
+
 #include "decs.hpp"
 
 
+/**
+ * @brief Construct a new Scan Runner object. This constructor initializes the PSGs, Alazar card, FFTW, and DataProcessor.
+ * 
+ */
 ScanRunner::ScanRunner() : alazarCard(1, 1),
                 psgList{
                     PSG(27),  // PSG_DIFF
@@ -33,6 +54,11 @@ ScanRunner::ScanRunner() : alazarCard(1, 1),
 }
 
 
+
+/**
+ * @brief Destroy the Scan Runner object. Ensure that any allocated memory is freed in this step, especially FFTW memory.
+ * 
+ */
 ScanRunner::~ScanRunner() {
     // Turn off PSGs
     for (PSG psg : psgList) {
@@ -43,11 +69,14 @@ ScanRunner::~ScanRunner() {
     fftw_destroy_plan(fftwPlan);
 
     // Save FFTW wisdom
-    const char* wisdomFilePath = "fftw_wisdom.txt";
     fftw_export_wisdom_to_filename(wisdomFilePath);
 }
 
 
+/**
+ * @brief Sets frequencies and powers for interaction PSGs and JPA pump. 
+ * 
+ */
 void ScanRunner::initPSGs() {
     psgList[PSG_DIFF].setFreq(yModeFreq - xModeFreq);
     psgList[PSG_DIFF].setPow(diffPower);
@@ -57,6 +86,10 @@ void ScanRunner::initPSGs() {
 }
 
 
+/**
+ * @brief Calculates and sets acquisition parameters for Alazar card.
+ * 
+ */
 void ScanRunner::initAlazarCard() {
     double samplesPerSpectrum = sampleRate/RBW;
     double samplesPerAcquisition = samplesPerSpectrum*maxSpectraPerAcquisition;
@@ -66,10 +99,15 @@ void ScanRunner::initAlazarCard() {
 }
 
 
-
+/**
+ * @brief Initializes FFTW plan for data processing.
+ * 
+ * @warning Must be called after initAlazarCard() because the FFTW plan is dependent on the Alazar card's acquisition parameters.
+ * 
+ */
 void ScanRunner::initFFTW() {
     // Try to import an FFTW plan if available
-    const char* wisdomFilePath = "fftw_wisdom.txt";
+    wisdomFilePath = "fftw_wisdom.txt";
     if (fftw_import_wisdom_from_filename(wisdomFilePath) != 0) {
         std::cout << "Successfully imported FFTW wisdom from file." << std::endl;
     }
@@ -93,7 +131,10 @@ void ScanRunner::initFFTW() {
 }
 
 
-
+/**
+ * @brief Initializes DataProcessor object. Initializes filter and loads SNR, bad bins and baseline if available.
+ * 
+ */
 void ScanRunner::initProcessor() {
     // Create data processor
     dataProcessor.setFilterParams(alazarCard.acquisitionParams.sampleRate, poleNumber, cutoffFrequency, stopbandAttenuation);
@@ -117,6 +158,10 @@ void ScanRunner::initProcessor() {
 }
 
 
+/**
+ * @brief Runs a scan. This function assumes that the probes and frequency have been properly set and begins acquisition for a single data point.
+ * 
+ */
 void ScanRunner::acquireData() {
     // Turn on PSGs
     psgList[PSG_DIFF].onOff(true);
@@ -158,7 +203,10 @@ void ScanRunner::acquireData() {
 }
 
 
-
+/**
+ * @brief Saves any data available to the scanRunner to csv files to be plotted later in python.
+ * 
+ */
 void ScanRunner::saveData() {
     // Save the data
     std::vector<int> outliers = findOutliers(dataProcessor.runningAverage, 50, 4.5);
