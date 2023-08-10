@@ -7,6 +7,8 @@
  * 
  * @copyright Copyright (c) 2023
  * 
+ * @todo Try high pass filtering for processed spectra
+ * 
  */
 
 #include "decs.hpp"
