@@ -109,24 +109,33 @@ void DataProcessor::displayFilterResponse() {
 
 
 void DataProcessor::updateBaseline() {
-    // Set up pointer to copy of running average to become the baseline
-    currentBaseline.clear();
-    currentBaseline = runningAverage;
+    // Calculate the number of values to pad at the beginning
+    size_t paddingSize = static_cast<size_t>(0.3 * runningAverage.size());
+    
+    // Create the padded vector with repeated first value
+    std::vector<double> paddedVector(paddingSize, runningAverage.front());
+    paddedVector.insert(paddedVector.end(), runningAverage.begin(), runningAverage.end());
 
+    // Apply the bidirectional filter to the padded vector
     double* averagedData[1];
-    averagedData[0] = currentBaseline.data();
+    averagedData[0] = paddedVector.data();
+    chebyshevFilter.process(static_cast<int>(paddedVector.size()), averagedData);
 
-    // Apply bidirectional filter to running average to extract the baseline
-    chebyshevFilter.process((int) currentBaseline.size(), averagedData);
+    // Reverse the padded vector and apply the filter again
+    std::reverse(paddedVector.begin(), paddedVector.end());
+    averagedData[0] = paddedVector.data();
+    chebyshevFilter.process(static_cast<int>(paddedVector.size()), averagedData);
+    std::reverse(paddedVector.begin(), paddedVector.end());
 
-    std::reverse(currentBaseline.begin(), currentBaseline.end());
-    chebyshevFilter.process((int) currentBaseline.size(), averagedData);
-    std::reverse(currentBaseline.begin(), currentBaseline.end());
+    // Update the baseline with the part that corresponds to the actual runningAverage vector
+    currentBaseline.assign(paddedVector.begin() + paddingSize, paddedVector.end());
 }
 
 
-void DataProcessor::resetAverage() {
+void DataProcessor::resetBaselining() {
     runningAverage.clear();
+    currentBaseline.clear();
+
     numSpectra = 0;
 }
 
@@ -174,14 +183,14 @@ std::tuple<Spectrum, Spectrum> DataProcessor::rawToProcessed(const Spectrum &raw
 
 
 void DataProcessor::addRawSpectrumToRunningAverage(std::vector<double> rawSpectrum) {
-    numSpectra++;
-
-    if (numSpectra == 1) {
+    if (runningAverage.empty()) {
         runningAverage = rawSpectrum;
         return;
     }
 
-    const double factor = static_cast<double>(numSpectra - 1) / numSpectra;
+    numSpectra++;
+
+    double factor = (double)(numSpectra - 1) / (double)numSpectra;
     for (int i = 0; i < runningAverage.size(); i++) {
         runningAverage[i] = factor * runningAverage[i] + rawSpectrum[i] / numSpectra;
     }
@@ -195,8 +204,8 @@ std::vector<double> DataProcessor::removeBadBins(std::vector<double> unfilteredR
     // Replace bad bins with a linear fill
     for (int index : badBins) {
         double fillValue = (
-            unfilteredRawSpectrum[(index + 1) % unfilteredRawSpectrum.size()] +
-            unfilteredRawSpectrum[(index + unfilteredRawSpectrum.size() - 1) % unfilteredRawSpectrum.size()]
+            unfilteredRawSpectrum[(index + 50) % unfilteredRawSpectrum.size()] +
+            unfilteredRawSpectrum[(index + unfilteredRawSpectrum.size() - 50) % unfilteredRawSpectrum.size()]
             ) / 2.0;
         
         filteredSpectrum[index] = fillValue;

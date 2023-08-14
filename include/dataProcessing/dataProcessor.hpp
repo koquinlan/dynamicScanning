@@ -33,7 +33,7 @@ public:
 
     void addRawSpectrumToRunningAverage(std::vector<double> rawSpectrum);
     void updateBaseline();
-    void resetAverage();
+    void resetBaselining();
 
     std::vector<std::vector<double>> acquiredToRaw(fftw_complex* rawStream, int spectraPerAcquisition, int samplesPerSpectrum, fftw_plan plan);
     std::tuple<Spectrum, Spectrum> rawToProcessed(const Spectrum &rawSpectrum);
@@ -49,12 +49,9 @@ public:
     std::vector<double> runningAverage, currentBaseline;
     Spectrum SNR, trimmedSNR;
 
-    std::mutex baselineMutex;
-    std::mutex averageMutex;
-
     // Dsp::FilterDesign <class DesignClass, int Channels = 0, class StateType = DirectFormII>
     // DesignClass <int MaxOrder>
-    Dsp::FilterDesign <Dsp::ChebyshevII::Design::LowPass<4>, 1> chebyshevFilter;
+    Dsp::FilterDesign <Dsp::ChebyshevII::Design::LowPass<6>, 1> chebyshevFilter;
 
     double cutoffFrequency_, sampleRate_;
 };
