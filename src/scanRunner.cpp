@@ -29,7 +29,7 @@ ScanRunner::ScanRunner() : alazarCard(1, 1),
                     PSG(21)   // PSG_PROBE
                 } {
     // Pumping parameters
-    xModeFreq = 4.985; // GHz
+    xModeFreq = 4.985;    // GHz
     yModeFreq = 7.455396; // GHz
 
     diffPower = 6.73; //dBm
@@ -41,7 +41,7 @@ ScanRunner::ScanRunner() : alazarCard(1, 1),
     maxSpectraPerAcquisition = 250;
 
     // Filter Parameters
-    cutoffFrequency = 10e3;
+    cutoffFrequency = 8e3;
     poleNumber = 3;
     stopbandAttenuation = 15.0;
 
@@ -209,7 +209,7 @@ void ScanRunner::acquireData() {
  */
 void ScanRunner::saveData() {
     // Save the data
-    std::vector<int> outliers = findOutliers(dataProcessor.runningAverage, 50, 4.5);
+    std::vector<int> outliers = findOutliers(dataProcessor.runningAverage, 50, 4);
 
     std::vector<double> freq(alazarCard.acquisitionParams.samplesPerBuffer);
     for (int i = 0; i < freq.size(); ++i) {
@@ -222,7 +222,6 @@ void ScanRunner::saveData() {
 
     dataProcessor.updateBaseline();
     saveVector(dataProcessor.currentBaseline, "../../../plotting/threadTests/baseline.csv");
-    saveVector(dataProcessor.currentBaseline, "baseline.csv");
     saveVector(dataProcessor.runningAverage, "../../../plotting/threadTests/runningAverage.csv");
 
     saveSpectrum(savedData.rawSpectra[0], "../../../plotting/threadTests/rawSpectrum.csv");
@@ -235,4 +234,94 @@ void ScanRunner::saveData() {
     saveCombinedSpectrum(combinedSpectrum, "../../../plotting/threadTests/combinedSpectrum.csv");
 
     saveSpectrum(bayesFactors.exclusionLine, "../../../plotting/threadTests/exclusionLine.csv");
+}
+
+
+void ScanRunner::refreshBaselineAndBadBins(int savePlots) {
+    // Acquire some data
+    acquireProcCalibration(4, 32, savePlots);
+
+    // Cleanup and saving
+    saveVector(dataProcessor.currentBaseline, "baseline.csv");
+    saveVector(dataProcessor.badBins, "badBins.csv");
+
+
+    if (savePlots){
+        std::vector<double> freq(alazarCard.acquisitionParams.samplesPerBuffer);
+        for (int i = 0; i < freq.size(); ++i) {
+            freq[i] = (static_cast<double>(i)-static_cast<double>(alazarCard.acquisitionParams.samplesPerBuffer)/2)
+                        *alazarCard.acquisitionParams.sampleRate/alazarCard.acquisitionParams.samplesPerBuffer/1e6;
+        }
+
+        saveVector(freq, "../../../plotting/threadTests/freqTEST.csv");
+        saveVector(dataProcessor.badBins, "../../../plotting/threadTests/outliersTEST.csv");
+
+        saveVector(dataProcessor.currentBaseline, "../../../plotting/threadTests/baselineTEST.csv");
+        saveVector(dataProcessor.runningAverage, "../../../plotting/threadTests/runningAverageTEST.csv");
+    }
+
+    dataProcessor.resetAverage();
+}
+
+
+void ScanRunner::acquireProcCalibration(int repeats, int subSpectra, int savePlots) {
+    // Turn on PSGs
+    psgList[PSG_DIFF].onOff(true);
+    psgList[PSG_JPA].onOff(true);
+
+
+    // Acquire the data
+    std::vector<std::vector<double>> fullRawData;
+
+    for (int i = 0; i < repeats; i++){
+        fftw_complex* rawStream = alazarCard.AcquireData();
+        std::vector<std::vector<double>> rawData = dataProcessor.acquiredToRaw(rawStream, 
+                                                                            alazarCard.acquisitionParams.buffersPerAcquisition, 
+                                                                            alazarCard.acquisitionParams.samplesPerBuffer, 
+                                                                            fftwPlan);
+        fftw_free(rawStream);
+
+        for (std::vector<double> data : rawData){
+            fullRawData.push_back(data);
+        }
+    }
+
+    std::vector<std::vector<double>> averagedRawData;
+    for (int i=0; i < std::floor(fullRawData.size()/subSpectra); i++){
+        std::vector<double> averagedSpectrum = averageVectors(std::vector<std::vector<double>>(fullRawData.begin()+i*subSpectra, fullRawData.begin()+(i+1)*subSpectra));
+        averagedRawData.push_back(averagedSpectrum);
+    }
+
+    // Turn off PSGs
+    psgList[PSG_DIFF].onOff(false);
+    psgList[PSG_JPA].onOff(false);
+    
+
+
+    if(savePlots) {
+        saveVector(averagedRawData[0], "../../../plotting/threadTests/rawDataTEST.csv");
+    }
+
+    // Process the data
+    std::vector<int> badBins = findOutliers(averageVectors(averagedRawData), 50, 5);
+    for (int i = 0; i < averagedRawData.size(); ++i) {
+        std::vector<double> cleanedRawData = dataProcessor.removeBadBins(averagedRawData[i]);
+        dataProcessor.addRawSpectrumToRunningAverage(cleanedRawData);
+    }
+
+    dataProcessor.updateBaseline();
+
+
+    std::vector<std::vector<double>> processedSpectra(averagedRawData.size());
+
+    for (int i = 0; i < averagedRawData.size(); ++i) {
+        std::vector<double> cleanedRawData = dataProcessor.removeBadBins(averagedRawData[i]);
+        dataProcessor.addRawSpectrumToRunningAverage(cleanedRawData);
+    }
+
+    for (int i = 0; i < badBins.size(); ++i) {
+        dataProcessor.badBins.push_back(badBins[i]);
+    }
+
+    
 }

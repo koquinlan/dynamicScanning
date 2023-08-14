@@ -28,6 +28,8 @@ public:
     void acquireData();
     void saveData();
 
+    void refreshBaselineAndBadBins(int savePlots = 0);
+
 private:
     // Pumping parameters
     double xModeFreq, yModeFreq;
@@ -60,6 +62,8 @@ private:
     void initAlazarCard();
     void initFFTW();
     void initProcessor();
+
+    void acquireProcCalibration(int repeats = 3, int subSpectra = 32, int savePlots = 0);
 };
 
 #endif // SCANRUNNER_H
