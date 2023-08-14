@@ -41,7 +41,7 @@ ScanRunner::ScanRunner() : alazarCard(1, 1),
     maxSpectraPerAcquisition = 250;
 
     // Filter Parameters
-    cutoffFrequency = 8e3;
+    cutoffFrequency = 10e3;
     poleNumber = 3;
     stopbandAttenuation = 15.0;
 
@@ -237,9 +237,9 @@ void ScanRunner::saveData() {
 }
 
 
-void ScanRunner::refreshBaselineAndBadBins(int savePlots) {
+void ScanRunner::refreshBaselineAndBadBins(int repeats, int subSpectra, int savePlots) {
     // Acquire some data
-    acquireProcCalibration(4, 32, savePlots);
+    acquireProcCalibration(repeats, subSpectra, savePlots);
 
     // Cleanup and saving
     saveVector(dataProcessor.currentBaseline, "baseline.csv");
@@ -260,7 +260,7 @@ void ScanRunner::refreshBaselineAndBadBins(int savePlots) {
         saveVector(dataProcessor.runningAverage, "../../../plotting/threadTests/runningAverageTEST.csv");
     }
 
-    dataProcessor.resetAverage();
+    dataProcessor.resetBaselining();
 }
 
 
@@ -296,32 +296,53 @@ void ScanRunner::acquireProcCalibration(int repeats, int subSpectra, int savePlo
     psgList[PSG_DIFF].onOff(false);
     psgList[PSG_JPA].onOff(false);
     
-
-
     if(savePlots) {
         saveVector(averagedRawData[0], "../../../plotting/threadTests/rawDataTEST.csv");
     }
 
-    // Process the data
-    std::vector<int> badBins = findOutliers(averageVectors(averagedRawData), 50, 5);
+
+    // Get data ready to find badBins
+    std::vector<double> freq(alazarCard.acquisitionParams.samplesPerBuffer);
+    for (int i = 0; i < freq.size(); ++i) {
+        freq[i] = (static_cast<double>(i)-static_cast<double>(alazarCard.acquisitionParams.samplesPerBuffer)/2)
+                    *alazarCard.acquisitionParams.sampleRate/alazarCard.acquisitionParams.samplesPerBuffer/1e6;
+    }
+
+    dataProcessor.badBins = findOutliers(averageVectors(averagedRawData), 50, 5);
     for (int i = 0; i < averagedRawData.size(); ++i) {
         std::vector<double> cleanedRawData = dataProcessor.removeBadBins(averagedRawData[i]);
         dataProcessor.addRawSpectrumToRunningAverage(cleanedRawData);
     }
 
     dataProcessor.updateBaseline();
+    
 
-
+    // Do bad bin detection on processed spectra
     std::vector<std::vector<double>> processedSpectra(averagedRawData.size());
 
+    for (int i = 0; i < averagedRawData.size(); ++i) {
+        Spectrum rawSpectrum;
+        rawSpectrum.powers = averagedRawData[i];
+        rawSpectrum.freqAxis = freq;
+
+        Spectrum processedSpectrum, foo;
+        std::tie(processedSpectrum, foo) = dataProcessor.rawToProcessed(rawSpectrum);
+
+        processedSpectra[i] = processedSpectrum.powers;
+    }
+
+    dataProcessor.badBins = findOutliers(averageVectors(processedSpectra), 100, 5);
+
+
+    // Use the bad bins to find a clean baseline
+    dataProcessor.resetBaselining();
     for (int i = 0; i < averagedRawData.size(); ++i) {
         std::vector<double> cleanedRawData = dataProcessor.removeBadBins(averagedRawData[i]);
         dataProcessor.addRawSpectrumToRunningAverage(cleanedRawData);
     }
-
-    for (int i = 0; i < badBins.size(); ++i) {
-        dataProcessor.badBins.push_back(badBins[i]);
+    for (int bin : findOutliers(dataProcessor.runningAverage, 50, 4)){
+        dataProcessor.badBins.push_back(bin);
     }
 
-    
+    dataProcessor.updateBaseline();
 }

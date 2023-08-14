@@ -10,13 +10,13 @@
  */
 #include "decs.hpp"
 
-#define REFRESH_PROCESSOR (0)
+#define REFRESH_PROCESSOR (1)
 
 int main() {
     ScanRunner scanRunner;
 
     #if REFRESH_PROCESSOR
-    scanRunner.refreshBaselineAndBadBins();
+    scanRunner.refreshBaselineAndBadBins(1, 32, 1);
     #endif
 
     scanRunner.acquireData();

@@ -28,7 +28,7 @@ public:
     void acquireData();
     void saveData();
 
-    void refreshBaselineAndBadBins(int savePlots = 0);
+    void refreshBaselineAndBadBins(int repeats = 3, int subSpectra = 32, int savePlots = 0);
 
 private:
     // Pumping parameters
@@ -64,6 +64,7 @@ private:
     void initProcessor();
 
     void acquireProcCalibration(int repeats = 3, int subSpectra = 32, int savePlots = 0);
+    void acquireProcCalibrationMulti(int repeats = 3, int subSpectra = 32, int savePlots = 0);
 };
 
 #endif // SCANRUNNER_H
