@@ -14,9 +14,7 @@ fig, axs = plt.subplots(1, 2, figsize=(12, 6))
 axs[0].plot(freq, rawData, label="Raw Data")
 axs[0].plot(freq, runningAverage, label="Running Average")
 axs[0].plot(freq, baseline, label="Baseline")
-axs[0].plot(
-    freq[outliers], runningAverage[outliers], "o", label="Outliers", color="red"
-)
+axs[0].plot(freq[outliers], baseline[outliers], "o", label="Outliers", color="red")
 axs[0].set_title("With TEST Appended")
 axs[0].legend()
 
@@ -42,8 +40,8 @@ axs[1].set_title("Without TEST Appended")
 axs[1].legend()
 
 
-axs[0].set_ylim([0, 3 * np.max(baseline)])
-axs[1].set_ylim([0, 3 * np.max(baseline)])
+axs[0].set_ylim([0, np.max(runningAverage)])
+axs[1].set_ylim([0, np.max(runningAverage)])
 # Adjust layout to prevent overlap
 plt.tight_layout()
 
