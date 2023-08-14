@@ -110,6 +110,7 @@ void DataProcessor::displayFilterResponse() {
 
 void DataProcessor::updateBaseline() {
     // Set up pointer to copy of running average to become the baseline
+    currentBaseline.clear();
     currentBaseline = runningAverage;
 
     double* averagedData[1];
@@ -121,6 +122,12 @@ void DataProcessor::updateBaseline() {
     std::reverse(currentBaseline.begin(), currentBaseline.end());
     chebyshevFilter.process((int) currentBaseline.size(), averagedData);
     std::reverse(currentBaseline.begin(), currentBaseline.end());
+}
+
+
+void DataProcessor::resetAverage() {
+    runningAverage.clear();
+    numSpectra = 0;
 }
 
 
@@ -170,14 +177,14 @@ void DataProcessor::addRawSpectrumToRunningAverage(std::vector<double> rawSpectr
     numSpectra++;
 
     if (numSpectra == 1) {
-        runningAverage = std::move(rawSpectrum);
+        runningAverage = rawSpectrum;
         return;
     }
 
-    // Optimized lambda function version of updating the running average
     const double factor = static_cast<double>(numSpectra - 1) / numSpectra;
-    std::transform(runningAverage.begin(), runningAverage.end(), rawSpectrum.begin(), runningAverage.begin(),
-                   [this, factor](double a, double b) { return a * factor + b / numSpectra; });
+    for (int i = 0; i < runningAverage.size(); i++) {
+        runningAverage[i] = factor * runningAverage[i] + rawSpectrum[i] / numSpectra;
+    }
 }
 
 
@@ -225,9 +232,7 @@ std::vector<std::vector<double>> DataProcessor::acquiredToRaw(fftw_complex* rawS
 
     for (int i=0; i < spectraPerAcquisition; i++) {
         for (int j=0; j < samplesPerSpectrum; j++){
-            fftVoltage[i].push_back( std::sqrt((procData[i][j][0]*procData[i][j][0] + procData[i][j][1]*procData[i][j][1]))/(double)samplesPerSpectrum );
-
-            fftPower[i].push_back( fftVoltage[i][j]*fftVoltage[i][j]/50 ); // Hard code in 50 Ohm input impedance
+            fftPower[i].push_back(( procData[i][j][0]*procData[i][j][0] + procData[i][j][1]*procData[i][j][1] ) / samplesPerSpectrum / 50); // Hard code in 50 Ohm input impedance
         }
     }
 
