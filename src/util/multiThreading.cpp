@@ -21,11 +21,11 @@
  *        pushes the result to the decision making and saving queues.
  * 
  * @param plan - FFTW plan object for the FFT
- * @param N - Number of samples per buffer shared in the data queue
+ * @param samplesPerSpectrum - Number of samples per buffer shared in the data queue
  * @param sharedData - Struct containing data shared between threads
  * @param syncFlags - Struct containing synchronization flags shared between threads
  */
-void FFTThread(fftw_plan plan, int N, SharedDataBasic& sharedData, SynchronizationFlags& syncFlags) {
+void FFTThread(fftw_plan plan, int samplesPerSpectrum, SharedDataBasic& sharedData, SynchronizationFlags& syncFlags) {
     int numProcessed = 0;
     while (true) {
         // std::cout << "Waiting for data..." << std::endl;
@@ -46,7 +46,7 @@ void FFTThread(fftw_plan plan, int N, SharedDataBasic& sharedData, Synchronizati
             lock.unlock();
 
             // Process the data (lock is released while processing)
-            fftw_complex* FFTData = processDataFFT(complexOutput, plan, N);
+            fftw_complex* FFTData = processDataFFT(complexOutput, plan, samplesPerSpectrum);
             numProcessed++;
 
 
@@ -78,7 +78,7 @@ void FFTThread(fftw_plan plan, int N, SharedDataBasic& sharedData, Synchronizati
 }
 
 
-void magnitudeThread(int N, SharedDataBasic& sharedData, SharedDataProcessing& sharedDataProc, SynchronizationFlags& syncFlags, DataProcessor& dataProcessor) {
+void magnitudeThread(int samplesPerSpectrum, SharedDataBasic& sharedData, SharedDataProcessing& sharedDataProc, SynchronizationFlags& syncFlags, DataProcessor& dataProcessor) {
     int numProcessed = 0;
     while (true) {
         // std::cout << "Waiting for data..." << std::endl;
@@ -99,9 +99,9 @@ void magnitudeThread(int N, SharedDataBasic& sharedData, SharedDataProcessing& s
             sharedData.FFTDataQueue.pop();
             lock.unlock();
 
-            std::vector<double> magData(N);
-            for (int i = 0; i < N; i++) {
-                magData[i] = std::abs(std::complex<double>(FFTData[i][0], FFTData[i][1]));
+            std::vector<double> magData(samplesPerSpectrum);
+            for (int i = 0; i < samplesPerSpectrum; i++) {
+                magData[i] = ( FFTData[i][0]*FFTData[i][0] + FFTData[i][1]*FFTData[i][1] ) / samplesPerSpectrum / 50; // Hard code in 50 Ohm input impedance
             }
 
             magData = dataProcessor.removeBadBins(magData);
