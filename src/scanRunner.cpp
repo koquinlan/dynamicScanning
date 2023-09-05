@@ -29,11 +29,11 @@ ScanRunner::ScanRunner() : alazarCard(1, 1),
                     PSG(21)   // PSG_PROBE
                 } {
     // Pumping parameters
-    xModeFreq = 4.985;    // GHz
-    yModeFreq = 7.455396; // GHz
+    xModeFreq = 4.9871;    // GHz
+    yModeFreq = 7.457296;  // GHz
 
-    diffPower = 6.73; //dBm
-    jpaPower = 1.72; //dBm
+    diffPower = 6.76; //dBm
+    jpaPower = 2.66;  //dBm
 
     // Acquisition Parameters
     sampleRate = 32e6;
