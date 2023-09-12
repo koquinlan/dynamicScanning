@@ -147,6 +147,8 @@ struct SavedData{
     std::vector<Spectrum> rawSpectra;
     std::vector<Spectrum> processedSpectra;
     std::vector<Spectrum> rescaledSpectra;
+
+    CombinedSpectrum combinedSpectrum;
 };
 
 // Struct for storing synchronization flags. Used for multithreaded data acquisition.

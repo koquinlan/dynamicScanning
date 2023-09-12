@@ -10,20 +10,25 @@
  */
 #include "decs.hpp"
 
-#define REFRESH_PROCESSOR (1)
+#define REFRESH_PROCESSOR (0)
 
 int main() {
-    ScanRunner scanRunner;
+    double maxIntegrationTime = 1; // seconds
+    double stepSize = 0.1; // MHz
+    int numSteps = 50;
+
+
+    ScanRunner scanRunner(maxIntegrationTime, 1);
 
     #if REFRESH_PROCESSOR
     scanRunner.refreshBaselineAndBadBins(1, 32, 1);
     #endif
 
     scanRunner.acquireData();
-    scanRunner.step(5);
-    scanRunner.acquireData();
-    scanRunner.step(5);
-    scanRunner.acquireData();
+    for (int i = 0; i < numSteps; i++) {
+        scanRunner.step(stepSize);
+        scanRunner.acquireData();
+    }
 
     scanRunner.saveData();
 

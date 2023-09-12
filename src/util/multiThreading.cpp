@@ -53,7 +53,7 @@ void FFTThread(fftw_plan plan, int samplesPerSpectrum, SharedDataBasic& sharedDa
             // Acquire a new lock_guard and push the processed data to the shared queue
             {
                 std::lock_guard<std::mutex> lock(sharedData.mutex);
-                sharedData.dataSavingQueue.push(complexOutput);
+                fftw_free(complexOutput);  // Free the memory allocated for the raw data
                 sharedData.FFTDataQueue.push(FFTData);
             }
             sharedData.FFTDataReadyCondition.notify_one();
@@ -243,9 +243,12 @@ void processingThread(SharedDataProcessing& sharedData, SavedData& savedData, Sy
 
             {
                 std::lock_guard<std::mutex> lock(savedData.mutex);
-                savedData.rawSpectra.push_back(rawSpectrum);
-                savedData.processedSpectra.push_back(processedSpectrum);
-                savedData.rescaledSpectra.push_back(rescaledSpectrum);
+                if (savedData.rawSpectra.size() < 10){
+                    savedData.rawSpectra.push_back(rawSpectrum);
+                }
+                // savedData.processedSpectra.push_back(processedSpectrum);
+                // savedData.rescaledSpectra.push_back(rescaledSpectrum);
+                dataProcessor.addRescaledToCombined(rescaledSpectrum, savedData.combinedSpectrum);
             }
 
             // Acquire a new lock_guard and push the processed data to the shared queue

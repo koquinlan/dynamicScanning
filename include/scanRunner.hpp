@@ -15,14 +15,18 @@
 
 #include "decs.hpp"
 
-#define PSG_DIFF (0)
-#define PSG_JPA (1)
+#define PSG_DIFF  (0)
+#define PSG_JPA   (1)
 #define PSG_PROBE (2)
-#define NUM_PSGS (3)
+#define NUM_PSGS  (3)
+
+#define NO_FAXION     (0)
+#define SHARP_FAXION  (1)
+#define BROAD_FAXION  (2)
 
 class ScanRunner {
 public:
-    ScanRunner();
+    ScanRunner(double maxIntegrationTime, int scanType = NO_FAXION);
     ~ScanRunner();
 
     void acquireData();
@@ -33,6 +37,7 @@ public:
 
 private:
     // Pumping parameters
+    double faxionFreq, faxionPower;
     double xModeFreq, yModeFreq;
     double diffPower, jpaPower;
 
@@ -46,6 +51,7 @@ private:
     int poleNumber;
 
     // Misc variables
+    int scanType;
     const char* wisdomFilePath;
 
     // Member classes

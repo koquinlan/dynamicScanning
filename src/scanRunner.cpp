@@ -22,12 +22,13 @@
  * @brief Construct a new Scan Runner object. This constructor initializes the PSGs, Alazar card, FFTW, and DataProcessor.
  * 
  */
-ScanRunner::ScanRunner() : alazarCard(1, 1),
+ScanRunner::ScanRunner(double maxIntegrationTime, int scanType) : alazarCard(1, 1),
                 psgList{
                     PSG(27),  // PSG_DIFF
                     PSG(30),  // PSG_JPA
                     PSG(21)   // PSG_PROBE
-                } {
+                },
+                scanType(scanType) {
     // Pumping parameters
     xModeFreq = 4.9871;    // GHz
     yModeFreq = 7.457296;  // GHz
@@ -35,11 +36,14 @@ ScanRunner::ScanRunner() : alazarCard(1, 1),
     diffPower = 6.76; //dBm
     jpaPower = 2.66;  //dBm
 
+    faxionFreq = yModeFreq; // GHz
+    faxionPower = -35;      // dBm
+
     // Acquisition Parameters
     sampleRate = 32e6;
     RBW = 100;
-    maxSpectraPerAcquisition = 250;
-    trueCenterFreq = yModeFreq*1e3 - 10; // Start 10 MHz below the y mode
+    maxSpectraPerAcquisition = (int)(maxIntegrationTime*RBW);
+    trueCenterFreq = yModeFreq*1e3 - 1; // Start 1 MHz below the y mode
 
     // Filter Parameters
     cutoffFrequency = 10e3;
@@ -66,11 +70,11 @@ ScanRunner::~ScanRunner() {
         psg.onOff(false);
     }
 
-    // Free FFTW memory
-    fftw_destroy_plan(fftwPlan);
-
     // Save FFTW wisdom
     fftw_export_wisdom_to_filename(wisdomFilePath);
+
+    // Free FFTW memory
+    fftw_destroy_plan(fftwPlan);
 }
 
 
@@ -84,6 +88,11 @@ void ScanRunner::initPSGs() {
 
     psgList[PSG_JPA].setFreq(xModeFreq * 2);
     psgList[PSG_JPA].setPow(jpaPower);
+
+    if (scanType == SHARP_FAXION) {
+        psgList[PSG_PROBE].setFreq(yModeFreq + faxionFreq - trueCenterFreq/1e3);
+        psgList[PSG_PROBE].setPow(faxionPower);
+    }
 }
 
 
@@ -168,6 +177,10 @@ void ScanRunner::acquireData() {
     psgList[PSG_DIFF].onOff(true);
     psgList[PSG_JPA].onOff(true);
 
+    if (scanType == SHARP_FAXION || scanType == BROAD_FAXION) {
+        psgList[PSG_PROBE].onOff(true);
+    }
+
 
     // Set up shared data
     SharedDataBasic sharedDataBasic;
@@ -199,6 +212,7 @@ void ScanRunner::acquireData() {
     // Cleanup
     psgList[PSG_DIFF].onOff(false);
     psgList[PSG_JPA].onOff(false);
+    psgList[PSG_PROBE].onOff(false);
 
     reportPerformance();
 }
@@ -226,14 +240,19 @@ void ScanRunner::saveData() {
     saveVector(dataProcessor.runningAverage, "../../../plotting/threadTests/runningAverage.csv");
 
     saveSpectrum(savedData.rawSpectra[0], "../../../plotting/threadTests/rawSpectrum.csv");
-    saveSpectrum(savedData.processedSpectra[0], "../../../plotting/threadTests/processedSpectrum.csv");
 
-    CombinedSpectrum combinedSpectrum;
-    for (Spectrum rescaledSpectrum : savedData.rescaledSpectra){
-        dataProcessor.addRescaledToCombined(rescaledSpectrum, combinedSpectrum);
-    }
-    saveCombinedSpectrum(combinedSpectrum, "../../../plotting/threadTests/combinedSpectrum.csv");
 
+    Spectrum processedSpectrum, foo;
+    std::tie(processedSpectrum, foo) = dataProcessor.rawToProcessed(savedData.rawSpectra[0]);
+    trimSpectrum(processedSpectrum, 0.1);
+    saveSpectrum(processedSpectrum, "../../../plotting/threadTests/processedSpectrum.csv");
+
+
+    dataProcessor.trimSNRtoMatch(processedSpectrum);
+    Spectrum rescaledSpectrum = dataProcessor.processedToRescaled(processedSpectrum);
+
+
+    saveCombinedSpectrum(savedData.combinedSpectrum, "../../../plotting/threadTests/combinedSpectrum.csv");
     saveSpectrum(bayesFactors.exclusionLine, "../../../plotting/threadTests/exclusionLine.csv");
 }
 
@@ -351,4 +370,7 @@ void ScanRunner::acquireProcCalibration(int repeats, int subSpectra, int savePlo
 
 void ScanRunner::step(double stepSize) {
     bayesFactors.step(stepSize);
+
+    trueCenterFreq += stepSize;
+    psgList[PSG_PROBE].setFreq(yModeFreq + faxionFreq - trueCenterFreq/1e3);
 }
