@@ -11,9 +11,12 @@ class BayesFactors{
     void init(CombinedSpectrum combinedSpectrum);
     void updateExclusionLine(CombinedSpectrum combinedSpectrum);
 
+    void step(double stepSize);
+
 
     // private:
     int startIndex=0;
+    double freqRes=0;
     
     double sigmaProc=0.1;
 

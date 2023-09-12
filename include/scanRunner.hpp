@@ -26,6 +26,7 @@ public:
     ~ScanRunner();
 
     void acquireData();
+    void step(double stepSize);
     void saveData();
 
     void refreshBaselineAndBadBins(int repeats = 3, int subSpectra = 32, int savePlots = 0);
@@ -37,6 +38,7 @@ private:
 
     // Acquisition Parameters
     double sampleRate, RBW;
+    double trueCenterFreq;
     int maxSpectraPerAcquisition;
 
     // Filter Parameters

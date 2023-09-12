@@ -20,6 +20,11 @@ int main() {
     #endif
 
     scanRunner.acquireData();
+    scanRunner.step(5);
+    scanRunner.acquireData();
+    scanRunner.step(5);
+    scanRunner.acquireData();
+
     scanRunner.saveData();
 
     return 0;
