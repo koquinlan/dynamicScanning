@@ -197,7 +197,7 @@ void ScanRunner::acquireData() {
     std::thread magnitudeThread(magnitudeThread, N, std::ref(sharedDataBasic), std::ref(sharedDataProc), std::ref(syncFlags), std::ref(dataProcessor));
     std::thread averagingThread(averagingThread, std::ref(sharedDataProc), std::ref(syncFlags), std::ref(dataProcessor), std::ref(trueCenterFreq));
     std::thread processingThread(processingThread, std::ref(sharedDataProc), std::ref(savedData), std::ref(syncFlags), std::ref(dataProcessor), std::ref(bayesFactors));
-    std::thread decisionMakingThread(decisionMakingThread, std::ref(sharedDataProc), std::ref(syncFlags));
+    std::thread decisionMakingThread(decisionMakingThread, std::ref(sharedDataProc), std::ref(syncFlags), std::ref(bayesFactors));
 
 
     // Wait for the threads to finish

@@ -288,7 +288,7 @@ void processingThread(SharedDataProcessing& sharedData, SavedData& savedData, Sy
  * @param sharedData - Struct containing data shared between threads
  * @param syncFlags - Struct containing synchronization flags shared between threads
  */
-void decisionMakingThread(SharedDataProcessing& sharedData, SynchronizationFlags& syncFlags) {
+void decisionMakingThread(SharedDataProcessing& sharedData, SynchronizationFlags& syncFlags, BayesFactors& bayesFactors) {
     int buffersDecided = 0;
     while (true) {
         // Check if processed data queue is empty

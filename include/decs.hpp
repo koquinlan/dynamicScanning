@@ -216,7 +216,7 @@ void FFTThread(fftw_plan plan, int N, SharedDataBasic& sharedData, Synchronizati
 void magnitudeThread(int N, SharedDataBasic& sharedData, SharedDataProcessing& sharedDataProc, SynchronizationFlags& syncFlags, DataProcessor& dataProcessor);
 void averagingThread(SharedDataProcessing& sharedData, SynchronizationFlags& syncFlags, DataProcessor& dataProcessor, double trueCenterFreq);
 void processingThread(SharedDataProcessing& sharedData, SavedData& savedData, SynchronizationFlags& syncFlags, DataProcessor& dataProcessor, BayesFactors& bayesFactors);
-void decisionMakingThread(SharedDataProcessing& sharedData, SynchronizationFlags& syncFlags);
+void decisionMakingThread(SharedDataProcessing& sharedData, SynchronizationFlags& syncFlags, BayesFactors& bayesFactors);
 void saveDataToBin(SharedDataBasic& sharedData, SynchronizationFlags& syncFlags);
 void saveDataToHDF5(SharedDataBasic& sharedData, SynchronizationFlags& syncFlags);
 
