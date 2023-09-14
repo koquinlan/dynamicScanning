@@ -142,7 +142,7 @@ void magnitudeThread(int samplesPerSpectrum, SharedDataBasic& sharedData, Shared
 void averagingThread(SharedDataProcessing& sharedData, SynchronizationFlags& syncFlags, DataProcessor& dataProcessor, double trueCenterFreq) {
     int subSpectraAveraged = 0;
     int totalProcessed = 0;
-    int subSpectraAveragingNumber = 32;
+    int subSpectraAveragingNumber = 20;
     while (true) {
         // Wait for signal from dataReadyCondition or immediately continue if the data queue is not empty (lock releases while waiting)
         std::unique_lock<std::mutex> lock(sharedData.mutex);

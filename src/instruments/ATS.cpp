@@ -16,6 +16,8 @@
 
 #include "decs.hpp"
 
+#define VERBOSE_OUTPUT (0)
+
 
 /**
  * @brief Construct a new ATS::ATS object. This will open the board and set the boardHandle member variable. Default to system ID 1, board ID 1.

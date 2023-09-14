@@ -1,6 +1,7 @@
 project(lab_control)
 
 set(SOURCES
+    decisionAgent.cpp
     scanRunner.cpp
 
     instruments/ATS.cpp

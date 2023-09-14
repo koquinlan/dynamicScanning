@@ -21,8 +21,6 @@
 
 #define BUFFER_COUNT (8)
 
-#define VERBOSE_OUTPUT (1)
-
 #define _USE_MATH_DEFINES
 
 // Timers
@@ -184,6 +182,7 @@ struct SynchronizationFlags {
 #include "dataProcessing/bayes.hpp"
 #include "dataProcessing/dataProcessor.hpp"
 
+#include "decisionAgent.hpp"
 #include "scanRunner.hpp"
 
 

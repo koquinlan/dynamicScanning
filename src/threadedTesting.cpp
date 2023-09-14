@@ -15,7 +15,7 @@
 int main() {
     double maxIntegrationTime = 1; // seconds
     double stepSize = 0.1; // MHz
-    int numSteps = 50;
+    int numSteps = 3;
 
 
     ScanRunner scanRunner(maxIntegrationTime, 1);
