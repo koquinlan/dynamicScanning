@@ -52,9 +52,10 @@ void DecisionAgent::setPoints(){
 
     for (int i=0; i<trimmedSNR.powers.size(); i++){
         SNRsum += trimmedSNR.powers[i]*trimmedSNR.powers[i];
+        points.push_back(0);
     }
 
-    int j = trimmedSNR.powers.size()-1;
+    int j = (int)trimmedSNR.powers.size()-1;
     while(cumSum/SNRsum < 0.3){
         cumSum += trimmedSNR.powers[j]*trimmedSNR.powers[j];
         points[j] = 0;

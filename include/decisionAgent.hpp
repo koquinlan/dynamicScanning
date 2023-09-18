@@ -18,7 +18,7 @@ class DecisionAgent {
 public:
     Spectrum SNR, trimmedSNR;
 
-    double targetCoupling;
+    double targetCoupling = 0.002;
     std::vector<double> inProgressTargets, points;
 
     double threshold = 0;
