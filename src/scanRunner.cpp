@@ -56,6 +56,7 @@ ScanRunner::ScanRunner(double maxIntegrationTime, int scanType) : alazarCard(1, 
     initAlazarCard();
     initFFTW();
     initProcessor();
+    initDecisionAgent();
 }
 
 
@@ -168,6 +169,16 @@ void ScanRunner::initProcessor() {
 }
 
 
+
+/**
+ * @brief 
+ * 
+ */
+void ScanRunner::initDecisionAgent(){
+    decisionAgent.SNR = dataProcessor.SNR;
+}
+
+
 /**
  * @brief Runs a scan. This function assumes that the probes and frequency have been properly set and begins acquisition for a single data point.
  * 
@@ -197,7 +208,7 @@ void ScanRunner::acquireData() {
     std::thread magnitudeThread(magnitudeThread, N, std::ref(sharedDataBasic), std::ref(sharedDataProc), std::ref(syncFlags), std::ref(dataProcessor));
     std::thread averagingThread(averagingThread, std::ref(sharedDataProc), std::ref(syncFlags), std::ref(dataProcessor), std::ref(trueCenterFreq));
     std::thread processingThread(processingThread, std::ref(sharedDataProc), std::ref(savedData), std::ref(syncFlags), std::ref(dataProcessor), std::ref(bayesFactors));
-    std::thread decisionMakingThread(decisionMakingThread, std::ref(sharedDataProc), std::ref(syncFlags), std::ref(bayesFactors));
+    std::thread decisionMakingThread(decisionMakingThread, std::ref(sharedDataProc), std::ref(syncFlags), std::ref(bayesFactors), std::ref(decisionAgent));
 
 
     // Wait for the threads to finish

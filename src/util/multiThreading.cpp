@@ -237,6 +237,8 @@ void processingThread(SharedDataProcessing& sharedData, SavedData& savedData, Sy
             CombinedSpectrum combinedSpectrum;
             dataProcessor.addRescaledToCombined(rescaledSpectrum, combinedSpectrum);
 
+            
+
             bayesFactors.updateExclusionLine(combinedSpectrum);
 
             buffersProcessed++;
@@ -288,7 +290,7 @@ void processingThread(SharedDataProcessing& sharedData, SavedData& savedData, Sy
  * @param sharedData - Struct containing data shared between threads
  * @param syncFlags - Struct containing synchronization flags shared between threads
  */
-void decisionMakingThread(SharedDataProcessing& sharedData, SynchronizationFlags& syncFlags, BayesFactors& bayesFactors) {
+void decisionMakingThread(SharedDataProcessing& sharedData, SynchronizationFlags& syncFlags, BayesFactors& bayesFactors, DecisionAgent& decisionAgent) {
     int buffersDecided = 0;
     while (true) {
         // Check if processed data queue is empty
@@ -302,14 +304,24 @@ void decisionMakingThread(SharedDataProcessing& sharedData, SynchronizationFlags
         startTimer(TIMER_DECISION);
         while (!sharedData.rescaledDataQueue.empty()) {
             // Get the pointer to the data from the queue
-            Spectrum rawSpectrum = sharedData.rescaledDataQueue.front();
+            Spectrum rescaledSpectrum = sharedData.rescaledDataQueue.front();
             sharedData.rescaledDataQueue.pop();
             lock.unlock();
 
+            if (decisionAgent.trimmedSNR.powers.empty()) {
+                decisionAgent.trimSNRtoMatch(rescaledSpectrum);
+                decisionAgent.setTargets();
+                decisionAgent.setPoints();
+                std::cout << "foo" << std::endl;
+            }
+
+            std::vector<double> activeWindow(bayesFactors.exclusionLine.powers.end() - decisionAgent.trimmedSNR.powers.size(), bayesFactors.exclusionLine.powers.end());
+            int decision = decisionAgent.getDecision(activeWindow);
+            // int decision = 0;
 
             buffersDecided++;
 
-            if (buffersDecided >= 100) {
+            if (decision || (buffersDecided > 15)) {
                 std::lock_guard<std::mutex> lock(syncFlags.mutex);
                 syncFlags.acquisitionComplete = true;
                 syncFlags.pauseDataCollection = true;

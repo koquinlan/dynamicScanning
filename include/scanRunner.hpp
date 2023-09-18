@@ -63,6 +63,7 @@ private:
     // Threaded structs
     SavedData savedData;
     BayesFactors bayesFactors;
+    DecisionAgent decisionAgent;
 
 
     // Private methods
@@ -70,6 +71,7 @@ private:
     void initAlazarCard();
     void initFFTW();
     void initProcessor();
+    void initDecisionAgent();
 
     void acquireProcCalibration(int repeats = 3, int subSpectra = 32, int savePlots = 0);
     void acquireProcCalibrationMulti(int repeats = 3, int subSpectra = 32, int savePlots = 0);
