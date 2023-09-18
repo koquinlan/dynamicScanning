@@ -305,10 +305,12 @@ void DataProcessor::addRescaledToCombined(const Spectrum &rescaledSpectrum, Comb
     std::vector<double> trueRescaledRange = rescaledSpectrum.freqAxis;
     double shift = rescaledSpectrum.trueCenterFreq;
 
+
     // Shift the frequency range to be absolute rather than relative
     for(int i=0; i<trueRescaledRange.size(); i++){
         trueRescaledRange[i] += shift;
     }
+
 
     // Either set the combined spectrum frequency range and powers or expand it as necessary
     if(combinedSpectrum.freqAxis.empty()){
@@ -322,6 +324,8 @@ void DataProcessor::addRescaledToCombined(const Spectrum &rescaledSpectrum, Comb
             combinedSpectrum.numTraces.push_back(1);
         }
     }
+
+
     // Case where there may be a shift that needs to occur
     else{
         // Logic if the trace we're trying to add comes before the current combined spectrum for some reason
@@ -399,3 +403,57 @@ void DataProcessor::addRescaledToCombined(const Spectrum &rescaledSpectrum, Comb
         }
     }
 }
+
+
+
+/**
+ * @brief 
+ * 
+ * @param combinedSpectrum 
+ * @param rebinningWidthC 
+ * @param convolutionWidthK 
+ * @return CombinedSpectrum 
+ * 
+ * @todo Fix frequency assignment so it doesn't always round down for even rebinning widths
+ */
+CombinedSpectrum DataProcessor::rebinCombinedSpectrum(CombinedSpectrum &combinedSpectrum, int rebinningWidthC=2, int convolutionWidthK=1){
+
+    CombinedSpectrum rebinnedSpectrum;
+
+    rebinnedSpectrum.numTraces = combinedSpectrum.numTraces;
+    rebinnedSpectrum.trueCenterFreq = combinedSpectrum.trueCenterFreq;
+
+    int numRebinned = std::ceil(combinedSpectrum.freqAxis.size()/rebinningWidthC);
+
+    for (int l=0; l<(numRebinned-1); l++){
+        rebinnedSpectrum.freqAxis.push_back(combinedSpectrum.freqAxis[l*rebinningWidthC + rebinningWidthC/2]);
+
+        rebinnedSpectrum.weightSum.push_back(0);
+        double weightedSum = 0;
+
+        for (int i=l*rebinningWidthC; i<(l+1)*rebinningWidthC; i++){
+            weightedSum += combinedSpectrum.powers[i]/combinedSpectrum.sigmaCombined[i]/combinedSpectrum.sigmaCombined[i];
+
+            rebinnedSpectrum.weightSum[l] += combinedSpectrum.weightSum[i];
+        }
+
+        weightedSum /= rebinningWidthC*convolutionWidthK;
+
+        rebinnedSpectrum.sigmaCombined.push_back(1/std::sqrt(rebinnedSpectrum.weightSum[l]));
+        rebinnedSpectrum.powers.push_back(weightedSum*rebinnedSpectrum.sigmaCombined[l]*rebinnedSpectrum.sigmaCombined[l]);
+    }
+}
+
+
+// struct Spectrum {
+//     std::vector<double> powers;
+//     std::vector<double> freqAxis;
+    
+//     double trueCenterFreq;
+// };
+
+// struct CombinedSpectrum : public Spectrum {
+//     std::vector<double> weightSum;
+//     std::vector<double> sigmaCombined;
+//     std::vector<int> numTraces;
+// };

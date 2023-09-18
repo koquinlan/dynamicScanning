@@ -27,7 +27,7 @@ public:
     void displayFilterResponse();
 
     Spectrum loadSNR(std::string filenameSNR, std::string filenameSNRfreqs);
-    void DataProcessor::trimSNRtoMatch(Spectrum spectrum);
+    void trimSNRtoMatch(Spectrum spectrum);
 
     std::vector<double> removeBadBins(std::vector<double> unfilteredRawSpectrum);
 
@@ -37,8 +37,9 @@ public:
 
     std::vector<std::vector<double>> acquiredToRaw(fftw_complex* rawStream, int spectraPerAcquisition, int samplesPerSpectrum, fftw_plan plan);
     std::tuple<Spectrum, Spectrum> rawToProcessed(const Spectrum &rawSpectrum);
-    Spectrum DataProcessor::processedToRescaled(const Spectrum &processedSpectrum);
-    void DataProcessor::addRescaledToCombined(const Spectrum &rescaledSpectrum, CombinedSpectrum &combinedSpectrum);
+    Spectrum processedToRescaled(const Spectrum &processedSpectrum);
+    void addRescaledToCombined(const Spectrum &rescaledSpectrum, CombinedSpectrum &combinedSpectrum);
+    CombinedSpectrum rebinCombinedSpectrum(CombinedSpectrum &combinedSpectrum, int rebinningWidthC, int convolutionWidthK);
 
 
     std::vector<int> badBins;
