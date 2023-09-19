@@ -33,6 +33,12 @@
 #define TIMER_SAVE          (6)
 #define NUM_TIMERS          (7)
 
+// Per spectrum timing
+#define ACQUIRED_SPECTRA (0)
+#define SPECTRA_AT_DECISION (1)
+#define SPECTRUM_AVERAGE_SIZE (2)
+#define NUM_METRICS (3)
+
 
 /*******************************************************************************
  *                                                                            *
@@ -129,7 +135,7 @@ struct SharedDataProcessing {
 
     std::queue<std::vector<double>> magDataQueue;
     std::queue<Spectrum> rawDataQueue;
-    std::queue<Spectrum> rescaledDataQueue;
+    std::queue<CombinedSpectrum> rebinnedDataQueue;
 
     std::condition_variable magDataReadyCondition;
     std::condition_variable rawDataReadyCondition;
@@ -230,6 +236,8 @@ double getTime(int timerCode);
 void startTimer(int timerCode);
 void stopTimer(int timerCode);
 void resetTimers();
+void setMetric(int metricCode, int val);
+void updateMetric(int metricCode, int val);
 void reportPerformance();
 
 #endif // DECS_H

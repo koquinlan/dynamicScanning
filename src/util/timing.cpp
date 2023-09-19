@@ -14,6 +14,8 @@
 static double timers[NUM_TIMERS];
 static double times[NUM_TIMERS] = {0};
 
+static std::vector<int> metrics[NUM_METRICS];
+
 void setTime(int timerCode, double val) {
     times[timerCode] = val;
 }
@@ -37,10 +39,19 @@ void resetTimers()
     }
 }
 
+
+void setMetric(int metricCode, int val) {
+    metrics[metricCode].push_back(val);
+}
+
+void updateMetric(int metricCode, int val) {
+    metrics[metricCode].back() = val;
+}
+
 // Report a running average of timing data
 void reportPerformance()
 {
-    fprintf(stdout, "\n********** PERFORMANCE **********\n");
+    fprintf(stdout, "\n********** ABSOLUTE PERFORMANCE **********\n");
 
     fprintf(stdout, "   DATA ACQUISITION:    %8.4g s\n", times[TIMER_ACQUISITION]);
     fprintf(stdout, "   FOURIER TRANSFORM:   %8.4g s\n", times[TIMER_FFT]);
@@ -51,6 +62,33 @@ void reportPerformance()
     #if SAVE_DATA
     fprintf(stdout, "   DATA SAVING:         %8.4g s\n", times[TIMER_SAVE]);
     #endif
+
+    fprintf(stdout, "*********************************\n\n");
+
+
+    // Calculate some per spectrum statistics
+    int totalAcquiredSpectra = 0;
+    double averageDecisionEnforcementDelay = 0;
+    int numDecisions = 0;
+
+    for(int i=0; i<metrics[SPECTRA_AT_DECISION].size(); i++){
+        totalAcquiredSpectra += metrics[ACQUIRED_SPECTRA][i];
+
+        if (metrics[SPECTRA_AT_DECISION][i] > 0) {
+            numDecisions++;
+
+            averageDecisionEnforcementDelay += metrics[ACQUIRED_SPECTRA][i] - metrics[SPECTRUM_AVERAGE_SIZE][i]*metrics[SPECTRA_AT_DECISION][i];
+        }
+    }
+
+    averageDecisionEnforcementDelay /= (double)numDecisions;
+
+
+    fprintf(stdout, "\n********** PER SPECTRUM PERFORMANCE **********\n");
+
+    fprintf(stdout, "   ACQUIRED SPECTRA:                     %d \n", totalAcquiredSpectra);
+    fprintf(stdout, "   AVERAGE ACQUISITION TIME:             %8.4g \n", times[TIMER_ACQUISITION]/(double)totalAcquiredSpectra);
+    fprintf(stdout, "   AVERAGE DECISION ENFORCEMENT DELAY:   %8.4g \n", averageDecisionEnforcementDelay);
 
     fprintf(stdout, "*********************************\n\n");
 }
