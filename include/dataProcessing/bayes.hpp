@@ -16,6 +16,7 @@ class BayesFactors{
 
     // private:
     int startIndex=0;
+    int cutoffIndex=0;
     double freqRes=0;
     
     double sigmaProc=0.1;

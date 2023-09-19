@@ -28,6 +28,8 @@ void BayesFactors::init(CombinedSpectrum combinedSpectrum) {
         coeffSumA.push_back(0);
         coeffSumB.push_back(0);
     }
+
+    cutoffIndex = (int)std::floor(exclusionLine.powers.size()/2);
 }
 
 
@@ -40,7 +42,6 @@ void BayesFactors::init(CombinedSpectrum combinedSpectrum) {
 void BayesFactors::updateExclusionLine(CombinedSpectrum combinedSpectrum){
     if (coeffSumA.empty()) {
         init(combinedSpectrum);
-        return;
     }
 
     double coeffA, coeffB;
@@ -59,6 +60,10 @@ void BayesFactors::updateExclusionLine(CombinedSpectrum combinedSpectrum){
         newExcludedStrength = (coeffB+std::sqrt(coeffB*coeffB+fourLnPtOne*coeffA))/(2*coeffA);
 
         exclusionLine.powers[startIndex+i] = newExcludedStrength;
+
+        if(startIndex + i < cutoffIndex){
+            exclusionLine.powers[startIndex+i] = 0;
+        }
     }
 }
 
