@@ -29,6 +29,8 @@ public:
     ScanRunner(double maxIntegrationTime, int scanType = NO_FAXION);
     ~ScanRunner();
 
+    void setTarget(double targetCoupling);
+
     void acquireData();
     void step(double stepSize);
     void saveData();

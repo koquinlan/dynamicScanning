@@ -385,3 +385,9 @@ void ScanRunner::step(double stepSize) {
     trueCenterFreq += stepSize;
     psgList[PSG_PROBE].setFreq(yModeFreq + faxionFreq - trueCenterFreq/1e3);
 }
+
+
+
+void ScanRunner::setTarget(double targetCoupling) {
+    decisionAgent.targetCoupling = targetCoupling;
+}
