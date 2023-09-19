@@ -72,6 +72,9 @@ plt.plot(processedSpectrum[1], processedSpectrum[0], label="Proc data")
 plt.figure()
 plt.plot(exclusionLine[1], exclusionLine[0], label="Exclusion Line")
 
+plt.xlim([-0.1, 5.1])
+plt.ylim([6e-5, 11e-5])
+
 
 # Plot combined spectrum with distribution for comparison
 f = plt.figure()

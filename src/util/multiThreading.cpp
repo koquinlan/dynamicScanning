@@ -328,7 +328,7 @@ void decisionMakingThread(SharedDataProcessing& sharedData, SynchronizationFlags
 
                 buffersDecided++;
 
-                if (decision && buffersDecided >= 12) {
+                if (decision && (buffersDecided >= 12)) {
                     decisionThrown = true;
 
                     std::lock_guard<std::mutex> lock(syncFlags.mutex);
