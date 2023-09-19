@@ -37,6 +37,10 @@ public:
 
     void refreshBaselineAndBadBins(int repeats = 3, int subSpectra = 32, int savePlots = 0);
 
+
+    // Public parameters
+    int subSpectraAveragingNumber;
+
 private:
     // Pumping parameters
     double faxionFreq, faxionPower;

@@ -219,7 +219,7 @@ void saveVector(std::vector<double> data, std::string filename);
 // multiThreading.cpp
 void FFTThread(fftw_plan plan, int N, SharedDataBasic& sharedData, SynchronizationFlags& syncFlags);
 void magnitudeThread(int N, SharedDataBasic& sharedData, SharedDataProcessing& sharedDataProc, SynchronizationFlags& syncFlags, DataProcessor& dataProcessor);
-void averagingThread(SharedDataProcessing& sharedData, SynchronizationFlags& syncFlags, DataProcessor& dataProcessor, double trueCenterFreq);
+void averagingThread(SharedDataProcessing& sharedData, SynchronizationFlags& syncFlags, DataProcessor& dataProcessor, double trueCenterFreq, int subSpectraAveragingNumber);
 void processingThread(SharedDataProcessing& sharedData, SavedData& savedData, SynchronizationFlags& syncFlags, DataProcessor& dataProcessor, BayesFactors& bayesFactors);
 void decisionMakingThread(SharedDataProcessing& sharedData, SynchronizationFlags& syncFlags, BayesFactors& bayesFactors, DecisionAgent& decisionAgent);
 void saveDataToBin(SharedDataBasic& sharedData, SynchronizationFlags& syncFlags);

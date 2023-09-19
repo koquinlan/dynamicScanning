@@ -44,6 +44,7 @@ ScanRunner::ScanRunner(double maxIntegrationTime, int scanType) : alazarCard(1, 
     RBW = 100;
     maxSpectraPerAcquisition = (int)(maxIntegrationTime*RBW);
     trueCenterFreq = yModeFreq*1e3 - 1; // Start 1 MHz below the y mode
+    subSpectraAveragingNumber = 20;
 
     // Filter Parameters
     cutoffFrequency = 10e3;
@@ -206,7 +207,7 @@ void ScanRunner::acquireData() {
     std::thread acquisitionThread(&ATS::AcquireDataMultithreadedContinuous, &alazarCard, std::ref(sharedDataBasic), std::ref(syncFlags));
     std::thread FFTThread(FFTThread, fftwPlan, N, std::ref(sharedDataBasic), std::ref(syncFlags));
     std::thread magnitudeThread(magnitudeThread, N, std::ref(sharedDataBasic), std::ref(sharedDataProc), std::ref(syncFlags), std::ref(dataProcessor));
-    std::thread averagingThread(averagingThread, std::ref(sharedDataProc), std::ref(syncFlags), std::ref(dataProcessor), std::ref(trueCenterFreq));
+    std::thread averagingThread(averagingThread, std::ref(sharedDataProc), std::ref(syncFlags), std::ref(dataProcessor), std::ref(trueCenterFreq), subSpectraAveragingNumber);
     std::thread processingThread(processingThread, std::ref(sharedDataProc), std::ref(savedData), std::ref(syncFlags), std::ref(dataProcessor), std::ref(bayesFactors));
     std::thread decisionMakingThread(decisionMakingThread, std::ref(sharedDataProc), std::ref(syncFlags), std::ref(bayesFactors), std::ref(decisionAgent));
 
