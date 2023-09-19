@@ -13,12 +13,14 @@
 #define REFRESH_PROCESSOR (0)
 
 int main() {
-    double maxIntegrationTime = 10; // seconds
+    double maxIntegrationTime = 100; // seconds
     double stepSize = 0.1; // MHz
-    int numSteps = 10;
+    int numSteps = 100;
 
 
     ScanRunner scanRunner(maxIntegrationTime, 0);
+
+    scanRunner.setTarget(6e-5);
 
     #if REFRESH_PROCESSOR
     scanRunner.refreshBaselineAndBadBins(1, 32, 1);

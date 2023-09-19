@@ -423,7 +423,7 @@ CombinedSpectrum DataProcessor::rebinCombinedSpectrum(CombinedSpectrum &combined
     rebinnedSpectrum.numTraces = combinedSpectrum.numTraces;
     rebinnedSpectrum.trueCenterFreq = combinedSpectrum.trueCenterFreq;
 
-    int numRebinned = std::ceil(combinedSpectrum.freqAxis.size()/rebinningWidthC);
+    int numRebinned = (int)std::ceil((int)combinedSpectrum.freqAxis.size()/rebinningWidthC);
 
     for (int l=0; l<(numRebinned-1); l++){
         rebinnedSpectrum.freqAxis.push_back(combinedSpectrum.freqAxis[l*rebinningWidthC + rebinningWidthC/2]);
@@ -442,6 +442,8 @@ CombinedSpectrum DataProcessor::rebinCombinedSpectrum(CombinedSpectrum &combined
         rebinnedSpectrum.sigmaCombined.push_back(1/std::sqrt(rebinnedSpectrum.weightSum[l]));
         rebinnedSpectrum.powers.push_back(weightedSum*rebinnedSpectrum.sigmaCombined[l]*rebinnedSpectrum.sigmaCombined[l]);
     }
+
+    return rebinnedSpectrum;
 }
 
 

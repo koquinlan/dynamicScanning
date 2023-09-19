@@ -11,21 +11,37 @@
 
 #include "decs.hpp"
 
-void DecisionAgent::trimSNRtoMatch(Spectrum spectrum) {
-    int startIndex=0;
-    while (SNR.freqAxis[startIndex+1] < spectrum.freqAxis[0]) {
-        startIndex++;
-    }
+void DecisionAgent::resizeSNRtoMatch(CombinedSpectrum spectrum) {
+    Spectrum temp;
 
+    temp.powers = spectrum.powers;
+    temp.freqAxis = spectrum.freqAxis;
+
+    resizeSNRtoMatch(temp);
+}
+
+
+
+
+void DecisionAgent::resizeSNRtoMatch(Spectrum spectrum) {
     trimmedSNR.powers.clear();
     trimmedSNR.freqAxis.clear();
 
     trimmedSNR.powers.resize(spectrum.freqAxis.size());
     trimmedSNR.freqAxis.resize(spectrum.freqAxis.size());
 
-    for(int i=0; i < trimmedSNR.powers.size(); i++){
-        trimmedSNR.powers[i] = SNR.powers[i+startIndex];
-        trimmedSNR.freqAxis[i] = SNR.freqAxis[i+startIndex];
+
+    int matchingIndex = 0;
+    for(int i=0; i<trimmedSNR.powers.size(); i++){
+        while(spectrum.freqAxis[i] > SNR.freqAxis[matchingIndex]){
+            matchingIndex++;
+        }
+        if (std::abs(SNR.freqAxis[matchingIndex]-spectrum.freqAxis[i]) > std::abs(SNR.freqAxis[matchingIndex-1]-spectrum.freqAxis[i])) {
+            matchingIndex--;
+        }
+
+        trimmedSNR.powers[i] = SNR.powers[matchingIndex];
+        trimmedSNR.freqAxis[i] = SNR.freqAxis[matchingIndex];
     }
 }
 
@@ -46,7 +62,7 @@ void DecisionAgent::setTargets(){
 
 
 void DecisionAgent::setPoints(){
-    /** OPTION FOUR - reward for center 70% with inverse scaled square SNR **/
+    /** OPTION FOUR - reward for center 40% with inverse scaled square SNR **/
     double SNRsum=0;
     double cumSum=0;
 

@@ -18,13 +18,14 @@ class DecisionAgent {
 public:
     Spectrum SNR, trimmedSNR;
 
-    double targetCoupling = 0.002;
+    double targetCoupling;
     std::vector<double> inProgressTargets, points;
 
     double threshold = 0;
 
 
-    void trimSNRtoMatch(Spectrum spectrum);
+    void resizeSNRtoMatch(Spectrum spectrum);
+    void resizeSNRtoMatch(CombinedSpectrum spectrum);
     void setTargets();
 
     int getDecision(std::vector<double> activeExclusionLine);

@@ -188,6 +188,9 @@ void averagingThread(SharedDataProcessing& sharedData, SynchronizationFlags& syn
         {
             std::lock_guard<std::mutex> lock(syncFlags.mutex);
             if (syncFlags.magnitudeComplete && sharedData.magDataQueue.empty()) {
+                setMetric(ACQUIRED_SPECTRA, subSpectraAveraged);
+                setMetric(SPECTRUM_AVERAGE_SIZE, subSpectraAveragingNumber);
+
                 std::cout << "Averaging thread exiting. Averaged " << std::to_string(subSpectraAveraged) << " sub-spectra into " 
                                                                    << std::to_string(totalProcessed) << " spectra." << std::endl;
 
@@ -237,9 +240,9 @@ void processingThread(SharedDataProcessing& sharedData, SavedData& savedData, Sy
             CombinedSpectrum combinedSpectrum;
             dataProcessor.addRescaledToCombined(rescaledSpectrum, combinedSpectrum);
 
-            
+            CombinedSpectrum rebinnedSpectrum = dataProcessor.rebinCombinedSpectrum(combinedSpectrum, 10, 1);
 
-            bayesFactors.updateExclusionLine(combinedSpectrum);
+            bayesFactors.updateExclusionLine(rebinnedSpectrum);
 
             buffersProcessed++;
 
@@ -256,7 +259,7 @@ void processingThread(SharedDataProcessing& sharedData, SavedData& savedData, Sy
             // Acquire a new lock_guard and push the processed data to the shared queue
             {
                 std::lock_guard<std::mutex> lock(sharedData.mutex);
-                sharedData.rescaledDataQueue.push(rescaledSpectrum);
+                sharedData.rebinnedDataQueue.push(rebinnedSpectrum);
             }
             sharedData.rescaledDataReadyCondition.notify_one();
 
@@ -291,28 +294,30 @@ void processingThread(SharedDataProcessing& sharedData, SavedData& savedData, Sy
  * @param syncFlags - Struct containing synchronization flags shared between threads
  */
 void decisionMakingThread(SharedDataProcessing& sharedData, SynchronizationFlags& syncFlags, BayesFactors& bayesFactors, DecisionAgent& decisionAgent) {
+    setMetric(SPECTRA_AT_DECISION, -1);
+    
     int buffersDecided = 0;
+    bool decisionThrown = false;
     while (true) {
         // Check if processed data queue is empty
         std::unique_lock<std::mutex> lock(sharedData.mutex);
         sharedData.rescaledDataReadyCondition.wait(lock, [&sharedData]() {
-            return !sharedData.rescaledDataQueue.empty();
+            return !sharedData.rebinnedDataQueue.empty();
         });
 
 
         // Process data if the data queue is not empty
         startTimer(TIMER_DECISION);
-        while (!sharedData.rescaledDataQueue.empty()) {
+        while (!sharedData.rebinnedDataQueue.empty()) {
             // Get the pointer to the data from the queue
-            Spectrum rescaledSpectrum = sharedData.rescaledDataQueue.front();
-            sharedData.rescaledDataQueue.pop();
+            CombinedSpectrum rebinnedSpectrum = sharedData.rebinnedDataQueue.front();
+            sharedData.rebinnedDataQueue.pop();
             lock.unlock();
 
             if (decisionAgent.trimmedSNR.powers.empty()) {
-                decisionAgent.trimSNRtoMatch(rescaledSpectrum);
+                decisionAgent.resizeSNRtoMatch(rebinnedSpectrum);
                 decisionAgent.setTargets();
                 decisionAgent.setPoints();
-                std::cout << "foo" << std::endl;
             }
 
             std::vector<double> activeWindow(bayesFactors.exclusionLine.powers.end() - decisionAgent.trimmedSNR.powers.size(), bayesFactors.exclusionLine.powers.end());
@@ -321,10 +326,14 @@ void decisionMakingThread(SharedDataProcessing& sharedData, SynchronizationFlags
 
             buffersDecided++;
 
-            if (decision || (buffersDecided > 15)) {
+            if ((decision || (buffersDecided > 50)) && !decisionThrown) {
+                decisionThrown = true;
+
                 std::lock_guard<std::mutex> lock(syncFlags.mutex);
                 syncFlags.acquisitionComplete = true;
                 syncFlags.pauseDataCollection = true;
+
+                updateMetric(SPECTRA_AT_DECISION, buffersDecided);
                 break;
             }
 
@@ -335,7 +344,7 @@ void decisionMakingThread(SharedDataProcessing& sharedData, SynchronizationFlags
         // Check if the acquisition is complete
         {
             std::lock_guard<std::mutex> lock(syncFlags.mutex);
-            if (syncFlags.processingComplete && sharedData.rescaledDataQueue.empty()) {
+            if (syncFlags.processingComplete && sharedData.rebinnedDataQueue.empty()) {
                 std::cout<< "Decision making thread exiting. Decided on " << std::to_string(buffersDecided) << " spectra." << std::endl;
                 break;  // Exit the processing thread
             }
