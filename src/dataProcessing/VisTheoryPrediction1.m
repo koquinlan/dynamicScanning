@@ -63,8 +63,8 @@ ws = -wmax:wstep:(wmax-wstep);
 
 %% CC: JPA gain profile
 % 5.5GHz JPA gain profile taken by ENA
-folder = 'C:\Users\Lehnert Lab\Desktop\LehnertLab-Codebase\Axions\TestingScripts\04-Aug-2023\ascii';
-JPAdata = importdata([folder,'\s21ampenaf_78.dat']);
+folder = 'C:\Users\Lehnert Lab\Desktop\LehnertLab-Codebase\Axions\TestingScripts\16-Oct-2023\ascii';
+JPAdata = importdata([folder,'\s21ampenaf_91.dat']);
 JPAfreq = JPAdata.data(:,1);
 JPAgain = JPAdata.data(:,2)-mean(JPAdata.data(1:20,2));
 res_idx = find(JPAgain == max(JPAgain));

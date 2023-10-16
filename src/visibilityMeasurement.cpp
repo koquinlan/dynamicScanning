@@ -16,14 +16,14 @@ std::tuple<double, double> getVisibility(std::vector<double> fftPowerProbeOn, st
 int main() {
     // Determine parameters for acquisition
     // Pumping parameters
-    double xModeFreq = 4.98525;  // GHz
-    double yModeFreq = 7.455646; // GHz
+    double xModeFreq = 4.9871;  // GHz
+    double yModeFreq = 7.457296; // GHz
 
     double diffFreq = yModeFreq - xModeFreq;
     double jpaFreq = xModeFreq * 2;
 
-    double diffPower = 6.73; //dBm
-    double jpaPower = 12.96; //dBm
+    double diffPower = 6.76; //dBm
+    double jpaPower = 2.66; //dBm
 
     // Acquisition parameters
     double sampleRate = 32e6;
