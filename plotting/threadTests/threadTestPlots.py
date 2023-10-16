@@ -72,6 +72,9 @@ plt.plot(processedSpectrum[1], processedSpectrum[0], label="Proc data")
 plt.figure()
 plt.plot(exclusionLine[1], exclusionLine[0], label="Exclusion Line")
 
+# Plot a red horizontal line at y = 8e-5
+plt.axhline(y=8e-5, color="r", linestyle="-", label="Target Exclusion")
+
 plt.xlim([-0.1, 5.1])
 plt.ylim([6e-5, 11e-5])
 

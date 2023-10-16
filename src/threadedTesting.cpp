@@ -13,14 +13,18 @@
 #define REFRESH_PROCESSOR (0)
 
 int main() {
-    double maxIntegrationTime = 6; // seconds
+    int maxSpectraPerStep = 40;
+    int subSpectraAveragingNumber = 15;
+    double maxIntegrationTime = maxSpectraPerStep*subSpectraAveragingNumber*0.01; // seconds
+
     double stepSize = 0.1; // MHz
     int numSteps = 50;
 
 
-    ScanRunner scanRunner(maxIntegrationTime, 0);
-
+    ScanRunner scanRunner(maxIntegrationTime, 0, 0);
+    scanRunner.subSpectraAveragingNumber = subSpectraAveragingNumber;
     scanRunner.setTarget(8e-5);
+
 
     #if REFRESH_PROCESSOR
     scanRunner.refreshBaselineAndBadBins(1, 32, 1);

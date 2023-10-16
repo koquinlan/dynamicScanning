@@ -72,7 +72,7 @@ void DecisionAgent::setPoints(){
     }
 
     int j = (int)trimmedSNR.powers.size()-1;
-    while(cumSum/SNRsum < 0.45){
+    while(cumSum/SNRsum < 0.3){
         cumSum += trimmedSNR.powers[j]*trimmedSNR.powers[j];
         points[j] = 0;
         j--;
@@ -80,7 +80,7 @@ void DecisionAgent::setPoints(){
 
 
     double norm = trimmedSNR.powers[j]*trimmedSNR.powers[j];
-    while(cumSum/SNRsum < 0.55){
+    while(cumSum/SNRsum < 0.7){
         cumSum += trimmedSNR.powers[j]*trimmedSNR.powers[j];
 
         points[j] = points[j+1] + trimmedSNR.powers[j]*trimmedSNR.powers[j]/norm;
@@ -95,7 +95,11 @@ void DecisionAgent::setPoints(){
 
 
 int DecisionAgent::getDecision(std::vector<double> activeExclusionLine){
-    return (checkScore(activeExclusionLine) <= threshold);
+    if (decisionMaking){
+        return (checkScore(activeExclusionLine) <= threshold);
+    } else {
+        return 0;
+    }
 }
 
 
@@ -109,4 +113,10 @@ double DecisionAgent::checkScore(std::vector<double> activeExclusionLine){
     }
     
     return score;
+}
+
+
+
+void DecisionAgent::toggleDecisionMaking(int decisionMaking) {
+    this->decisionMaking = decisionMaking;
 }

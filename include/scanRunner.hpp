@@ -26,7 +26,7 @@
 
 class ScanRunner {
 public:
-    ScanRunner(double maxIntegrationTime, int scanType = NO_FAXION);
+    ScanRunner(double maxIntegrationTime, int scanType = NO_FAXION, int decisionMaking = 0);
     ~ScanRunner();
 
     void setTarget(double targetCoupling);
@@ -77,7 +77,7 @@ private:
     void initAlazarCard();
     void initFFTW();
     void initProcessor();
-    void initDecisionAgent();
+    void initDecisionAgent(int decisionMaking);
 
     void acquireProcCalibration(int repeats = 3, int subSpectra = 32, int savePlots = 0);
     void acquireProcCalibrationMulti(int repeats = 3, int subSpectra = 32, int savePlots = 0);

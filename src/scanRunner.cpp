@@ -22,7 +22,7 @@
  * @brief Construct a new Scan Runner object. This constructor initializes the PSGs, Alazar card, FFTW, and DataProcessor.
  * 
  */
-ScanRunner::ScanRunner(double maxIntegrationTime, int scanType) : alazarCard(1, 1),
+ScanRunner::ScanRunner(double maxIntegrationTime, int scanType, int decisionMaking) : alazarCard(1, 1),
                 psgList{
                     PSG(27),  // PSG_DIFF
                     PSG(30),  // PSG_JPA
@@ -57,7 +57,7 @@ ScanRunner::ScanRunner(double maxIntegrationTime, int scanType) : alazarCard(1, 
     initAlazarCard();
     initFFTW();
     initProcessor();
-    initDecisionAgent();
+    initDecisionAgent(decisionMaking);
 }
 
 
@@ -175,8 +175,10 @@ void ScanRunner::initProcessor() {
  * @brief 
  * 
  */
-void ScanRunner::initDecisionAgent(){
+void ScanRunner::initDecisionAgent(int decisionMaking){
     decisionAgent.SNR = dataProcessor.SNR;
+
+    if (!decisionMaking){ decisionAgent.toggleDecisionMaking(false); }
 }
 
 

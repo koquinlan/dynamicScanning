@@ -32,7 +32,10 @@ public:
     double checkScore(std::vector<double> activeExclusionLine);
     void setPoints();
 
+    void toggleDecisionMaking(int decisionMaking);
+
 private:
+    int decisionMaking = 1;
 };
 
 #endif // DECISION_H
