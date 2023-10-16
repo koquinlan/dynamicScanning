@@ -39,3 +39,6 @@ build*/
 
 # VS code stuff
 .vscode/*
+
+# Python cache files
+__pycache__/
