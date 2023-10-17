@@ -23,6 +23,13 @@ void unwrapPhase(std::vector<double>& phase) {
 }
 
 
+
+/**
+ * @brief Calculate the mean and standard deviation of a vector of doubles.
+ * 
+ * @param vec - Vector of doubles to be analyzed
+ * @return std::tuple<double, double> - Tuple containing the mean and standard deviation of the vector. 
+ */
 std::tuple<double, double> vectorStats(std::vector<double> vec) {
     if (vec.empty()) {
         // Return NaN to indicate that the mean is undefined for an empty vector.
@@ -65,6 +72,15 @@ void trimSpectrum(Spectrum& spec, double cutPercentage) {
 
 
 
+/**
+ * @brief Find the indices of the outliers in a vector of data. Uses a moving average, where outliers are defined as points that are a certain number 
+ * of standard deviations away from the mean.
+ * 
+ * @param data - Vector of data to be scanned for outliers
+ * @param windowSize - Size of the moving average window
+ * @param multiplier - number of standard deviations to be considered an outlier
+ * @return std::vector<int> - Vector of indices of the outliers
+ */
 std::vector<int> findOutliers(const std::vector<double>& data, int windowSize, double multiplier) {
     int halfWindow = windowSize / 2;
     std::vector<int> outliers;

@@ -268,6 +268,22 @@ void ScanRunner::saveData() {
 
     saveCombinedSpectrum(savedData.combinedSpectrum, "../../../plotting/threadTests/combinedSpectrum.csv");
     saveSpectrum(bayesFactors.exclusionLine, "../../../plotting/threadTests/exclusionLine.csv");
+
+
+    // Save info for exclusion comparisons
+    auto now = std::chrono::system_clock::now();
+    auto time = std::chrono::system_clock::to_time_t(now);
+    std::tm localTime = *std::localtime(&time);
+
+    // Format the date and time as a string
+    char datetimeStr[100];
+    std::strftime(datetimeStr, sizeof(datetimeStr), "%Y-%m-%d_%H-%M-%S", &localTime);
+
+    std::string exclusionLineFilename = "../../../plotting/exclusionLineComparisons/data/exclusionLine_" + std::string(datetimeStr) + ".csv";
+    std::string scanInfoFilename = "../../../plotting/exclusionLineComparisons/data/scanInfo_" + std::string(datetimeStr) + ".txt";
+
+    saveSpectrum(bayesFactors.exclusionLine, exclusionLineFilename);
+    // Add in scan info saving
 }
 
 

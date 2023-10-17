@@ -69,14 +69,15 @@ plt.plot(processedSpectrum[1], processedSpectrum[0], label="Proc data")
 # plt.plot(freq[outliers], processed[outliers], "o", label="Outliers", color="red")
 
 
+target = 7.5e-5
 plt.figure()
 plt.plot(exclusionLine[1], exclusionLine[0], label="Exclusion Line")
 
-# Plot a red horizontal line at y = 8e-5
-plt.axhline(y=8e-5, color="r", linestyle="-", label="Target Exclusion")
+# Plot a red horizontal line at the target
+plt.axhline(y=target, color="r", linestyle="-", label="Target Exclusion")
 
 plt.xlim([-0.1, 5.1])
-plt.ylim([6e-5, 11e-5])
+plt.ylim([0, 1.3 * target])
 
 
 # Plot combined spectrum with distribution for comparison
