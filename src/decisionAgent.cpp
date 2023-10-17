@@ -94,8 +94,8 @@ void DecisionAgent::setPoints(){
 }
 
 
-int DecisionAgent::getDecision(std::vector<double> activeExclusionLine){
-    if (decisionMaking){
+int DecisionAgent::getDecision(std::vector<double> activeExclusionLine, int numShots){
+    if (decisionMaking && (numShots > minShots)){
         return (checkScore(activeExclusionLine) <= threshold);
     } else {
         return 0;

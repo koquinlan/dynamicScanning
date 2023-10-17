@@ -40,6 +40,7 @@ public:
 
     // Public parameters
     int subSpectraAveragingNumber;
+    DecisionAgent decisionAgent;
 
 private:
     // Pumping parameters
@@ -69,7 +70,6 @@ private:
     // Threaded structs
     SavedData savedData;
     BayesFactors bayesFactors;
-    DecisionAgent decisionAgent;
 
 
     // Private methods

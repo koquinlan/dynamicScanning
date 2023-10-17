@@ -259,8 +259,8 @@ void processingThread(SharedDataProcessing& sharedData, SavedData& savedData, Sy
             {
                 std::lock_guard<std::mutex> lock(sharedData.mutex);
                 sharedData.rebinnedDataQueue.push(rebinnedSpectrum);
+                sharedData.rescaledDataReadyCondition.notify_one();
             }
-            sharedData.rescaledDataReadyCondition.notify_one();
 
             lock.lock();  // Lock again before checking the data queue
         }
@@ -274,10 +274,14 @@ void processingThread(SharedDataProcessing& sharedData, SavedData& savedData, Sy
                 std::cout << "Processing thread exiting. Processed " << std::to_string(buffersProcessed) << " spectra." << std::endl;
 
                 syncFlags.processingComplete = true;
-                sharedData.rescaledDataReadyCondition.notify_one();
                 break;  // Exit the processing thread
             }
         }
+    }
+
+    {
+        std::lock_guard<std::mutex> lock(sharedData.mutex);
+        sharedData.rescaledDataReadyCondition.notify_one();
     }
 }
 
@@ -323,12 +327,12 @@ void decisionMakingThread(SharedDataProcessing& sharedData, SynchronizationFlags
                 bayesFactors.updateExclusionLine(rebinnedSpectrum);
 
                 std::vector<double> activeWindow(bayesFactors.exclusionLine.powers.end() - decisionAgent.trimmedSNR.powers.size(), bayesFactors.exclusionLine.powers.end());
-                int decision = decisionAgent.getDecision(activeWindow);
+                int decision = decisionAgent.getDecision(activeWindow, buffersDecided);
                 // int decision = 0;
 
                 buffersDecided++;
 
-                if (decision && (buffersDecided >= 12)) {
+                if (decision) {
                     decisionThrown = true;
 
                     std::lock_guard<std::mutex> lock(syncFlags.mutex);

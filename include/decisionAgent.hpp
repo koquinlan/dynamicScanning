@@ -22,13 +22,14 @@ public:
     std::vector<double> inProgressTargets, points;
 
     double threshold = 0;
+    int minShots = 0;
 
 
     void resizeSNRtoMatch(Spectrum spectrum);
     void resizeSNRtoMatch(CombinedSpectrum spectrum);
     void setTargets();
 
-    int getDecision(std::vector<double> activeExclusionLine);
+    int getDecision(std::vector<double> activeExclusionLine, int numShots);
     double checkScore(std::vector<double> activeExclusionLine);
     void setPoints();
 
