@@ -216,6 +216,33 @@ std::vector<double> DataProcessor::removeBadBins(std::vector<double> unfilteredR
 
 
 
+std::vector<double> DataProcessor::trimDC(std::vector<double> untrimmedSpectrum){
+    std::vector<double> filteredSpectrum = untrimmedSpectrum;
+
+    if (DCbins.empty()) {
+        int i = findClosestIndex(SNR.freqAxis, -0.005);
+
+        while(SNR.freqAxis[i] <= 0.005){
+            DCbins.push_back(i);
+            i++;
+        }
+    }
+
+    double fillValue = (
+        untrimmedSpectrum[(DCbins[0]-1)] +
+        untrimmedSpectrum[(DCbins[DCbins.size()-1]+1)]
+        ) / 2.0;
+
+    // Replace DC bins with a flat average fill
+    for (int index : DCbins) {
+        filteredSpectrum[index] = fillValue;
+    }
+
+    return filteredSpectrum;
+}
+
+
+
 std::vector<std::vector<double>> DataProcessor::acquiredToRaw(fftw_complex* rawStream, int spectraPerAcquisition, int samplesPerSpectrum, fftw_plan plan){
     // Slice the rawStream into subStreams and store them in the rawData vector
     std::vector<fftw_complex*> procData(spectraPerAcquisition);

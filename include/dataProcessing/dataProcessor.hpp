@@ -30,6 +30,7 @@ public:
     void trimSNRtoMatch(Spectrum spectrum);
 
     std::vector<double> removeBadBins(std::vector<double> unfilteredRawSpectrum);
+    std::vector<double> trimDC(std::vector<double> untrimmedSpectrum);
 
     void addRawSpectrumToRunningAverage(std::vector<double> rawSpectrum);
     void updateBaseline();
@@ -42,7 +43,7 @@ public:
     CombinedSpectrum rebinCombinedSpectrum(CombinedSpectrum &combinedSpectrum, int rebinningWidthC, int convolutionWidthK);
 
 
-    std::vector<int> badBins;
+    std::vector<int> badBins, DCbins;
 
 // private:
     int numSpectra=0;

@@ -81,3 +81,7 @@ target_link_libraries(proc_test PRIVATE ${LINKS})
 add_executable(vis_meas ${SOURCES} visibilityMeasurement.cpp)
 target_include_directories(vis_meas PRIVATE ${INCLUDES})
 target_link_libraries(vis_meas PRIVATE ${LINKS})
+
+add_executable(base_test ${SOURCES} baseliningTests.cpp)
+target_include_directories(base_test PRIVATE ${INCLUDES})
+target_link_libraries(base_test PRIVATE ${LINKS})

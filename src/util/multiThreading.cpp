@@ -104,7 +104,7 @@ void magnitudeThread(int samplesPerSpectrum, SharedDataBasic& sharedData, Shared
                 magData[i] = ( FFTData[i][0]*FFTData[i][0] + FFTData[i][1]*FFTData[i][1] ) / samplesPerSpectrum / 50; // Hard code in 50 Ohm input impedance
             }
 
-            magData = dataProcessor.removeBadBins(magData);
+            magData = dataProcessor.trimDC(dataProcessor.removeBadBins(magData));
             
             // Free the memory allocated for the fft data
             fftw_free(FFTData);

@@ -273,7 +273,8 @@ void ScanRunner::saveData() {
     // Save info for exclusion comparisons
     auto now = std::chrono::system_clock::now();
     auto time = std::chrono::system_clock::to_time_t(now);
-    std::tm localTime = *std::localtime(&time);
+    std::tm localTime;
+    localtime_s(&localTime, &time);
 
     // Format the date and time as a string
     char datetimeStr[100];
@@ -303,11 +304,11 @@ void ScanRunner::refreshBaselineAndBadBins(int repeats, int subSpectra, int save
                         *alazarCard.acquisitionParams.sampleRate/alazarCard.acquisitionParams.samplesPerBuffer/1e6;
         }
 
-        saveVector(freq, "../../../plotting/threadTests/freqTEST.csv");
-        saveVector(dataProcessor.badBins, "../../../plotting/threadTests/outliersTEST.csv");
+        saveVector(freq, "../../../plotting/baselineTests/baseline/freq.csv");
+        saveVector(dataProcessor.badBins, "../../../plotting/baselineTests/baseline/outliers.csv");
 
-        saveVector(dataProcessor.currentBaseline, "../../../plotting/threadTests/baselineTEST.csv");
-        saveVector(dataProcessor.runningAverage, "../../../plotting/threadTests/runningAverageTEST.csv");
+        saveVector(dataProcessor.currentBaseline, "../../../plotting/baselineTests/baseline/baseline.csv");
+        saveVector(dataProcessor.runningAverage, "../../../plotting/baselineTests/baseline/runningAverage.csv");
     }
 
     dataProcessor.resetBaselining();
@@ -347,7 +348,7 @@ void ScanRunner::acquireProcCalibration(int repeats, int subSpectra, int savePlo
     psgList[PSG_JPA].onOff(false);
     
     if(savePlots) {
-        saveVector(averagedRawData[0], "../../../plotting/threadTests/rawDataTEST.csv");
+        saveVector(averagedRawData[0], "../../../plotting/baselineTests/baseline/rawData.csv");
     }
 
 
@@ -358,7 +359,7 @@ void ScanRunner::acquireProcCalibration(int repeats, int subSpectra, int savePlo
                     *alazarCard.acquisitionParams.sampleRate/alazarCard.acquisitionParams.samplesPerBuffer/1e6;
     }
 
-    dataProcessor.badBins = findOutliers(averageVectors(averagedRawData), 50, 5);
+    dataProcessor.badBins = findOutliers(averageVectors(averagedRawData), 25, 5);
     for (int i = 0; i < averagedRawData.size(); ++i) {
         std::vector<double> cleanedRawData = dataProcessor.removeBadBins(averagedRawData[i]);
         dataProcessor.addRawSpectrumToRunningAverage(cleanedRawData);
@@ -381,13 +382,13 @@ void ScanRunner::acquireProcCalibration(int repeats, int subSpectra, int savePlo
         processedSpectra[i] = processedSpectrum.powers;
     }
 
-    dataProcessor.badBins = findOutliers(averageVectors(processedSpectra), 100, 5);
+    dataProcessor.badBins = findOutliers(averageVectors(processedSpectra), 25, 5);
 
 
     // Use the bad bins to find a clean baseline
     dataProcessor.resetBaselining();
     for (int i = 0; i < averagedRawData.size(); ++i) {
-        std::vector<double> cleanedRawData = dataProcessor.removeBadBins(averagedRawData[i]);
+        std::vector<double> cleanedRawData = dataProcessor.trimDC(dataProcessor.removeBadBins(averagedRawData[i]));
         dataProcessor.addRawSpectrumToRunningAverage(cleanedRawData);
     }
     for (int bin : findOutliers(dataProcessor.runningAverage, 50, 4)){
