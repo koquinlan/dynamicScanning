@@ -281,9 +281,10 @@ void ScanRunner::saveData() {
     std::strftime(datetimeStr, sizeof(datetimeStr), "%Y-%m-%d_%H-%M-%S", &localTime);
 
     std::string exclusionLineFilename = "../../../plotting/exclusionLineComparisons/data/exclusionLine_" + std::string(datetimeStr) + ".csv";
-    std::string scanInfoFilename = "../../../plotting/exclusionLineComparisons/data/scanInfo_" + std::string(datetimeStr) + ".txt";
+    std::string scanInfoFilename = "../../../plotting/exclusionLineComparisons/metrics/scanInfo_" + std::string(datetimeStr) + ".csv";
 
     saveSpectrum(bayesFactors.exclusionLine, exclusionLineFilename);
+    saveVector(getMetric(ACQUIRED_SPECTRA), scanInfoFilename);
     // Add in scan info saving
 }
 

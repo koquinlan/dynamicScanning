@@ -48,6 +48,10 @@ void updateMetric(int metricCode, int val) {
     metrics[metricCode].back() = val;
 }
 
+std::vector<int> getMetric(int metricCode) {
+    return metrics[metricCode];
+}
+
 // Report a running average of timing data
 void reportPerformance()
 {
