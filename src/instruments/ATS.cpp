@@ -39,7 +39,6 @@ ATS::ATS(int systemId, int boardId) {
  */
 ATS::~ATS() { 
     if (boardHandle != NULL) {
-        AlazarClose(boardHandle);
         boardHandle = NULL;
     }
 }
