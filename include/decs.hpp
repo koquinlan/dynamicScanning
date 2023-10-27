@@ -39,6 +39,9 @@
 #define SPECTRUM_AVERAGE_SIZE (2)
 #define NUM_METRICS (3)
 
+// Data saving flags
+#define SAVE_PROGRESS (0)
+
 
 /*******************************************************************************
  *                                                                            *
@@ -143,6 +146,13 @@ struct SharedDataProcessing {
 
 };
 
+struct SharedDataSaving {
+    std::mutex mutex;
+
+    std::queue<Spectrum> exclusionLineQueue;
+    std::condition_variable exclusionLineReadyCondition;
+};
+
 
 // Struct for saving data
 struct SavedData{
@@ -165,10 +175,12 @@ struct SynchronizationFlags {
     bool magnitudeComplete;
     bool averagingComplete;
     bool processingComplete;
+    bool decisionsComplete;
 
     SynchronizationFlags() : pauseDataCollection(false), acquisitionComplete(false),
                              FFTComplete(false), magnitudeComplete(false), 
-                             averagingComplete(false), processingComplete(false) {}
+                             averagingComplete(false), processingComplete(false),
+                             decisionsComplete(false) {}
 };
 
 
@@ -215,13 +227,16 @@ void saveCombinedSpectrum(CombinedSpectrum data, std::string filename);
 void saveSpectrum(Spectrum data, std::string filename);
 void saveVector(std::vector<int> data, std::string filename);
 void saveVector(std::vector<double> data, std::string filename);
+std::string getDateTimeString();
+void saveSpectraFromQueue(std::queue<Spectrum>& spectraQueue, std::string filename);
 
 // multiThreading.cpp
 void FFTThread(fftw_plan plan, int N, SharedDataBasic& sharedData, SynchronizationFlags& syncFlags);
 void magnitudeThread(int N, SharedDataBasic& sharedData, SharedDataProcessing& sharedDataProc, SynchronizationFlags& syncFlags, DataProcessor& dataProcessor);
 void averagingThread(SharedDataProcessing& sharedData, SynchronizationFlags& syncFlags, DataProcessor& dataProcessor, double trueCenterFreq, int subSpectraAveragingNumber);
 void processingThread(SharedDataProcessing& sharedData, SavedData& savedData, SynchronizationFlags& syncFlags, DataProcessor& dataProcessor, BayesFactors& bayesFactors);
-void decisionMakingThread(SharedDataProcessing& sharedData, SynchronizationFlags& syncFlags, BayesFactors& bayesFactors, DecisionAgent& decisionAgent);
+void decisionMakingThread(SharedDataProcessing& sharedData, SharedDataSaving& savedData, SynchronizationFlags& syncFlags, BayesFactors& bayesFactors, DecisionAgent& decisionAgent);
+void dataSavingThread(SharedDataSaving& savedData, SynchronizationFlags& syncFlags);
 void saveDataToBin(SharedDataBasic& sharedData, SynchronizationFlags& syncFlags);
 void saveDataToHDF5(SharedDataBasic& sharedData, SynchronizationFlags& syncFlags);
 

@@ -199,6 +199,7 @@ void ScanRunner::acquireData() {
     // Set up shared data
     SharedDataBasic sharedDataBasic;
     SharedDataProcessing sharedDataProc;
+    SharedDataSaving sharedSavedData;
     SynchronizationFlags syncFlags;
 
     int N = (int)alazarCard.acquisitionParams.samplesPerBuffer;
@@ -211,8 +212,10 @@ void ScanRunner::acquireData() {
     std::thread magnitudeThread(magnitudeThread, N, std::ref(sharedDataBasic), std::ref(sharedDataProc), std::ref(syncFlags), std::ref(dataProcessor));
     std::thread averagingThread(averagingThread, std::ref(sharedDataProc), std::ref(syncFlags), std::ref(dataProcessor), std::ref(trueCenterFreq), subSpectraAveragingNumber);
     std::thread processingThread(processingThread, std::ref(sharedDataProc), std::ref(savedData), std::ref(syncFlags), std::ref(dataProcessor), std::ref(bayesFactors));
-    std::thread decisionMakingThread(decisionMakingThread, std::ref(sharedDataProc), std::ref(syncFlags), std::ref(bayesFactors), std::ref(decisionAgent));
-
+    std::thread decisionMakingThread(decisionMakingThread, std::ref(sharedDataProc), std::ref(sharedSavedData), std::ref(syncFlags), std::ref(bayesFactors), std::ref(decisionAgent));
+    #if SAVE_PROGRESS
+    // std::thread savingThread(dataSavingThread, std::ref(sharedSavedData), std::ref(syncFlags));
+    #endif
 
     // Wait for the threads to finish
     acquisitionThread.join();
@@ -221,6 +224,12 @@ void ScanRunner::acquireData() {
     averagingThread.join();
     processingThread.join();
     decisionMakingThread.join();
+    #if SAVE_PROGRESS
+    // savingThread.join();
+
+    std::string exclusionLineFilename = "../../../plotting/exclusionLineComparisons/scanProgress/exclusionLine_" + getDateTimeString() + ".csv";
+    saveSpectraFromQueue(sharedSavedData.exclusionLineQueue, exclusionLineFilename);
+    #endif
 
 
     // Cleanup
@@ -269,19 +278,8 @@ void ScanRunner::saveData() {
     saveCombinedSpectrum(savedData.combinedSpectrum, "../../../plotting/threadTests/combinedSpectrum.csv");
     saveSpectrum(bayesFactors.exclusionLine, "../../../plotting/threadTests/exclusionLine.csv");
 
-
-    // Save info for exclusion comparisons
-    auto now = std::chrono::system_clock::now();
-    auto time = std::chrono::system_clock::to_time_t(now);
-    std::tm localTime;
-    localtime_s(&localTime, &time);
-
-    // Format the date and time as a string
-    char datetimeStr[100];
-    std::strftime(datetimeStr, sizeof(datetimeStr), "%Y-%m-%d_%H-%M-%S", &localTime);
-
-    std::string exclusionLineFilename = "../../../plotting/exclusionLineComparisons/data/exclusionLine_" + std::string(datetimeStr) + ".csv";
-    std::string scanInfoFilename = "../../../plotting/exclusionLineComparisons/metrics/scanInfo_" + std::string(datetimeStr) + ".csv";
+    std::string exclusionLineFilename = "../../../plotting/exclusionLineComparisons/data/exclusionLine_" + getDateTimeString() + ".csv";
+    std::string scanInfoFilename = "../../../plotting/exclusionLineComparisons/metrics/scanInfo_" + getDateTimeString() + ".csv";
 
     saveSpectrum(bayesFactors.exclusionLine, exclusionLineFilename);
     saveVector(getMetric(ACQUIRED_SPECTRA), scanInfoFilename);

@@ -296,7 +296,7 @@ void processingThread(SharedDataProcessing& sharedData, SavedData& savedData, Sy
  * @param sharedData - Struct containing data shared between threads
  * @param syncFlags - Struct containing synchronization flags shared between threads
  */
-void decisionMakingThread(SharedDataProcessing& sharedData, SynchronizationFlags& syncFlags, BayesFactors& bayesFactors, DecisionAgent& decisionAgent) {
+void decisionMakingThread(SharedDataProcessing& sharedData, SharedDataSaving& savedData, SynchronizationFlags& syncFlags, BayesFactors& bayesFactors, DecisionAgent& decisionAgent) {
     setMetric(SPECTRA_AT_DECISION, -1);
     
     int buffersDecided = 0;
@@ -322,10 +322,21 @@ void decisionMakingThread(SharedDataProcessing& sharedData, SynchronizationFlags
                 decisionAgent.setTargets();
                 decisionAgent.setPoints();
             }
+            
+
+            bayesFactors.updateExclusionLine(rebinnedSpectrum);
+
+            #if SAVE_PROGRESS
+            // Create a copy of the bayesFactors object and add it to the exclusionLineQueue
+            {
+                std::lock_guard<std::mutex> savedDataLock(savedData.mutex);
+                Spectrum exclusionCopy = bayesFactors.exclusionLine;
+                savedData.exclusionLineQueue.push(exclusionCopy);
+                savedData.exclusionLineReadyCondition.notify_one();
+            }
+            #endif
 
             if (!decisionThrown){
-                bayesFactors.updateExclusionLine(rebinnedSpectrum);
-
                 std::vector<double> activeWindow(bayesFactors.exclusionLine.powers.end() - decisionAgent.trimmedSNR.powers.size(), bayesFactors.exclusionLine.powers.end());
                 int decision = decisionAgent.getDecision(activeWindow, buffersDecided);
                 // int decision = 0;
@@ -359,6 +370,52 @@ void decisionMakingThread(SharedDataProcessing& sharedData, SynchronizationFlags
                 }
 
                 std::cout<< "Decision making thread exiting. Decided on " << std::to_string(buffersDecided) << " spectra." << std::endl;
+
+                syncFlags.acquisitionComplete = true;
+                syncFlags.pauseDataCollection = true;
+                syncFlags.decisionsComplete = true;
+                
+                break;  // Exit the processing thread
+            }
+        }
+    }
+}
+
+
+
+void dataSavingThread(SharedDataSaving& savedData, SynchronizationFlags& syncFlags) {
+    int buffersSaved = 0;
+
+    while (true) {
+        Spectrum exclusionLine;
+
+        // Check if processed data queue is empty
+        std::unique_lock<std::mutex> lock(savedData.mutex);
+        savedData.exclusionLineReadyCondition.wait(lock, [&savedData]() {
+            return !savedData.exclusionLineQueue.empty();
+        });
+
+        // Process data if the data queue is not empty
+        startTimer(TIMER_SAVE);
+        while (!savedData.exclusionLineQueue.empty()) {
+            exclusionLine = savedData.exclusionLineQueue.front();
+            savedData.exclusionLineQueue.pop();
+
+            lock.unlock();
+            std::string exclusionLineFilename = "../../../plotting/exclusionLineComparisons/scanProgress/exclusionLine_" + 
+                                                std::to_string(buffersSaved) + "_" + getDateTimeString() + ".csv";
+            saveSpectrum(exclusionLine, exclusionLineFilename);
+            buffersSaved++;
+            lock.lock();
+        }
+        stopTimer(TIMER_SAVE);
+
+
+        // Check if the acquisition is complete
+        {
+            std::lock_guard<std::mutex> lock(syncFlags.mutex);
+            if (savedData.exclusionLineQueue.empty() && syncFlags.decisionsComplete) {
+                std::cout<< "Saving thread exiting. Saved " << std::to_string(buffersSaved) << " spectra." << std::endl;
                 break;  // Exit the processing thread
             }
         }

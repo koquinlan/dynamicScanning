@@ -13,8 +13,8 @@
 #define REFRESH_PROCESSOR (0)
 
 int main() {
-    int maxSpectraPerStep = 50;
-    int minSpectraPerStep = 20;
+    int maxSpectraPerStep = 20;
+    int minSpectraPerStep = 18;
     int subSpectraAveragingNumber = 15;
     double maxIntegrationTime = maxSpectraPerStep*subSpectraAveragingNumber*0.01; // seconds
 
@@ -22,9 +22,9 @@ int main() {
     int numSteps = 50;
 
 
-    ScanRunner scanRunner(maxIntegrationTime, 0, 1);
+    ScanRunner scanRunner(maxIntegrationTime, 0, 0);
     scanRunner.subSpectraAveragingNumber = subSpectraAveragingNumber;
-    scanRunner.setTarget(7.5e-5);
+    scanRunner.setTarget(6.5e-5);
     scanRunner.decisionAgent.minShots = minSpectraPerStep;
 
 

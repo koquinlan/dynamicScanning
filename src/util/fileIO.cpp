@@ -151,3 +151,53 @@ void saveCombinedSpectrum(CombinedSpectrum data, std::string filename) {
         std::cerr << "Unable to open the file to save data." << std::endl;
     }
 }
+
+
+std::string getDateTimeString() {
+    // Save info for exclusion comparisons
+    auto now = std::chrono::system_clock::now();
+    auto time = std::chrono::system_clock::to_time_t(now);
+    std::tm localTime;
+    localtime_s(&localTime, &time);
+
+    // Format the date and time as a string
+    char datetimeStr[100];
+    std::strftime(datetimeStr, sizeof(datetimeStr), "%Y-%m-%d_%H-%M-%S", &localTime);
+
+    return std::string(datetimeStr);
+}
+
+
+
+void saveSpectraFromQueue(std::queue<Spectrum>& spectraQueue, std::string filename) {
+    std::ofstream dataFile(filename);
+    if (dataFile.is_open()) {
+        // Write the frequency axis (assuming all spectra have the same frequency axis)
+        if (!spectraQueue.empty()) {
+            Spectrum firstSpectrum = spectraQueue.front();
+            dataFile << firstSpectrum.freqAxis[0];
+            for (size_t i = 1; i < firstSpectrum.freqAxis.size(); i++) {
+                dataFile << "," << firstSpectrum.freqAxis[i];
+            }
+            dataFile << "\n";
+        } else {
+            dataFile << "\n"; // Empty line if the queue is empty
+        }
+
+        // Write each spectrum's powers
+        while (!spectraQueue.empty()) {
+            Spectrum spectrum = spectraQueue.front();
+            dataFile << spectrum.powers[0];
+            for (size_t i = 1; i < spectrum.powers.size(); i++) {
+                dataFile << "," << spectrum.powers[i];
+            }
+            dataFile << "\n";
+
+            spectraQueue.pop();
+        }
+
+        dataFile.close();
+    } else {
+        std::cerr << "Unable to open the file to save data." << std::endl;
+    }
+}
