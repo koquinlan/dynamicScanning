@@ -56,7 +56,7 @@ void DecisionAgent::setTargets(){
     double cumSum=0;
     for (int i=(int)(inProgressTargets.size())-1; i>=0; i--){
         cumSum += trimmedSNR.powers[i]*trimmedSNR.powers[i];
-        inProgressTargets[i] = (std::sqrt(SNRsum/cumSum)*targetCoupling - targetCoupling)/1 + targetCoupling; 
+        inProgressTargets[i] = (std::sqrt(SNRsum/cumSum)*targetCoupling - targetCoupling)/1.05 + targetCoupling; 
     }
 }
 
