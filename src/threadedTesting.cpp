@@ -13,8 +13,8 @@
 #define REFRESH_PROCESSOR (0)
 
 int main() {
-    int maxSpectraPerStep = 20;
-    int minSpectraPerStep = 18;
+    int maxSpectraPerStep = 50;
+    int minSpectraPerStep = 13;
     int subSpectraAveragingNumber = 15;
     double maxIntegrationTime = maxSpectraPerStep*subSpectraAveragingNumber*0.01; // seconds
 
@@ -38,7 +38,9 @@ int main() {
         scanRunner.acquireData();
     }
 
+    std::cout << "Saving data..." << std::endl;
     scanRunner.saveData();
 
+    std::cout << "Exited Normally" << std::endl;
     return 0;
 }
