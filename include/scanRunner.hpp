@@ -33,7 +33,7 @@ public:
 
     void acquireData();
     void step(double stepSize);
-    void saveData();
+    void saveData(int dynamicFlag = 0);
 
     void refreshBaselineAndBadBins(int repeats = 3, int subSpectra = 32, int savePlots = 0);
 

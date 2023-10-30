@@ -106,6 +106,7 @@ void ScanRunner::initAlazarCard() {
     double samplesPerSpectrum = sampleRate/RBW;
     double samplesPerAcquisition = samplesPerSpectrum*maxSpectraPerAcquisition;
 
+    std::cout << "Trying to set acquisition parameters." << std::endl;
     alazarCard.setAcquisitionParameters((U32)sampleRate, (U32)samplesPerAcquisition, maxSpectraPerAcquisition);
     std::cout << "Acquisition parameters set. Collecting " << std::to_string(alazarCard.acquisitionParams.buffersPerAcquisition) << " buffers." << std::endl;
 }
@@ -223,6 +224,10 @@ void ScanRunner::acquireData() {
     magnitudeThread.join();
     averagingThread.join();
     processingThread.join();
+    {
+        std::lock_guard<std::mutex> lock(sharedDataProc.mutex);
+        sharedDataProc.rescaledDataReadyCondition.notify_one();
+    }
     decisionMakingThread.join();
     #if SAVE_PROGRESS
     // savingThread.join();
@@ -245,7 +250,7 @@ void ScanRunner::acquireData() {
  * @brief Saves any data available to the scanRunner to csv files to be plotted later in python.
  * 
  */
-void ScanRunner::saveData() {
+void ScanRunner::saveData(int dynamicFlag) {
     // Save the data
     std::vector<int> outliers = findOutliers(dataProcessor.runningAverage, 50, 4);
 
@@ -278,8 +283,16 @@ void ScanRunner::saveData() {
     saveCombinedSpectrum(savedData.combinedSpectrum, "../../../plotting/threadTests/combinedSpectrum.csv");
     saveSpectrum(bayesFactors.exclusionLine, "../../../plotting/threadTests/exclusionLine.csv");
 
-    std::string exclusionLineFilename = "../../../plotting/exclusionLineComparisons/data/exclusionLine_" + getDateTimeString() + ".csv";
-    std::string scanInfoFilename = "../../../plotting/exclusionLineComparisons/metrics/scanInfo_" + getDateTimeString() + ".csv";
+    std::string exclusionLineFilename = "../../../plotting/exclusionLineComparisons/data/exclusionLine_";
+    std::string scanInfoFilename = "../../../plotting/exclusionLineComparisons/metrics/scanInfo_";
+
+    if (dynamicFlag){
+        exclusionLineFilename += "dynamic_";
+        scanInfoFilename += "dynamic_";
+    }
+
+    exclusionLineFilename += getDateTimeString() + ".csv";
+    scanInfoFilename += getDateTimeString() + ".csv";
 
     saveSpectrum(bayesFactors.exclusionLine, exclusionLineFilename);
     saveVector(getMetric(ACQUIRED_SPECTRA), scanInfoFilename);
