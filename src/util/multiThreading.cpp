@@ -26,6 +26,7 @@
  * @param syncFlags - Struct containing synchronization flags shared between threads
  */
 void FFTThread(fftw_plan plan, int samplesPerSpectrum, SharedDataBasic& sharedData, SynchronizationFlags& syncFlags) {
+    try{
     int numProcessed = 0;
     while (true) {
         // std::cout << "Waiting for data..." << std::endl;
@@ -75,71 +76,85 @@ void FFTThread(fftw_plan plan, int samplesPerSpectrum, SharedDataBasic& sharedDa
             }
         }
     }
+    }
+    catch(const std::exception& e)
+    {
+        std::cout << "FFT thread exiting due to exception." << std::endl;
+        std::cerr << e.what() << '\n';
+    }
 }
 
 
 void magnitudeThread(int samplesPerSpectrum, SharedDataBasic& sharedData, SharedDataProcessing& sharedDataProc, SynchronizationFlags& syncFlags, DataProcessor& dataProcessor) {
-    int numProcessed = 0;
-    while (true) {
-        // std::cout << "Waiting for data..." << std::endl;
+    try
+    {
+        int numProcessed = 0;
+        while (true) {
+            // std::cout << "Waiting for data..." << std::endl;
 
-        // Wait for signal from dataReadyCondition or immediately continue if the data queue is not empty (lock releases while waiting)
-        std::unique_lock<std::mutex> lock(sharedData.mutex);
-        sharedData.FFTDataReadyCondition.wait(lock, [&sharedData]() {
-            return !sharedData.FFTDataQueue.empty();
-        });
-
-
-        // Process data until data queue is empty (lock is reaquired before checking the data queue)
-        startTimer(TIMER_MAG);
-        while (!sharedData.FFTDataQueue.empty()) {
-
-            // Get the pointer to the data from the queue
-            fftw_complex* FFTData = sharedData.FFTDataQueue.front();
-            sharedData.FFTDataQueue.pop();
-            lock.unlock();
-
-            std::vector<double> magData(samplesPerSpectrum);
-            for (int i = 0; i < samplesPerSpectrum; i++) {
-                magData[i] = ( FFTData[i][0]*FFTData[i][0] + FFTData[i][1]*FFTData[i][1] ) / samplesPerSpectrum / 50; // Hard code in 50 Ohm input impedance
-            }
-
-            magData = dataProcessor.trimDC(dataProcessor.removeBadBins(magData));
-            
-            // Free the memory allocated for the fft data
-            fftw_free(FFTData);
-            numProcessed++;
+            // Wait for signal from dataReadyCondition or immediately continue if the data queue is not empty (lock releases while waiting)
+            std::unique_lock<std::mutex> lock(sharedData.mutex);
+            sharedData.FFTDataReadyCondition.wait(lock, [&sharedData]() {
+                return !sharedData.FFTDataQueue.empty();
+            });
 
 
-            // Acquire a new lock_guard and push the processed data to the shared queue
-            {
-                std::lock_guard<std::mutex> lock(sharedData.mutex);
-                sharedDataProc.magDataQueue.push(magData);
-            }
-            sharedDataProc.magDataReadyCondition.notify_one();
-            
-            lock.lock();  // Reacquire lock before checking the data queue
-        }
-        stopTimer(TIMER_MAG);
+            // Process data until data queue is empty (lock is reaquired before checking the data queue)
+            startTimer(TIMER_MAG);
+            while (!sharedData.FFTDataQueue.empty()) {
 
-        // Check if the acquisition and processing is complete
-        {
-            std::lock_guard<std::mutex> lock(syncFlags.mutex);
-            if (syncFlags.FFTComplete && sharedData.FFTDataQueue.empty()) {
-                std::cout << "Magnitude thread exiting. Processed " << std::to_string(numProcessed) << " spectra." << std::endl;
+                // Get the pointer to the data from the queue
+                fftw_complex* FFTData = sharedData.FFTDataQueue.front();
+                sharedData.FFTDataQueue.pop();
+                lock.unlock();
 
-                syncFlags.magnitudeComplete = true;
+                std::vector<double> magData(samplesPerSpectrum);
+                for (int i = 0; i < samplesPerSpectrum; i++) {
+                    magData[i] = ( FFTData[i][0]*FFTData[i][0] + FFTData[i][1]*FFTData[i][1] ) / samplesPerSpectrum / 50; // Hard code in 50 Ohm input impedance
+                }
+
+                magData = dataProcessor.trimDC(dataProcessor.removeBadBins(magData));
+                
+                // Free the memory allocated for the fft data
+                fftw_free(FFTData);
+                numProcessed++;
+
+
+                // Acquire a new lock_guard and push the processed data to the shared queue
+                {
+                    std::lock_guard<std::mutex> lock(sharedData.mutex);
+                    sharedDataProc.magDataQueue.push(magData);
+                }
                 sharedDataProc.magDataReadyCondition.notify_one();
-                break;  // Exit the processing thread
+                
+                lock.lock();  // Reacquire lock before checking the data queue
+            }
+            stopTimer(TIMER_MAG);
+
+            // Check if the acquisition and processing is complete
+            {
+                std::lock_guard<std::mutex> lock(syncFlags.mutex);
+                if (syncFlags.FFTComplete && sharedData.FFTDataQueue.empty()) {
+                    std::cout << "Magnitude thread exiting. Processed " << std::to_string(numProcessed) << " spectra." << std::endl;
+
+                    syncFlags.magnitudeComplete = true;
+                    sharedDataProc.magDataReadyCondition.notify_one();
+                    break;  // Exit the processing thread
+                }
             }
         }
     }
-    
+    catch(const std::exception& e)
+    {
+        std::cout << "Magnitude thread exiting due to exception." << std::endl;
+        std::cerr << e.what() << '\n';
+    }
 }
 
 
 
 void averagingThread(SharedDataProcessing& sharedData, SynchronizationFlags& syncFlags, DataProcessor& dataProcessor, double trueCenterFreq, int subSpectraAveragingNumber = 20) {
+    try{
     int subSpectraAveraged = 0;
     int totalProcessed = 0;
     while (true) {
@@ -199,6 +214,12 @@ void averagingThread(SharedDataProcessing& sharedData, SynchronizationFlags& syn
             }
         }
     }
+    }
+    catch(const std::exception& e)
+    {
+        std::cout << "Averaging thread exiting due to exception." << std::endl;
+        std::cerr << e.what() << '\n';
+    }
 }
 
 
@@ -211,6 +232,7 @@ void averagingThread(SharedDataProcessing& sharedData, SynchronizationFlags& syn
  * @param syncFlags - Struct containing synchronization flags shared between threads
  */
 void processingThread(SharedDataProcessing& sharedData, SavedData& savedData, SynchronizationFlags& syncFlags, DataProcessor& dataProcessor, BayesFactors& bayesFactors) {
+    try{
     int buffersProcessed = 0;
     while (true) {
         // Check if processed data queue is empty
@@ -283,6 +305,12 @@ void processingThread(SharedDataProcessing& sharedData, SavedData& savedData, Sy
         std::lock_guard<std::mutex> lock(sharedData.mutex);
         sharedData.rescaledDataReadyCondition.notify_one();
     }
+    }
+    catch(const std::exception& e)
+    {
+        std::cout << "Processing thread exiting due to exception." << std::endl;
+        std::cerr << e.what() << '\n';
+    }
 }
 
 
@@ -297,6 +325,7 @@ void processingThread(SharedDataProcessing& sharedData, SavedData& savedData, Sy
  * @param syncFlags - Struct containing synchronization flags shared between threads
  */
 void decisionMakingThread(SharedDataProcessing& sharedData, SharedDataSaving& savedData, SynchronizationFlags& syncFlags, BayesFactors& bayesFactors, DecisionAgent& decisionAgent) {
+    try{
     setMetric(SPECTRA_AT_DECISION, -1);
     
     int buffersDecided = 0;
@@ -379,11 +408,18 @@ void decisionMakingThread(SharedDataProcessing& sharedData, SharedDataSaving& sa
             }
         }
     }
+    }
+    catch(const std::exception& e)
+    {
+        std::cout << "Decision making thread exiting due to exception." << std::endl;
+        std::cerr << e.what() << '\n';
+    }
 }
 
 
 
 void dataSavingThread(SharedDataSaving& savedData, SynchronizationFlags& syncFlags) {
+    try{
     int buffersSaved = 0;
 
     while (true) {
@@ -419,6 +455,12 @@ void dataSavingThread(SharedDataSaving& savedData, SynchronizationFlags& syncFla
                 break;  // Exit the processing thread
             }
         }
+    }
+    }
+    catch(const std::exception& e)
+    {
+        std::cout << "Data saving thread exiting due to exception." << std::endl;
+        std::cerr << e.what() << '\n';
     }
 }
 
