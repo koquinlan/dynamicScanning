@@ -219,16 +219,31 @@ void ScanRunner::acquireData() {
     #endif
 
     // Wait for the threads to finish
-    acquisitionThread.join();
-    FFTThread.join();
-    magnitudeThread.join();
-    averagingThread.join();
-    processingThread.join();
-    {
-        std::lock_guard<std::mutex> lock(sharedDataProc.mutex);
-        sharedDataProc.rescaledDataReadyCondition.notify_one();
+    if (acquisitionThread.joinable()) { acquisitionThread.join();} 
+    else { std::cerr << "Acquisition thread is not joinable" << std::endl;}
+
+    if (FFTThread.joinable()) { FFTThread.join();} 
+    else { std::cerr << "FFT thread is not joinable" << std::endl;}
+
+    if (magnitudeThread.joinable()) { magnitudeThread.join();} 
+    else { std::cerr << "Magnitude thread is not joinable" << std::endl;}
+
+    if (averagingThread.joinable()) { averagingThread.join();} 
+    else { std::cerr << "Averaging thread is not joinable" << std::endl;}
+
+    if(processingThread.joinable()) {
+        processingThread.join();
+        {
+            std::lock_guard<std::mutex> lock(sharedDataProc.mutex);
+            sharedDataProc.rescaledDataReadyCondition.notify_one();
+        }
+    } else {
+        std::cerr << "Processing thread is not joinable" << std::endl;
     }
-    decisionMakingThread.join();
+
+    if (decisionMakingThread.joinable()) { decisionMakingThread.join();} 
+    else { std::cerr << "Decision making thread is not joinable" << std::endl;}
+    
     #if SAVE_PROGRESS
     // savingThread.join();
 
@@ -244,6 +259,57 @@ void ScanRunner::acquireData() {
 
     reportPerformance();
 }
+
+
+
+void ScanRunner::unrolledAcquisition() {
+    // Turn on PSGs
+    psgList[PSG_DIFF].onOff(true);
+    psgList[PSG_JPA].onOff(true);
+
+
+    // Set up shared data
+    SharedDataBasic sharedDataBasic;
+    SharedDataProcessing sharedDataProc;
+    SharedDataSaving sharedSavedData;
+    SynchronizationFlags syncFlags;
+
+    int N = (int)alazarCard.acquisitionParams.samplesPerBuffer;
+    sharedDataBasic.samplesPerBuffer = alazarCard.acquisitionParams.samplesPerBuffer;
+
+
+    // Begin the threads
+    std::cout << "Launching acquisition thread." << std::endl;
+    std::thread acquisitionThread(&ATS::AcquireDataMultithreadedContinuous, &alazarCard, std::ref(sharedDataBasic), std::ref(syncFlags));
+    acquisitionThread.join();
+
+    std::cout << "Launching FFT thread." << std::endl;
+    std::thread FFTThread(FFTThread, fftwPlan, N, std::ref(sharedDataBasic), std::ref(syncFlags));
+    FFTThread.join();
+
+    std::cout << "Launching magnitude thread." << std::endl;
+    std::thread magnitudeThread(magnitudeThread, N, std::ref(sharedDataBasic), std::ref(sharedDataProc), std::ref(syncFlags), std::ref(dataProcessor));
+    magnitudeThread.join();
+
+    std::cout << "Launching averaging thread." << std::endl;
+    std::thread averagingThread(averagingThread, std::ref(sharedDataProc), std::ref(syncFlags), std::ref(dataProcessor), std::ref(trueCenterFreq), subSpectraAveragingNumber);
+    averagingThread.join();
+    
+    std::cout << "Launching processing thread." << std::endl;
+    std::thread processingThread(processingThread, std::ref(sharedDataProc), std::ref(savedData), std::ref(syncFlags), std::ref(dataProcessor), std::ref(bayesFactors));
+    processingThread.join();
+    
+    std::cout << "Launching decision making thread." << std::endl;
+    std::thread decisionMakingThread(decisionMakingThread, std::ref(sharedDataProc), std::ref(sharedSavedData), std::ref(syncFlags), std::ref(bayesFactors), std::ref(decisionAgent));
+    decisionMakingThread.join();
+
+
+    // Cleanup
+    psgList[PSG_DIFF].onOff(false);
+    psgList[PSG_JPA].onOff(false);
+    psgList[PSG_PROBE].onOff(false);
+}
+
 
 
 /**

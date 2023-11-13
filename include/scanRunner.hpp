@@ -32,6 +32,7 @@ public:
     void setTarget(double targetCoupling);
 
     void acquireData();
+    void unrolledAcquisition();
     void step(double stepSize);
     void saveData(int dynamicFlag = 0);
 
