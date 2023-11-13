@@ -30,7 +30,7 @@ print(metric_arrays)
 
 
 # Plot each data array in data_arrays
-target = 6.5e-5
+target = 4.2e-5
 plt.figure()
 
 for i, data in enumerate(data_arrays):
@@ -38,7 +38,7 @@ for i, data in enumerate(data_arrays):
     plt.plot(data[1], data[0], label=label)
 plt.axhline(y=target, color="r", linestyle="-", label="Target Exclusion")
 
-plt.xlim([-0.1, 5.1])
+plt.xlim([-0.1, 50.1])
 plt.ylim([0, 1.3 * target])
 
 plt.legend()
