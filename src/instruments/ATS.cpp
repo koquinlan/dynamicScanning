@@ -670,6 +670,7 @@ fftw_complex* processDataFFT(fftw_complex* sampleData, fftw_plan plan, int N) {
  * @param syncFlags - Struct containing the synchronization flags between threads. This function will read the pauseDataCollection flag
  */
 void ATS::AcquireDataMultithreadedContinuous(SharedDataBasic& sharedData, SynchronizationFlags& syncFlags) {
+    try{
     // Set basic flags
     U32 channelMask = CHANNEL_A | CHANNEL_B;
     U32 admaFlags = ADMA_TRIGGERED_STREAMING | ADMA_EXTERNAL_STARTCAPTURE;         // Start acquisition when AlazarStartCapture is called
@@ -930,4 +931,11 @@ void ATS::AcquireDataMultithreadedContinuous(SharedDataBasic& sharedData, Synchr
 	}
 
     return;
+
+    }
+    catch(const std::exception& e)
+    {
+        std::cout << "Acquisition thread exiting due to exception." << std::endl;
+        std::cerr << e.what() << '\n';
+    }
 }

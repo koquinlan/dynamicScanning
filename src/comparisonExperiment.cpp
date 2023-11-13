@@ -21,21 +21,19 @@ int main() {
     double couplingTarget(3.4e-5), stepSize(0.1);
 
     // int maxSpectraPerStep, int minSpectraPerStep, int subSpectraAveragingNumber, double stepSize, int numSteps, double targetCoupling
-    dynamicRun(75, 45, subSpectraAveragingNumber, stepSize, steps, couplingTarget);
+    // try{    
+    //     dynamicRun(75, 45, subSpectraAveragingNumber, stepSize, steps, couplingTarget);
+    // }
+    // catch(const std::exception& e)
+    // {
+    //     std::cerr << e.what() << '\n';
+    // }
 
 
-    int staticMaxSpectra[] = {46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57};
+    int maxSpectra = 52;
     // int maxSpectraPerStep, int subSpectraAveragingNumber, double stepSize, int numSteps, double targetCoupling
-    for (int maxSpectra : staticMaxSpectra) {
-        try
-        {
-            staticRun(maxSpectra, subSpectraAveragingNumber, stepSize, steps, couplingTarget);
-        }
-        catch(const std::exception& e)
-        {
-            std::cerr << e.what() << '\n';
-        }
-    }
+    staticRun(maxSpectra, subSpectraAveragingNumber, stepSize, steps, couplingTarget);
+
 
     return 0;
 }
@@ -73,10 +71,18 @@ void staticRun(int maxSpectraPerStep, int subSpectraAveragingNumber, double step
 
     scanRunner.acquireData();
     for (int i = 0; i < numSteps; i++) {
+        std::cout << "Stepping: i=" << std::to_string(i) << std::endl;
         scanRunner.step(stepSize);
+        std::cout << "Acquiring Data" << std::endl;
         scanRunner.acquireData();
+
+        if (i % 50 == 0) {
+            std::cout << "Saving Data" << std::endl;
+            scanRunner.saveData();
+        }
     }
 
+    std::cout << "Saving Data" << std::endl;
     scanRunner.saveData();
 }
 
