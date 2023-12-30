@@ -25,16 +25,16 @@
 ScanRunner::ScanRunner(double maxIntegrationTime, int scanType, int decisionMaking) : alazarCard(1, 1),
                 psgList{
                     PSG(27),  // PSG_DIFF
-                    PSG(30),  // PSG_JPA
-                    PSG(21)   // PSG_PROBE
+                    PSG(21),  // PSG_JPA
+                    PSG(30)   // PSG_PROBE
                 },
                 scanType(scanType) {
     // Pumping parameters
-    xModeFreq = 4.9871;    // GHz
-    yModeFreq = 7.457296;  // GHz
+    xModeFreq = 5.208;    // GHz
+    yModeFreq = 5.208;    // GHz
 
     diffPower = 6.76; //dBm
-    jpaPower = 2.66;  //dBm
+    jpaPower = 7.5;   //dBm
 
     faxionFreq = yModeFreq; // GHz
     faxionPower = -35;      // dBm
@@ -43,13 +43,17 @@ ScanRunner::ScanRunner(double maxIntegrationTime, int scanType, int decisionMaki
     sampleRate = 32e6;
     RBW = 100;
     maxSpectraPerAcquisition = (int)(maxIntegrationTime*RBW);
-    trueCenterFreq = yModeFreq*1e3 - 1; // Start 1 MHz below the y mode
+    trueCenterFreq = xModeFreq*1e3 - 1; // Start 1 MHz below the y mode
     subSpectraAveragingNumber = 20;
 
     // Filter Parameters
     cutoffFrequency = 10e3;
     poleNumber = 3;
     stopbandAttenuation = 15.0;
+
+    // Data saving paths
+    std::string exclusionPath = "exclusionLineComparisons";
+    std::string savePath = "threadTests";
 
 
     // Set up member classes
@@ -189,7 +193,7 @@ void ScanRunner::initDecisionAgent(int decisionMaking){
  */
 void ScanRunner::acquireData() {
     // Turn on PSGs
-    psgList[PSG_DIFF].onOff(true);
+    // psgList[PSG_DIFF].onOff(true); // Temporarily turned off for cavity only operation
     psgList[PSG_JPA].onOff(true);
 
     if (scanType == SHARP_FAXION || scanType == BROAD_FAXION) {
@@ -247,7 +251,7 @@ void ScanRunner::acquireData() {
     #if SAVE_PROGRESS
     // savingThread.join();
 
-    std::string exclusionLineFilename = "../../../plotting/exclusionLineComparisons/scanProgress/exclusionLine_" + getDateTimeString() + ".csv";
+    std::string exclusionLineFilename = "../../../plotting/" + exclusionPath + "/scanProgress/exclusionLine_" + getDateTimeString() + ".csv";
     saveSpectraFromQueue(sharedSavedData.exclusionLineQueue, exclusionLineFilename);
     #endif
 
@@ -264,7 +268,7 @@ void ScanRunner::acquireData() {
 
 void ScanRunner::unrolledAcquisition() {
     // Turn on PSGs
-    psgList[PSG_DIFF].onOff(true);
+    // psgList[PSG_DIFF].onOff(true); // Temporarily turned off for cavity only operation
     psgList[PSG_JPA].onOff(true);
 
 
@@ -326,31 +330,31 @@ void ScanRunner::saveData(int dynamicFlag) {
                     *alazarCard.acquisitionParams.sampleRate/alazarCard.acquisitionParams.samplesPerBuffer/1e6;
     }
 
-    saveVector(freq, "../../../plotting/threadTests/freq.csv");
-    saveVector(outliers, "../../../plotting/threadTests/outliers.csv");
+    saveVector(freq, "../../../plotting/" + savePath + "/freq.csv");
+    saveVector(outliers, "../../../plotting/" + savePath + "/outliers.csv");
 
     dataProcessor.updateBaseline();
-    saveVector(dataProcessor.currentBaseline, "../../../plotting/threadTests/baseline.csv");
-    saveVector(dataProcessor.runningAverage, "../../../plotting/threadTests/runningAverage.csv");
+    saveVector(dataProcessor.currentBaseline, "../../../plotting/" + savePath + "/baseline.csv");
+    saveVector(dataProcessor.runningAverage, "../../../plotting/" + savePath + "/runningAverage.csv");
 
-    saveSpectrum(savedData.rawSpectra[0], "../../../plotting/threadTests/rawSpectrum.csv");
+    saveSpectrum(savedData.rawSpectra[0], "../../../plotting/" + savePath + "/rawSpectrum.csv");
 
 
     Spectrum processedSpectrum, foo;
     std::tie(processedSpectrum, foo) = dataProcessor.rawToProcessed(savedData.rawSpectra[0]);
     trimSpectrum(processedSpectrum, 0.1);
-    saveSpectrum(processedSpectrum, "../../../plotting/threadTests/processedSpectrum.csv");
+    saveSpectrum(processedSpectrum, "../../../plotting/" + savePath + "/processedSpectrum.csv");
 
 
     dataProcessor.trimSNRtoMatch(processedSpectrum);
     Spectrum rescaledSpectrum = dataProcessor.processedToRescaled(processedSpectrum);
 
 
-    saveCombinedSpectrum(savedData.combinedSpectrum, "../../../plotting/threadTests/combinedSpectrum.csv");
-    saveSpectrum(bayesFactors.exclusionLine, "../../../plotting/threadTests/exclusionLine.csv");
+    saveCombinedSpectrum(savedData.combinedSpectrum, "../../../plotting/" + savePath + "/combinedSpectrum.csv");
+    saveSpectrum(bayesFactors.exclusionLine, "../../../plotting/" + savePath + "/exclusionLine.csv");
 
-    std::string exclusionLineFilename = "../../../plotting/exclusionLineComparisons/data/exclusionLine_";
-    std::string scanInfoFilename = "../../../plotting/exclusionLineComparisons/metrics/scanInfo_";
+    std::string exclusionLineFilename = "../../../plotting/" + exclusionPath + "/data/exclusionLine_";
+    std::string scanInfoFilename = "../../../plotting/" + exclusionPath + "/metrics/scanInfo_";
 
     if (dynamicFlag){
         exclusionLineFilename += "dynamic_";
@@ -395,7 +399,7 @@ void ScanRunner::refreshBaselineAndBadBins(int repeats, int subSpectra, int save
 
 void ScanRunner::acquireProcCalibration(int repeats, int subSpectra, int savePlots) {
     // Turn on PSGs
-    psgList[PSG_DIFF].onOff(true);
+    // psgList[PSG_DIFF].onOff(true); // Temporarily turned off for cavity only operation
     psgList[PSG_JPA].onOff(true);
 
 
@@ -488,4 +492,16 @@ void ScanRunner::step(double stepSize) {
 
 void ScanRunner::setTarget(double targetCoupling) {
     decisionAgent.targetCoupling = targetCoupling;
+}
+
+
+
+std::vector<std::vector<double>> ScanRunner::retrieveRawData() {
+    std::vector<std::vector<double>> rawData;
+
+    for (Spectrum : savedData.rawSpectra){
+        rawData.push_back(Spectrum.powers);
+    }
+    
+    return rawData;
 }

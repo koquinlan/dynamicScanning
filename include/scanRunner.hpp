@@ -38,15 +38,22 @@ public:
 
     void refreshBaselineAndBadBins(int repeats = 3, int subSpectra = 32, int savePlots = 0);
 
+    std::vector<std::vector<double>> retrieveRawData();
+
 
     // Public parameters
     int subSpectraAveragingNumber;
     DecisionAgent decisionAgent;
 
+    double xModeFreq, yModeFreq;
+
+
+    // Data saving paths
+    std::string exclusionPath; // default "exclusionLineComparisons";
+    std::string savePath; // default "threadTests";
 private:
     // Pumping parameters
     double faxionFreq, faxionPower;
-    double xModeFreq, yModeFreq;
     double diffPower, jpaPower;
 
     // Acquisition Parameters
