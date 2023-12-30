@@ -17,7 +17,7 @@ void dynamicRun(int maxSpectraPerStep, int minSpectraPerStep, int subSpectraAver
 void staticRun(int maxSpectraPerStep, int subSpectraAveragingNumber, double stepSize, int numSteps, double targetCoupling);
 
 int main() {
-    int steps(500), subSpectraAveragingNumber(15);
+    int steps(50), subSpectraAveragingNumber(15);
     double couplingTarget(3.4e-5), stepSize(0.1);
 
     // int maxSpectraPerStep, int minSpectraPerStep, int subSpectraAveragingNumber, double stepSize, int numSteps, double targetCoupling
@@ -30,7 +30,7 @@ int main() {
     // }
 
 
-    int maxSpectra = 52;
+    int maxSpectra = 25;
     // int maxSpectraPerStep, int subSpectraAveragingNumber, double stepSize, int numSteps, double targetCoupling
     staticRun(maxSpectra, subSpectraAveragingNumber, stepSize, steps, couplingTarget);
 
@@ -68,6 +68,10 @@ void staticRun(int maxSpectraPerStep, int subSpectraAveragingNumber, double step
     ScanRunner scanRunner(maxIntegrationTime, 0, 0);
     scanRunner.subSpectraAveragingNumber = subSpectraAveragingNumber;
     scanRunner.setTarget(targetCoupling);
+
+    #if REFRESH_PROCESSOR
+    scanRunner.refreshBaselineAndBadBins(1, 32, 1);
+    #endif
 
     scanRunner.acquireData();
     for (int i = 0; i < numSteps; i++) {
