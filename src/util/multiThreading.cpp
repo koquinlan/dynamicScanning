@@ -114,6 +114,11 @@ void magnitudeThread(int samplesPerSpectrum, SharedDataBasic& sharedData, Shared
                 }
 
                 magData = dataProcessor.trimDC(dataProcessor.removeBadBins(magData));
+
+                if (magData.empty()) {
+                    std::cout << "Error: Unexpected empty data in magnitude thread." << std::endl;
+                    std::cout << "Expected magData.size() = " << std::to_string(samplesPerSpectrum) << std::endl;
+                }
                 
                 // Free the memory allocated for the fft data
                 fftw_free(FFTData);
@@ -171,6 +176,13 @@ void averagingThread(SharedDataProcessing& sharedData, SynchronizationFlags& syn
 
         for(int i = 0; i < procNumber; i++) {
             // Get the pointer to the data from the queue
+            if (sharedData.magDataQueue.front().empty()) {
+                std::cout << "Error: Unexpected empty data in averaging thread." << std::endl;
+                std::cout << "Expected procNumber = " << std::to_string(procNumber) << std::endl;
+                std::cout << "sharedData.magDataQueue.size() = " << std::to_string(sharedData.magDataQueue.size()) << std::endl;
+
+                break;
+            }
             subSpectra[i] = sharedData.magDataQueue.front();
             sharedData.magDataQueue.pop();
 
@@ -296,15 +308,16 @@ void processingThread(SharedDataProcessing& sharedData, SavedData& savedData, Sy
                 std::cout << "Processing thread exiting. Processed " << std::to_string(buffersProcessed) << " spectra." << std::endl;
 
                 syncFlags.processingComplete = true;
+
+                {
+                    std::lock_guard<std::mutex> dataLock(sharedData.mutex);
+                    sharedData.rescaledDataReadyCondition.notify_one();
+                }
                 break;  // Exit the processing thread
             }
         }
     }
 
-    {
-        std::lock_guard<std::mutex> lock(sharedData.mutex);
-        sharedData.rescaledDataReadyCondition.notify_one();
-    }
     }
     catch(const std::exception& e)
     {

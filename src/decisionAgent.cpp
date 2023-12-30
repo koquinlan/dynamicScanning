@@ -31,10 +31,15 @@ void DecisionAgent::resizeSNRtoMatch(Spectrum spectrum) {
     trimmedSNR.freqAxis.resize(spectrum.freqAxis.size());
 
 
-    int matchingIndex = 0;
+    int matchingIndex = 1;
     for(int i=0; i<trimmedSNR.powers.size(); i++){
         while(spectrum.freqAxis[i] > SNR.freqAxis[matchingIndex]){
             matchingIndex++;
+
+            if (matchingIndex >= SNR.freqAxis.size()){
+                matchingIndex = int(SNR.freqAxis.size())-1;
+                break;
+            }
         }
         if (std::abs(SNR.freqAxis[matchingIndex]-spectrum.freqAxis[i]) > std::abs(SNR.freqAxis[matchingIndex-1]-spectrum.freqAxis[i])) {
             matchingIndex--;
