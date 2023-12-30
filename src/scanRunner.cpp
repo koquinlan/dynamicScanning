@@ -499,9 +499,15 @@ void ScanRunner::setTarget(double targetCoupling) {
 std::vector<std::vector<double>> ScanRunner::retrieveRawData() {
     std::vector<std::vector<double>> rawData;
 
-    for (Spectrum : savedData.rawSpectra){
-        rawData.push_back(Spectrum.powers);
+    for (Spectrum spectrum : savedData.rawSpectra){
+        rawData.push_back(spectrum.powers);
     }
     
     return rawData;
+}
+
+
+
+std::vector<double> ScanRunner::retrieveRawAxis() {
+    return savedData.rawSpectra[0].freqAxis;
 }

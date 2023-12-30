@@ -39,6 +39,7 @@ public:
     void refreshBaselineAndBadBins(int repeats = 3, int subSpectra = 32, int savePlots = 0);
 
     std::vector<std::vector<double>> retrieveRawData();
+    std::vector<double> retrieveRawAxis();
 
 
     // Public parameters
