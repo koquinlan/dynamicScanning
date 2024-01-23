@@ -42,3 +42,9 @@ build*/
 
 # Python cache files
 __pycache__/
+*.ipynb_checkpoints/
+
+*.fig
+
+# Matlab stuff
+*.asv
