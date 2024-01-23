@@ -24,9 +24,9 @@
  */
 ScanRunner::ScanRunner(double maxIntegrationTime, int scanType, int decisionMaking) : alazarCard(1, 1),
                 psgList{
-                    PSG(27),  // PSG_DIFF
+                    PSG(30),  // PSG_DIFF
                     PSG(21),  // PSG_JPA
-                    PSG(30)   // PSG_PROBE
+                    PSG(27)   // PSG_PROBE
                 },
                 scanType(scanType) {
     // Pumping parameters
@@ -510,4 +510,22 @@ std::vector<std::vector<double>> ScanRunner::retrieveRawData() {
 
 std::vector<double> ScanRunner::retrieveRawAxis() {
     return savedData.rawSpectra[0].freqAxis;
+}
+
+
+
+void ScanRunner::flushData() {
+    savedData.rawSpectra.clear();
+    savedData.processedSpectra.clear();
+    savedData.rescaledSpectra.clear();
+    savedData.combinedSpectrum.powers.clear();
+    savedData.combinedSpectrum.freqAxis.clear();
+
+    bayesFactors.exclusionLine.powers.clear();
+    bayesFactors.exclusionLine.freqAxis.clear();
+    bayesFactors.coeffSumA.clear();
+    bayesFactors.coeffSumB.clear();
+
+    dataProcessor.resetBaselining();
+    dataProcessor.currentBaseline = readVector("baseline.csv");
 }

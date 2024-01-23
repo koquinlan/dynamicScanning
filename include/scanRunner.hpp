@@ -35,6 +35,7 @@ public:
     void unrolledAcquisition();
     void step(double stepSize);
     void saveData(int dynamicFlag = 0);
+    void flushData();
 
     void refreshBaselineAndBadBins(int repeats = 3, int subSpectra = 32, int savePlots = 0);
 
