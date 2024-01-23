@@ -14,12 +14,12 @@ K = 1;
 
 %% Parameters
 % C.C. & GC: 1st paramater is CC, 2nd is GC
-kA = 2*pi*20.56*MHz; % external coupling rates of readout (X) mode
+kA = 2*pi*5*MHz; % external coupling rates of readout (X) mode
 kAl = 2*pi*959*kHz; % internal loss rates of readout (X) mode
 kB = 2*pi*1160*Hz; % external coupling rates of axion (Y) mode
 kBl = 2*pi*900*kHz; % internal loss rates of axion (Y) mode
-gAB = [sqrt(kBl*kA)/2*1, 2*pi*7.2*MHz]; % SWAP rate: 1st parameter: C.C; 2nd parameter: GC
-hAB = [0, 2*pi*7.2*MHz];
+gAB = [sqrt(kBl*kA)/2*1, 2*pi*10*MHz]; % SWAP rate: 1st parameter: C.C; 2nd parameter: GC
+hAB = [0, 2*pi*10*MHz];
 sA = [0, 2*pi*0*MHz]; % SMS rate on A mode
 sB = [0, 2*pi*0*MHz];
 delta = [0, sA(2)-sB(2)-2*pi*0*kHz]; 
@@ -34,7 +34,7 @@ phi = 0*pi; % relative phase between G, C pumps
 
 % other parameters
 theta = pi/2 - phi/2; % readout quadrature
-na = 2*pi*2.3e-6*2.4e7/kB*1.8e6/1.4; % axion occupation
+na = 10 * 2*pi*2.3e-6*2.4e7/kB*1.8e6; % axion occupation
 nT = 0; % thermal occupation
 
 % input matrix: noise + axion
@@ -63,8 +63,8 @@ ws = -wmax:wstep:(wmax-wstep);
 
 %% CC: JPA gain profile
 % 5.5GHz JPA gain profile taken by ENA
-folder = 'C:\Users\Lehnert Lab\Desktop\LehnertLab-Codebase\Axions\TestingScripts\16-Oct-2023\ascii';
-JPAdata = importdata([folder,'\s21ampenaf_91.dat']);
+folder = 'C:\Users\Lehnert Lab\Desktop\LehnertLab-Codebase\Axions\TestingScripts\28-Dec-2023\ascii';
+JPAdata = importdata([folder,'\s21ampenaf_117.dat']);
 JPAfreq = JPAdata.data(:,1);
 JPAgain = JPAdata.data(:,2)-mean(JPAdata.data(1:20,2));
 res_idx = find(JPAgain == max(JPAgain));
@@ -97,8 +97,8 @@ G_JPA_CC = abs(1 -k_JPA./(1i.*(ws/(2*pi*MHz)-JPA_det)+k_JPA/2-p_JPA^2./(k_JPA/2+
 
 %% GC: JPA gain profile
 % 5.5GHz JPA gain profile taken by ENA
-folder = 'C:\Users\Lehnert Lab\Desktop\LehnertLab-Codebase\Axions\TestingScripts\07-Jul-2023\ascii';
-JPAdata = importdata([folder,'\s21ampenaf_76.dat']);
+folder = 'C:\Users\Lehnert Lab\Desktop\LehnertLab-Codebase\Axions\TestingScripts\28-Dec-2023\ascii';
+JPAdata = importdata([folder,'\s21ampenaf_117.dat']);
 JPAfreq = JPAdata.data(:,1);
 JPAgain = JPAdata.data(:,2)-mean(JPAdata.data(1:20,2));
 res_idx = find(JPAgain == max(JPAgain));
@@ -135,7 +135,7 @@ S_N = zeros(numel(gAB),numel(ws));
 
 % For the GC case as well, vary k
 % for k = 1:numel(gAB)
-k=1;
+k=2;
     chiALlst = zeros(1,numel(ws));
     chiAAlst = zeros(1,numel(ws));
     vis_SQ = zeros(1,numel(ws));
@@ -251,21 +251,21 @@ SRE_SQ = SR_SQ(2)/SR_SQ(1);
 
 %%
 experimentalVisCurve = readmatrix('visCurve.csv');
-experimentalFreqs = readmatrix('trueProbeFreqs.csv');
+experimentalFreqs = readmatrix('probeFreqs.csv');
 
-sortedData = sortrows([experimentalFreqs', experimentalVisCurve'], 1);
+vis = real(vis_mat(k,:))./max(vis_mat(k,:));
 
 
 figure();
-plot(ws/(2*pi*MHz), real(vis_mat(1,:)));
+plot(experimentalFreqs, experimentalVisCurve./max(vis_mat(k,:)));
 hold on
-plot(sortedData(:,1), sortedData(:,2));
+plot(ws/(2*pi*MHz), vis);
 xlim([-10 10]);
 xlabel('Probe Det. [MHz]');
 ylabel('Visibility');
-legend('CC')
+legend('experiment', 'theory')
 
 
-writematrix(real(vis_mat(1,:)), 'visTheory.csv');
+writematrix(vis, 'visTheory.csv');
 writematrix(ws/(2*pi*MHz), 'visTheoryFreqAxis.csv');
 

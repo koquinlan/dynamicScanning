@@ -14,14 +14,19 @@
 std::tuple<double, double> getVisibility(std::vector<double> fftPowerProbeOn, std::vector<double> fftPowerBackground, std::vector<double> probeFreqs, std::vector<double> freqAxis, double probeFreq, double yModeFreq);
 
 int main() {
+    // Initialize scan runners
     int maxSpectra(32), subSpectraAveragingNumber(15); 
     double maxIntegrationTime = maxSpectra*subSpectraAveragingNumber*0.01;
 
-    // Probe parameters
-    PSG psgProbe(30);
-    psgProbe.setPow(-50);
+    ScanRunner scanRunner(maxIntegrationTime, 0, 0);
+    scanRunner.subSpectraAveragingNumber = subSpectraAveragingNumber;
 
-    double probeSpan = 15; // MHz
+
+    // Probe parameters
+    PSG psgProbe(27);
+    psgProbe.setPow(-95);
+
+    double probeSpan = 30; // MHz
     int numProbes = 200;
 
     double xModeFreq = 5.208; // GHz
@@ -39,20 +44,27 @@ int main() {
     std::vector<double> visibility, trueProbeFreqs;
     DataProcessor proc;
     for (double probe : probeFreqs) {
-        printf("Taking data at %.6f GHz, %.2f %% complete\r", probe, trueProbeFreqs.size()/(double)numProbes*100);
-        ScanRunner probeScanRunner(maxIntegrationTime, 0, 0);
-        ScanRunner baseScanRunner(maxIntegrationTime, 0, 0);
+        std::cout << std::endl
+          << "Taking data at " << std::fixed << std::setprecision(6) << probe
+          << " GHz, " << std::fixed << std::setprecision(2)
+          << (trueProbeFreqs.size() / static_cast<double>(numProbes)) * 100
+          << " % complete\r" << std::endl << std::endl;
 
 
         psgProbe.setFreq(probe);
         psgProbe.onOff(true);
-        probeScanRunner.acquireData();
-        std::vector<double> fftPowerProbeOn = averageVectors(probeScanRunner.retrieveRawData());
+        scanRunner.acquireData();
+        std::vector<double> fftPowerProbeOn = averageVectors(scanRunner.retrieveRawData());
+        scanRunner.flushData();
 
 
         psgProbe.onOff(false);
-        baseScanRunner.acquireData();
-        std::vector<double> fftPowerBackground = averageVectors(baseScanRunner.retrieveRawData());
+        scanRunner.acquireData();
+        std::vector<double> fftPowerBackground = averageVectors(scanRunner.retrieveRawData());
+        std::vector<double> freqAxis = scanRunner.retrieveRawAxis();
+        scanRunner.flushData();
+
+        std::cout << std::endl << "Saving data..." << std::endl;
 
 
         std::string fileName = "../../../plotting/visMeasurement/visData/" + std::to_string(1e3*(probe - xModeFreq)) + ".csv";
@@ -63,11 +75,11 @@ int main() {
 
 
         double vis, trueProbeFreq;
-        std::tie(vis, trueProbeFreq) = getVisibility(fftPowerProbeOn, fftPowerBackground, probeFreqs, probeScanRunner.retrieveRawAxis(), probe, xModeFreq);
+        std::tie(vis, trueProbeFreq) = getVisibility(fftPowerProbeOn, fftPowerBackground, probeFreqs, freqAxis, probe, xModeFreq);
         visibility.push_back(vis);
         trueProbeFreqs.push_back(trueProbeFreq);
     }
-    printf("\n Acqusiition complete!\n");
+    printf("\n Acquisition complete!\n");
 
     saveVector(visibility, "../../../src/dataProcessing/visCurve.csv");
     saveVector(visibility, "../../../plotting/visMeasurement/visCurve.csv");
@@ -85,11 +97,13 @@ int main() {
 
 
 std::tuple<double, double> getVisibility(std::vector<double> fftPowerProbeOn, std::vector<double> fftPowerBackground, std::vector<double> probeFreqs, std::vector<double> freqAxis, double probeFreq, double yModeFreq) {
+    std::cout << std::endl << "Getting visibility for probe at " << probeFreq << " GHz" << std::endl;
+    
     double probeSeparation = (probeFreqs[1] - probeFreqs[0])*1e9;   // GHz -> Hz
     double freqSeparation = (freqAxis[1] - freqAxis[0])*1e6;        // MHz -> Hz
 
     int probeIndex = findClosestIndex(freqAxis, (probeFreq-yModeFreq)*1e3);
-    int imageProbeIndex = findClosestIndex(freqAxis, (2*yModeFreq-probeFreq)*1e3);
+    int imageProbeIndex = findClosestIndex(freqAxis, (yModeFreq-probeFreq)*1e3);
     int searchWindow = 100;//(int)std::round(probeSeparation/freqSeparation)/2;
 
     std::vector<double> visibility(fftPowerProbeOn.size());
