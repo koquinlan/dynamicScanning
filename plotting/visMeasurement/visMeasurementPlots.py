@@ -3,42 +3,6 @@ import re
 import numpy as np
 import matplotlib.pyplot as plt
 
-# foo = [
-#     7.45047,
-#     7.45082,
-#     7.45116,
-#     7.45151,
-#     7.45185,
-#     7.4522,
-#     7.45254,
-#     7.45289,
-#     7.45323,
-#     7.45357,
-#     7.45392,
-#     7.45426,
-#     7.45461,
-#     7.45495,
-#     7.4553,
-#     7.45564,
-#     7.45599,
-#     7.45633,
-#     7.45668,
-#     7.45702,
-#     7.45737,
-#     7.45771,
-#     7.45806,
-#     7.4584,
-#     7.45875,
-#     7.45909,
-#     7.45944,
-#     7.45978,
-#     7.46013,
-#     7.46047,
-# ]
-
-# plt.plot(foo, np.zeros(len(foo)), "o", color="red")
-# plt.show()
-
 
 def extract_number(filename):
     # Extract all decimal and negative numbers from the filename
