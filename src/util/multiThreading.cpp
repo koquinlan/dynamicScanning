@@ -116,10 +116,10 @@ void magnitudeThread(int samplesPerSpectrum, SharedDataBasic& sharedData, Shared
                 magData = dataProcessor.trimDC(dataProcessor.removeBadBins(magData));
 
                 if (magData.empty()) {
-                    std::cout << "Error: Unexpected empty data in magnitude thread." << std::endl;
+                    std::cout << "Error: Second unexpected empty data in magnitude thread." << std::endl;
                     std::cout << "Expected magData.size() = " << std::to_string(samplesPerSpectrum) << std::endl;
                 }
-                
+
                 // Free the memory allocated for the fft data
                 fftw_free(FFTData);
                 numProcessed++;
@@ -128,7 +128,9 @@ void magnitudeThread(int samplesPerSpectrum, SharedDataBasic& sharedData, Shared
                 // Acquire a new lock_guard and push the processed data to the shared queue
                 {
                     std::lock_guard<std::mutex> lock(sharedData.mutex);
-                    sharedDataProc.magDataQueue.push(magData);
+                    if (!magData.empty()) {
+                        sharedDataProc.magDataQueue.push(magData);
+                    }
                 }
                 sharedDataProc.magDataReadyCondition.notify_one();
                 
@@ -172,22 +174,23 @@ void averagingThread(SharedDataProcessing& sharedData, SynchronizationFlags& syn
         startTimer(TIMER_AVERAGE);
 
         int procNumber = min(subSpectraAveragingNumber, (int) sharedData.magDataQueue.size());
-        std::vector<std::vector<double>> subSpectra(procNumber);
+        std::vector<std::vector<double>> subSpectra;
 
+        int preProcQueueSize = sharedData.magDataQueue.size();
         for(int i = 0; i < procNumber; i++) {
             // Get the pointer to the data from the queue
             if (sharedData.magDataQueue.front().empty()) {
                 std::cout << "Error: Unexpected empty data in averaging thread." << std::endl;
                 std::cout << "Expected procNumber = " << std::to_string(procNumber) << std::endl;
-                std::cout << "sharedData.magDataQueue.size() = " << std::to_string(sharedData.magDataQueue.size()) << std::endl;
-
-                break;
+                std::cout << "Original sharedData.magDataQueue.size() = " << std::to_string(preProcQueueSize) << std::endl;
+                std::cout << "Spectrum Number = " << std::to_string(i) << std::endl;
             }
-            subSpectra[i] = sharedData.magDataQueue.front();
+            else{
+                subSpectra.push_back(sharedData.magDataQueue.front());
+                // Update the running average using DataProcessor
+                dataProcessor.addRawSpectrumToRunningAverage(sharedData.magDataQueue.front());
+            }
             sharedData.magDataQueue.pop();
-
-            // Update the running average using DataProcessor
-            dataProcessor.addRawSpectrumToRunningAverage(subSpectra[i]);
         }
         lock.unlock();
 
@@ -308,11 +311,8 @@ void processingThread(SharedDataProcessing& sharedData, SavedData& savedData, Sy
                 std::cout << "Processing thread exiting. Processed " << std::to_string(buffersProcessed) << " spectra." << std::endl;
 
                 syncFlags.processingComplete = true;
+                sharedData.rescaledDataReadyCondition.notify_one();
 
-                {
-                    std::lock_guard<std::mutex> dataLock(sharedData.mutex);
-                    sharedData.rescaledDataReadyCondition.notify_one();
-                }
                 break;  // Exit the processing thread
             }
         }
