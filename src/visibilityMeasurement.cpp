@@ -27,7 +27,7 @@ int main() {
     psgProbe.setPow(-95);
 
     double probeSpan = 30; // MHz
-    int numProbes = 200;
+    int numProbes = 100;
 
     double xModeFreq = 5.208; // GHz
 
@@ -41,7 +41,7 @@ int main() {
 
 
     // Acquire data
-    std::vector<double> visibility, trueProbeFreqs;
+    std::vector<double> visibility, trueProbeFreqs, freqAxis;
     DataProcessor proc;
     for (double probe : probeFreqs) {
         std::cout << std::endl
@@ -61,7 +61,7 @@ int main() {
         psgProbe.onOff(false);
         scanRunner.acquireData();
         std::vector<double> fftPowerBackground = averageVectors(scanRunner.retrieveRawData());
-        std::vector<double> freqAxis = scanRunner.retrieveRawAxis();
+        freqAxis = scanRunner.retrieveRawAxis();
         scanRunner.flushData();
 
         std::cout << std::endl << "Saving data..." << std::endl;
@@ -85,7 +85,7 @@ int main() {
     saveVector(visibility, "../../../plotting/visMeasurement/visCurve.csv");
     saveVector(trueProbeFreqs, "../../../src/dataProcessing/trueProbeFreqs.csv");
     saveVector(trueProbeFreqs, "../../../plotting/visMeasurement/trueProbeFreqs.csv");
-
+    saveVector(freqAxis, "../../../plotting/visMeasurement/visFreq.csv");
 
     // Cleanup
     psgProbe.onOff(false);
