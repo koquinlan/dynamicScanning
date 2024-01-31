@@ -64,7 +64,7 @@ void FFTThread(fftw_plan plan, int samplesPerSpectrum, SharedDataBasic& sharedDa
         }
         stopTimer(TIMER_FFT);
 
-        // Check if the acquisition and processing is complete
+        // Check if the acquisition and processing is complete or another thread threw an error
         {
             std::lock_guard<std::mutex> lock(syncFlags.mutex);
             if (syncFlags.acquisitionComplete && sharedData.dataQueue.empty()) {
@@ -74,13 +74,21 @@ void FFTThread(fftw_plan plan, int samplesPerSpectrum, SharedDataBasic& sharedDa
                 sharedData.FFTDataReadyCondition.notify_one();
                 break;  // Exit the processing thread
             }
+
+            if (syncFlags.errorFlag) {
+                std::cout << "FFT thread gracefully exiting due to error." << std::endl;
+
+                sharedData.FFTDataReadyCondition.notify_one();
+                break;
+            }
         }
     }
     }
-    catch(const std::exception& e)
-    {
-        std::cout << "FFT thread exiting due to exception." << std::endl;
-        std::cerr << e.what() << '\n';
+    catch (const std::exception& e) {
+        std::lock_guard<std::mutex> lock(syncFlags.mutex);
+        syncFlags.errorFlag = true;
+        syncFlags.errorMessage = "FFTThread: " + std::string(e.what());
+        std::cout << syncFlags.errorMessage << '\n';
     }
 }
 
@@ -148,13 +156,21 @@ void magnitudeThread(int samplesPerSpectrum, SharedDataBasic& sharedData, Shared
                     sharedDataProc.magDataReadyCondition.notify_one();
                     break;  // Exit the processing thread
                 }
+
+                if (syncFlags.errorFlag) {
+                    std::cout << "Magnitude thread gracefully exiting due to error." << std::endl;
+
+                    sharedDataProc.magDataReadyCondition.notify_one();
+                    break;
+                }
             }
         }
     }
-    catch(const std::exception& e)
-    {
-        std::cout << "Magnitude thread exiting due to exception." << std::endl;
-        std::cerr << e.what() << '\n';
+    catch (const std::exception& e) {
+        std::lock_guard<std::mutex> lock(syncFlags.mutex);
+        syncFlags.errorFlag = true;
+        syncFlags.errorMessage = "MagnitudeThread: " + std::string(e.what());
+        std::cout << syncFlags.errorMessage << '\n';
     }
 }
 
@@ -176,7 +192,7 @@ void averagingThread(SharedDataProcessing& sharedData, SynchronizationFlags& syn
         int procNumber = min(subSpectraAveragingNumber, (int) sharedData.magDataQueue.size());
         std::vector<std::vector<double>> subSpectra;
 
-        int preProcQueueSize = sharedData.magDataQueue.size();
+        int preProcQueueSize = (int) sharedData.magDataQueue.size();
         for(int i = 0; i < procNumber; i++) {
             // Get the pointer to the data from the queue
             if (sharedData.magDataQueue.front().empty()) {
@@ -227,13 +243,22 @@ void averagingThread(SharedDataProcessing& sharedData, SynchronizationFlags& syn
                 sharedData.rawDataReadyCondition.notify_one();
                 break;  // Exit the processing thread
             }
+
+            if (syncFlags.errorFlag) {
+                std::cout << "Averaging thread gracefully exiting due to error." << std::endl;
+
+                sharedData.rawDataReadyCondition.notify_one();
+                break;
+            }
         }
     }
     }
-    catch(const std::exception& e)
-    {
-        std::cout << "Averaging thread exiting due to exception." << std::endl;
-        std::cerr << e.what() << '\n';
+                
+    catch (const std::exception& e) {
+        std::lock_guard<std::mutex> lock(syncFlags.mutex);
+        syncFlags.errorFlag = true;
+        syncFlags.errorMessage = "AveragingThread: " + std::string(e.what());
+        std::cout << syncFlags.errorMessage << '\n';
     }
 }
 
@@ -315,14 +340,23 @@ void processingThread(SharedDataProcessing& sharedData, SavedData& savedData, Sy
 
                 break;  // Exit the processing thread
             }
+
+            if (syncFlags.errorFlag) {
+                std::cout << "Processing thread gracefully exiting due to error." << std::endl;
+
+                sharedData.rescaledDataReadyCondition.notify_one();
+                break;
+            }
         }
     }
 
     }
     catch(const std::exception& e)
     {
-        std::cout << "Processing thread exiting due to exception." << std::endl;
-        std::cerr << e.what() << '\n';
+        std::lock_guard<std::mutex> lock(syncFlags.mutex);
+        syncFlags.errorFlag = true;
+        syncFlags.errorMessage = "ProcessingThread: " + std::string(e.what());
+        std::cout << syncFlags.errorMessage << '\n';
     }
 }
 
@@ -419,13 +453,24 @@ void decisionMakingThread(SharedDataProcessing& sharedData, SharedDataSaving& sa
                 
                 break;  // Exit the processing thread
             }
+
+            if (syncFlags.errorFlag) {
+                std::cout << "Decision making thread gracefully exiting due to error." << std::endl;
+
+                if (!decisionThrown) {
+                    updateMetric(SPECTRA_AT_DECISION, buffersDecided);
+                }
+                break;
+            }
         }
     }
     }
     catch(const std::exception& e)
     {
-        std::cout << "Decision making thread exiting due to exception." << std::endl;
-        std::cerr << e.what() << '\n';
+        std::lock_guard<std::mutex> lock(syncFlags.mutex);
+        syncFlags.errorFlag = true;
+        syncFlags.errorMessage = "DecisionThread: " + std::string(e.what());
+        std::cout << syncFlags.errorMessage << '\n';
     }
 }
 
@@ -473,7 +518,7 @@ void dataSavingThread(SharedDataSaving& savedData, SynchronizationFlags& syncFla
     catch(const std::exception& e)
     {
         std::cout << "Data saving thread exiting due to exception." << std::endl;
-        std::cerr << e.what() << '\n';
+        std::cout << e.what() << '\n';
     }
 }
 
