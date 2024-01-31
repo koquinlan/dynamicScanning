@@ -81,7 +81,7 @@ void saveVector(std::vector<double> data, std::string filename) {
         }
         dataFile.close();
     } else {
-        std::cerr << "Unable to open the file to save data." << std::endl;
+        std::cerr << "Unable to open file " << filename << " to save data." << std::endl;
     }
 }
 
@@ -97,7 +97,7 @@ void saveVector(std::vector<int> data, std::string filename) {
         }
         dataFile.close();
     } else {
-        std::cerr << "Unable to open the file to save data." << std::endl;
+        std::cerr << "Unable to open file " << filename << " to save data." << std::endl;
     }
 }
 
@@ -119,7 +119,7 @@ void saveSpectrum(Spectrum data, std::string filename) {
 
         dataFile.close();
     } else {
-        std::cerr << "Unable to open the file to save data." << std::endl;
+        std::cerr << "Unable to open file " << filename << " to save data." << std::endl;
     }
 }
 
@@ -148,7 +148,7 @@ void saveCombinedSpectrum(CombinedSpectrum data, std::string filename) {
 
         dataFile.close();
     } else {
-        std::cerr << "Unable to open the file to save data." << std::endl;
+        std::cerr << "Unable to open file " << filename << " to save data." << std::endl;
     }
 }
 
@@ -198,6 +198,6 @@ void saveSpectraFromQueue(std::queue<Spectrum>& spectraQueue, std::string filena
 
         dataFile.close();
     } else {
-        std::cerr << "Unable to open the file to save data." << std::endl;
+        std::cerr << "Unable to open file " << filename << " to save data." << std::endl;
     }
 }
