@@ -796,14 +796,19 @@ void ATS::AcquireDataMultithreadedContinuous(SharedDataBasic& sharedData, Synchr
                     }
                 }
 
+                fftw_complex* backupComplexOutput = reinterpret_cast<fftw_complex*>(fftw_malloc(sizeof(fftw_complex) * acquisitionParams.samplesPerBuffer));
+                std::memcpy(backupComplexOutput, complexOutput, sizeof(fftw_complex) * acquisitionParams.samplesPerBuffer);
 
                 // Push the data to the shared data queue and notify the processing thread that data is ready
                 {
                     std::lock_guard<std::mutex> lock(sharedData.mutex);
                     sharedData.dataQueue.push(complexOutput);
-                    complexOutput = nullptr;
+                    sharedData.backupDataQueue.push(backupComplexOutput);
                 }
                 sharedData.dataReadyCondition.notify_one();
+
+                complexOutput = nullptr;
+                backupComplexOutput = nullptr;
 
                 buffersCompleted++;
 				bytesTransferred += acquisitionParams.bytesPerBuffer;	

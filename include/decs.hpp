@@ -125,6 +125,7 @@ struct SharedDataBasic{
     int samplesPerBuffer;
 
     std::queue<fftw_complex*> dataQueue;
+    std::queue<fftw_complex*> backupDataQueue;
     std::queue<fftw_complex*> dataSavingQueue;
     std::queue<fftw_complex*> FFTDataQueue;
 
@@ -177,10 +178,14 @@ struct SynchronizationFlags {
     bool processingComplete;
     bool decisionsComplete;
 
+    bool errorFlag;
+    std::string errorMessage;
+
     SynchronizationFlags() : pauseDataCollection(false), acquisitionComplete(false),
                              FFTComplete(false), magnitudeComplete(false), 
                              averagingComplete(false), processingComplete(false),
-                             decisionsComplete(false) {}
+                             decisionsComplete(false),
+                             errorFlag(false), errorMessage("") {}
 };
 
 

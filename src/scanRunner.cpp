@@ -34,7 +34,7 @@ ScanRunner::ScanRunner(double maxIntegrationTime, int scanType, int decisionMaki
     yModeFreq = 5.208;    // GHz
 
     diffPower = 6.76; //dBm
-    jpaPower = 7.5;   //dBm
+    jpaPower = 7.6;   //dBm
 
     faxionFreq = yModeFreq; // GHz
     faxionPower = -35;      // dBm
@@ -52,8 +52,8 @@ ScanRunner::ScanRunner(double maxIntegrationTime, int scanType, int decisionMaki
     stopbandAttenuation = 15.0;
 
     // Data saving paths
-    std::string exclusionPath = "exclusionLineComparisons";
-    std::string savePath = "threadTests";
+    exclusionPath = "exclusionLineComparisons";
+    savePath = "threadTests";
 
 
     // Set up member classes
@@ -155,7 +155,7 @@ void ScanRunner::initFFTW() {
 void ScanRunner::initProcessor() {
     // Create data processor
     dataProcessor.setFilterParams(alazarCard.acquisitionParams.sampleRate, poleNumber, cutoffFrequency, stopbandAttenuation);
-    dataProcessor.loadSNR("../../../src/dataProcessing/visTheory.csv", "../../../src/dataProcessing/visTheoryFreqAxis.csv");
+    dataProcessor.loadSNR("../../../src/dataProcessing/visSmoothed.csv", "../../../src/dataProcessing/visFreq.csv");
 
 
     // Try to import bad bins if available
@@ -210,7 +210,6 @@ void ScanRunner::acquireData() {
     int N = (int)alazarCard.acquisitionParams.samplesPerBuffer;
     sharedDataBasic.samplesPerBuffer = alazarCard.acquisitionParams.samplesPerBuffer;
 
-
     // Begin the threads
     std::thread acquisitionThread(&ATS::AcquireDataMultithreadedContinuous, &alazarCard, std::ref(sharedDataBasic), std::ref(syncFlags));
     std::thread FFTThread(FFTThread, fftwPlan, N, std::ref(sharedDataBasic), std::ref(syncFlags));
@@ -223,20 +222,33 @@ void ScanRunner::acquireData() {
     #endif
 
     // Wait for the threads to finish
-    if (acquisitionThread.joinable()) { acquisitionThread.join();} 
+    if (acquisitionThread.joinable()) { 
+        acquisitionThread.join();
+        std::cout << "Acquisition thread joined." << std::endl;
+    } 
     else { std::cerr << "Acquisition thread is not joinable" << std::endl;}
 
-    if (FFTThread.joinable()) { FFTThread.join();} 
+    if (FFTThread.joinable()) { 
+        FFTThread.join();
+        std::cout << "FFT thread joined." << std::endl;
+    } 
     else { std::cerr << "FFT thread is not joinable" << std::endl;}
 
-    if (magnitudeThread.joinable()) { magnitudeThread.join();} 
+    if (magnitudeThread.joinable()) { 
+        magnitudeThread.join();
+        std::cout << "Magnitude thread joined." << std::endl;
+    } 
     else { std::cerr << "Magnitude thread is not joinable" << std::endl;}
 
-    if (averagingThread.joinable()) { averagingThread.join();} 
+    if (averagingThread.joinable()) { 
+        averagingThread.join();
+        std::cout << "Averaging thread joined." << std::endl;
+    } 
     else { std::cerr << "Averaging thread is not joinable" << std::endl;}
 
     if(processingThread.joinable()) {
         processingThread.join();
+        std::cout << "Processing thread joined." << std::endl;
         {
             std::lock_guard<std::mutex> lock(sharedDataProc.mutex);
             sharedDataProc.rescaledDataReadyCondition.notify_one();
@@ -245,7 +257,10 @@ void ScanRunner::acquireData() {
         std::cerr << "Processing thread is not joinable" << std::endl;
     }
 
-    if (decisionMakingThread.joinable()) { decisionMakingThread.join();} 
+    if (decisionMakingThread.joinable()) { 
+        decisionMakingThread.join();
+        std::cout << "Decision thread joined." << std::endl;
+    } 
     else { std::cerr << "Decision making thread is not joinable" << std::endl;}
     
     #if SAVE_PROGRESS
@@ -262,6 +277,20 @@ void ScanRunner::acquireData() {
     psgList[PSG_PROBE].onOff(false);
 
     reportPerformance();
+
+
+    // Error recovery for when the threads don't finish properly
+    if (syncFlags.errorFlag) {
+        std::cout << "Error flag set. Recovering..." << std::endl;
+    }
+    else {
+        std::cout << "Emptying backupDataQueue" << std::endl;
+        while (!sharedDataBasic.backupDataQueue.empty()) {
+            fftw_complex* data = sharedDataBasic.backupDataQueue.front();
+            fftw_free(data);  // Free the memory
+            sharedDataBasic.backupDataQueue.pop();
+        }
+    }
 }
 
 
@@ -284,6 +313,7 @@ void ScanRunner::unrolledAcquisition() {
 
     // Begin the threads
     std::cout << "Launching acquisition thread." << std::endl;
+    std::queue<fftw_complex*> backupDataQueue;
     std::thread acquisitionThread(&ATS::AcquireDataMultithreadedContinuous, &alazarCard, std::ref(sharedDataBasic), std::ref(syncFlags));
     acquisitionThread.join();
 
