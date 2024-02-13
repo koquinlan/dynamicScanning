@@ -75,7 +75,7 @@ void reportPerformance()
     double averageDecisionEnforcementDelay = 0;
     int numDecisions = 0;
 
-    for(int i=0; i<metrics[SPECTRA_AT_DECISION].size(); i++){
+    for(std::size_t i=0; i<metrics[SPECTRA_AT_DECISION].size(); i++){
         totalAcquiredSpectra += metrics[ACQUIRED_SPECTRA][i];
 
         if (metrics[SPECTRA_AT_DECISION][i] > 0) {

@@ -31,8 +31,8 @@ void DecisionAgent::resizeSNRtoMatch(Spectrum spectrum) {
     trimmedSNR.freqAxis.resize(spectrum.freqAxis.size());
 
 
-    int matchingIndex = 1;
-    for(int i=0; i<trimmedSNR.powers.size(); i++){
+    std::size_t matchingIndex = 1;
+    for(std::size_t i=0; i<trimmedSNR.powers.size(); i++){
         while(spectrum.freqAxis[i] > SNR.freqAxis[matchingIndex]){
             matchingIndex++;
 
@@ -53,7 +53,7 @@ void DecisionAgent::resizeSNRtoMatch(Spectrum spectrum) {
 
 void DecisionAgent::setTargets(){
     double SNRsum=0;
-    for (int i=0; i<trimmedSNR.powers.size(); i++){
+    for (std::size_t i=0; i<trimmedSNR.powers.size(); i++){
         SNRsum += trimmedSNR.powers[i]*trimmedSNR.powers[i];
         inProgressTargets.push_back(0);
     }
@@ -71,7 +71,7 @@ void DecisionAgent::setPoints(){
     double SNRsum=0;
     double cumSum=0;
 
-    for (int i=0; i<trimmedSNR.powers.size(); i++){
+    for (std::size_t i=0; i<trimmedSNR.powers.size(); i++){
         SNRsum += trimmedSNR.powers[i]*trimmedSNR.powers[i];
         points.push_back(0);
     }
@@ -111,7 +111,7 @@ int DecisionAgent::getDecision(std::vector<double> activeExclusionLine, int numS
 double DecisionAgent::checkScore(std::vector<double> activeExclusionLine){
     double score = 0;
 
-    for (int i=0; i < activeExclusionLine.size(); i++){
+    for (std::size_t i=0; i < activeExclusionLine.size(); i++){
         if (activeExclusionLine[i] > inProgressTargets[i]){
             score += points[i]*(activeExclusionLine[i]/inProgressTargets[i])*(activeExclusionLine[i]/inProgressTargets[i]);
         } 

@@ -1,83 +1,51 @@
-project(lab_control)
-
 set(SOURCES
     decisionAgent.cpp
     scanRunner.cpp
 
     instruments/ATS.cpp
-    instruments/AWG.cpp
-    instruments/instrument.cpp
-    instruments/PSG.cpp
 
     util/dataProcessingUtils.cpp
     util/fileIO.cpp
     util/IoBuffer.cpp
     util/multiThreading.cpp
-    util/tests.cpp
     util/timing.cpp
 
     dataProcessing/bayes.cpp
     dataProcessing/dataProcessor.cpp
 
-    dspFilters/Bessel.cpp
     dspFilters/Biquad.cpp
-    dspFilters/Butterworth.cpp
     dspFilters/Cascade.cpp
-    dspFilters/ChebyshevI.cpp
-    dspFilters/ChebyshevII.cpp
-    dspFilters/Custom.cpp
     dspFilters/Design.cpp
     dspFilters/Documentation.cpp
-    dspFilters/Elliptic.cpp
     dspFilters/Filter.cpp
-    dspFilters/Legendre.cpp
     dspFilters/Param.cpp
     dspFilters/PoleFilter.cpp
-    dspFilters/RBJ.cpp
     dspFilters/RootFinder.cpp
     dspFilters/State.cpp
+
+    dspFilters/ChebyshevII.cpp
 )
 
 set(INCLUDES
-    ${VISA_INCLUDE_DIR}
     ${ALAZAR_INCLUDE_DIR}
-
-    ${Python3_INCLUDE_DIRS}
-    ${Python3_NumPy_INCLUDE_DIRS}
-
-    # ${Python3_NumPy_INCLUDE_DIRS}
     ${FFTW3_INCLUDE_DIR}
+
+    ${Matlab_INCLUDE_DIRS}
 
     # ${HDF5_INCLUDE_DIRS}
 )
 
 set(LINKS
-    ${VISA_LIBRARY}
     ${ALAZAR_LIBRARY}
-
-    ${Python3_LIBRARIES}
-    Python3::NumPy
-
     ${FFTW3_LIBRARIES}
 
     # ${HDF5_LIBRARIES}
-    Eigen3::Eigen
 )
 
-message(STATUS ${SOURCES})
+matlab_add_mex(
+    NAME mexScanRunner
+    SRC mexScanRunner.cpp ${SOURCES}
+    LINK_TO ${LINKS}
+)
 
-add_executable(thread_test ${SOURCES} threadedTesting.cpp)
-target_include_directories(thread_test PRIVATE ${INCLUDES})
-target_link_libraries(thread_test PRIVATE ${LINKS})
-
-add_executable(vis_meas ${SOURCES} visibilityMeasurement.cpp)
-target_include_directories(vis_meas PRIVATE ${INCLUDES})
-target_link_libraries(vis_meas PRIVATE ${LINKS})
-
-add_executable(base_test ${SOURCES} baseliningTests.cpp)
-target_include_directories(base_test PRIVATE ${INCLUDES})
-target_link_libraries(base_test PRIVATE ${LINKS})
-
-add_executable(main_run ${SOURCES} comparisonExperiment.cpp)
-target_include_directories(main_run PRIVATE ${INCLUDES})
-target_link_libraries(main_run PRIVATE ${LINKS})
+target_include_directories(mexScanRunner PRIVATE ${INCLUDES})

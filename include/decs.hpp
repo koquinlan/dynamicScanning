@@ -60,7 +60,6 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
-#include <filesystem>
 #include <iomanip>
 
 #include <string>
@@ -80,10 +79,6 @@
 
 // Custom library includes
 #include <fftw3.h>
-
-#include <Eigen/Dense>
-
-#include <visa.h>
 
 #include "AlazarError.h"
 #include "AlazarApi.h"
@@ -196,10 +191,6 @@ struct SynchronizationFlags {
  ******************************************************************************/
 
 // Class includes
-#include "instruments/instrument.hpp"
-
-#include "instruments/PSG.hpp"
-#include "instruments/AWG.hpp"
 #include "instruments/ATS.hpp"
 
 #include "dataProcessing/bayes.hpp"
@@ -242,7 +233,6 @@ void averagingThread(SharedDataProcessing& sharedData, SynchronizationFlags& syn
 void processingThread(SharedDataProcessing& sharedData, SavedData& savedData, SynchronizationFlags& syncFlags, DataProcessor& dataProcessor, BayesFactors& bayesFactors);
 void decisionMakingThread(SharedDataProcessing& sharedData, SharedDataSaving& savedData, SynchronizationFlags& syncFlags, BayesFactors& bayesFactors, DecisionAgent& decisionAgent);
 void dataSavingThread(SharedDataSaving& savedData, SynchronizationFlags& syncFlags);
-void saveDataToBin(SharedDataBasic& sharedData, SynchronizationFlags& syncFlags);
 void saveDataToHDF5(SharedDataBasic& sharedData, SynchronizationFlags& syncFlags);
 
 // tests.cpp

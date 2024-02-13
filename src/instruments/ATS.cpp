@@ -81,9 +81,9 @@ double ATS::setExternalSampleClock(double requestedSampleRate) {
 
 
     // Find the closest bare sample rate & decimation factor pair to approximate the requested sample rate
-    int bestIndex = 0;
+    std::size_t bestIndex = 0;
     double minError = DBL_MAX;
-    for (int i=0; i < effectiveSampleRates.size(); i++){
+    for (std::size_t i=0; i < effectiveSampleRates.size(); i++){
         double error = std::abs(effectiveSampleRates[i] - requestedSampleRate);
 
         if (error < minError){

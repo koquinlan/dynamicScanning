@@ -23,27 +23,13 @@
  * 
  */
 ScanRunner::ScanRunner(double maxIntegrationTime, int scanType, int decisionMaking) : alazarCard(1, 1),
-                psgList{
-                    PSG(30),  // PSG_DIFF
-                    PSG(21),  // PSG_JPA
-                    PSG(27)   // PSG_PROBE
-                },
                 scanType(scanType) {
-    // Pumping parameters
-    xModeFreq = 5.208;    // GHz
-    yModeFreq = 5.208;    // GHz
-
-    diffPower = 6.76; //dBm
-    jpaPower = 7.6;   //dBm
-
-    faxionFreq = yModeFreq; // GHz
-    faxionPower = -35;      // dBm
 
     // Acquisition Parameters
     sampleRate = 32e6;
     RBW = 100;
     maxSpectraPerAcquisition = (int)(maxIntegrationTime*RBW);
-    trueCenterFreq = xModeFreq*1e3 - 1; // Start 1 MHz below the y mode
+    trueCenterFreq = 1; // Start 1 MHz below the y mode
     subSpectraAveragingNumber = 20;
 
     // Filter Parameters
@@ -57,7 +43,6 @@ ScanRunner::ScanRunner(double maxIntegrationTime, int scanType, int decisionMaki
 
 
     // Set up member classes
-    initPSGs();
     initAlazarCard();
     initFFTW();
     initProcessor();
@@ -71,11 +56,6 @@ ScanRunner::ScanRunner(double maxIntegrationTime, int scanType, int decisionMaki
  * 
  */
 ScanRunner::~ScanRunner() {
-    // Turn off PSGs
-    for (PSG psg : psgList) {
-        psg.onOff(false);
-    }
-
     // Save FFTW wisdom
     fftw_export_wisdom_to_filename(wisdomFilePath);
 
@@ -83,23 +63,6 @@ ScanRunner::~ScanRunner() {
     fftw_destroy_plan(fftwPlan);
 }
 
-
-/**
- * @brief Sets frequencies and powers for interaction PSGs and JPA pump. 
- * 
- */
-void ScanRunner::initPSGs() {
-    psgList[PSG_DIFF].setFreq(yModeFreq - xModeFreq);
-    psgList[PSG_DIFF].setPow(diffPower);
-
-    psgList[PSG_JPA].setFreq(xModeFreq * 2);
-    psgList[PSG_JPA].setPow(jpaPower);
-
-    if (scanType == SHARP_FAXION) {
-        psgList[PSG_PROBE].setFreq(yModeFreq + faxionFreq - trueCenterFreq/1e3);
-        psgList[PSG_PROBE].setPow(faxionPower);
-    }
-}
 
 
 /**
@@ -192,15 +155,6 @@ void ScanRunner::initDecisionAgent(int decisionMaking){
  * 
  */
 void ScanRunner::acquireData() {
-    // Turn on PSGs
-    // psgList[PSG_DIFF].onOff(true); // Temporarily turned off for cavity only operation
-    psgList[PSG_JPA].onOff(true);
-
-    if (scanType == SHARP_FAXION || scanType == BROAD_FAXION) {
-        psgList[PSG_PROBE].onOff(true);
-    }
-
-
     // Set up shared data
     SharedDataBasic sharedDataBasic;
     SharedDataProcessing sharedDataProc;
@@ -272,10 +226,6 @@ void ScanRunner::acquireData() {
 
 
     // Cleanup
-    psgList[PSG_DIFF].onOff(false);
-    psgList[PSG_JPA].onOff(false);
-    psgList[PSG_PROBE].onOff(false);
-
     reportPerformance();
 
 
@@ -296,11 +246,6 @@ void ScanRunner::acquireData() {
 
 
 void ScanRunner::unrolledAcquisition() {
-    // Turn on PSGs
-    // psgList[PSG_DIFF].onOff(true); // Temporarily turned off for cavity only operation
-    psgList[PSG_JPA].onOff(true);
-
-
     // Set up shared data
     SharedDataBasic sharedDataBasic;
     SharedDataProcessing sharedDataProc;
@@ -339,9 +284,6 @@ void ScanRunner::unrolledAcquisition() {
 
 
     // Cleanup
-    psgList[PSG_DIFF].onOff(false);
-    psgList[PSG_JPA].onOff(false);
-    psgList[PSG_PROBE].onOff(false);
 }
 
 
@@ -355,7 +297,7 @@ void ScanRunner::saveData(int dynamicFlag) {
     std::vector<int> outliers = findOutliers(dataProcessor.runningAverage, 50, 4);
 
     std::vector<double> freq(alazarCard.acquisitionParams.samplesPerBuffer);
-    for (int i = 0; i < freq.size(); ++i) {
+    for (std::size_t i = 0; i < freq.size(); ++i) {
         freq[i] = (static_cast<double>(i)-static_cast<double>(alazarCard.acquisitionParams.samplesPerBuffer)/2)
                     *alazarCard.acquisitionParams.sampleRate/alazarCard.acquisitionParams.samplesPerBuffer/1e6;
     }
@@ -411,7 +353,7 @@ void ScanRunner::refreshBaselineAndBadBins(int repeats, int subSpectra, int save
 
     if (savePlots){
         std::vector<double> freq(alazarCard.acquisitionParams.samplesPerBuffer);
-        for (int i = 0; i < freq.size(); ++i) {
+        for (std::size_t i = 0; i < freq.size(); ++i) {
             freq[i] = (static_cast<double>(i)-static_cast<double>(alazarCard.acquisitionParams.samplesPerBuffer)/2)
                         *alazarCard.acquisitionParams.sampleRate/alazarCard.acquisitionParams.samplesPerBuffer/1e6;
         }
@@ -428,11 +370,6 @@ void ScanRunner::refreshBaselineAndBadBins(int repeats, int subSpectra, int save
 
 
 void ScanRunner::acquireProcCalibration(int repeats, int subSpectra, int savePlots) {
-    // Turn on PSGs
-    // psgList[PSG_DIFF].onOff(true); // Temporarily turned off for cavity only operation
-    psgList[PSG_JPA].onOff(true);
-
-
     // Acquire the data
     std::vector<std::vector<double>> fullRawData;
 
@@ -454,10 +391,6 @@ void ScanRunner::acquireProcCalibration(int repeats, int subSpectra, int savePlo
         std::vector<double> averagedSpectrum = averageVectors(std::vector<std::vector<double>>(fullRawData.begin()+i*subSpectra, fullRawData.begin()+(i+1)*subSpectra));
         averagedRawData.push_back(averagedSpectrum);
     }
-
-    // Turn off PSGs
-    psgList[PSG_DIFF].onOff(false);
-    psgList[PSG_JPA].onOff(false);
     
     if(savePlots) {
         saveVector(averagedRawData[0], "../../../plotting/baselineTests/baseline/rawData.csv");
@@ -466,13 +399,13 @@ void ScanRunner::acquireProcCalibration(int repeats, int subSpectra, int savePlo
 
     // Get data ready to find badBins
     std::vector<double> freq(alazarCard.acquisitionParams.samplesPerBuffer);
-    for (int i = 0; i < freq.size(); ++i) {
+    for (std::size_t i = 0; i < freq.size(); ++i) {
         freq[i] = (static_cast<double>(i)-static_cast<double>(alazarCard.acquisitionParams.samplesPerBuffer)/2)
                     *alazarCard.acquisitionParams.sampleRate/alazarCard.acquisitionParams.samplesPerBuffer/1e6;
     }
 
     dataProcessor.badBins = findOutliers(averageVectors(averagedRawData), 25, 5);
-    for (int i = 0; i < averagedRawData.size(); ++i) {
+    for (std::size_t i = 0; i < averagedRawData.size(); ++i) {
         std::vector<double> cleanedRawData = dataProcessor.removeBadBins(averagedRawData[i]);
         dataProcessor.addRawSpectrumToRunningAverage(cleanedRawData);
     }
@@ -483,7 +416,7 @@ void ScanRunner::acquireProcCalibration(int repeats, int subSpectra, int savePlo
     // Do bad bin detection on processed spectra
     std::vector<std::vector<double>> processedSpectra(averagedRawData.size());
 
-    for (int i = 0; i < averagedRawData.size(); ++i) {
+    for (std::size_t i = 0; i < averagedRawData.size(); ++i) {
         Spectrum rawSpectrum;
         rawSpectrum.powers = averagedRawData[i];
         rawSpectrum.freqAxis = freq;
@@ -499,7 +432,7 @@ void ScanRunner::acquireProcCalibration(int repeats, int subSpectra, int savePlo
 
     // Use the bad bins to find a clean baseline
     dataProcessor.resetBaselining();
-    for (int i = 0; i < averagedRawData.size(); ++i) {
+    for (std::size_t i = 0; i < averagedRawData.size(); ++i) {
         std::vector<double> cleanedRawData = dataProcessor.trimDC(dataProcessor.removeBadBins(averagedRawData[i]));
         dataProcessor.addRawSpectrumToRunningAverage(cleanedRawData);
     }
@@ -515,7 +448,6 @@ void ScanRunner::step(double stepSize) {
     bayesFactors.step(stepSize);
 
     trueCenterFreq += stepSize;
-    psgList[PSG_PROBE].setFreq(yModeFreq + faxionFreq - trueCenterFreq/1e3);
 }
 
 

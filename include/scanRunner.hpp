@@ -47,17 +47,11 @@ public:
     int subSpectraAveragingNumber;
     DecisionAgent decisionAgent;
 
-    double xModeFreq, yModeFreq;
-
 
     // Data saving paths
     std::string exclusionPath; // default "exclusionLineComparisons";
     std::string savePath; // default "threadTests";
 private:
-    // Pumping parameters
-    double faxionFreq, faxionPower;
-    double diffPower, jpaPower;
-
     // Acquisition Parameters
     double sampleRate, RBW;
     double trueCenterFreq;
@@ -72,7 +66,6 @@ private:
     const char* wisdomFilePath;
 
     // Member classes
-    PSG psgList[NUM_PSGS];
     ATS alazarCard;
     fftw_plan fftwPlan;
     DataProcessor dataProcessor;
@@ -83,14 +76,12 @@ private:
 
 
     // Private methods
-    void initPSGs();
     void initAlazarCard();
     void initFFTW();
     void initProcessor();
     void initDecisionAgent(int decisionMaking);
 
     void acquireProcCalibration(int repeats = 3, int subSpectra = 32, int savePlots = 0);
-    void acquireProcCalibrationMulti(int repeats = 3, int subSpectra = 32, int savePlots = 0);
 };
 
 #endif // SCANRUNNER_H
