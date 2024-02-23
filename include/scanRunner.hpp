@@ -26,7 +26,7 @@
 
 class ScanRunner {
 public:
-    ScanRunner(double maxIntegrationTime, int scanType = NO_FAXION, int decisionMaking = 0);
+    ScanRunner(ScanParameters scanParams);
     ~ScanRunner();
 
     void setTarget(double targetCoupling);
@@ -44,25 +44,11 @@ public:
 
 
     // Public parameters
-    int subSpectraAveragingNumber;
     DecisionAgent decisionAgent;
+    ScanParameters scanParams;
 
-
-    // Data saving paths
-    std::string exclusionPath; // default "exclusionLineComparisons";
-    std::string savePath; // default "threadTests";
 private:
-    // Acquisition Parameters
-    double sampleRate, RBW;
-    double trueCenterFreq;
-    int maxSpectraPerAcquisition;
-
-    // Filter Parameters
-    double cutoffFrequency, stopbandAttenuation;
-    int poleNumber;
-
     // Misc variables
-    int scanType;
     const char* wisdomFilePath;
 
     // Member classes

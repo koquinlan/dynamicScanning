@@ -98,6 +98,35 @@
  * STRUCTS AND GLOBALS                                                        *
  *                                                                            *
  ******************************************************************************/
+// Structs for scanning parameters
+struct TopLevelParameters {
+    bool decisionMaking;
+    std::string baselinePath;
+    std::string statePath;
+    std::string savePath;
+};
+
+struct DataParameters {
+    double maxIntegrationTime;
+    double sampleRate;
+    double RBW;
+    double trueCenterFreq;
+    int subSpectraAveragingNumber;
+};
+
+struct FilterParameters {
+    double cutoffFrequency;
+    int poleNumber;
+    double stopbandAttenuation;
+};
+
+struct ScanParameters {
+    TopLevelParameters topLevelParameters;
+    DataParameters dataParameters;
+    FilterParameters filterParameters;
+};
+
+
 // Struct for holding spectrum information
 struct Spectrum {
     std::vector<double> powers;

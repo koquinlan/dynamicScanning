@@ -22,31 +22,12 @@
  * @brief Construct a new Scan Runner object. This constructor initializes the PSGs, Alazar card, FFTW, and DataProcessor.
  * 
  */
-ScanRunner::ScanRunner(double maxIntegrationTime, int scanType, int decisionMaking) : alazarCard(1, 1),
-                scanType(scanType) {
-
-    // Acquisition Parameters
-    sampleRate = 32e6;
-    RBW = 100;
-    maxSpectraPerAcquisition = (int)(maxIntegrationTime*RBW);
-    trueCenterFreq = 1; // Start 1 MHz below the y mode
-    subSpectraAveragingNumber = 20;
-
-    // Filter Parameters
-    cutoffFrequency = 10e3;
-    poleNumber = 3;
-    stopbandAttenuation = 15.0;
-
-    // Data saving paths
-    exclusionPath = "exclusionLineComparisons";
-    savePath = "threadTests";
-
-
+ScanRunner::ScanRunner(ScanParameters scanParams) : alazarCard(1, 1), scanParams(scanParams) {
     // Set up member classes
     initAlazarCard();
     initFFTW();
     initProcessor();
-    initDecisionAgent(decisionMaking);
+    initDecisionAgent(scanParams.topLevelParameters.decisionMaking);
 }
 
 
@@ -70,11 +51,13 @@ ScanRunner::~ScanRunner() {
  * 
  */
 void ScanRunner::initAlazarCard() {
-    double samplesPerSpectrum = sampleRate/RBW;
+    int maxSpectraPerAcquisition = (int)(scanParams.dataParameters.maxIntegrationTime*scanParams.dataParameters.RBW);
+    double samplesPerSpectrum = scanParams.dataParameters.sampleRate/scanParams.dataParameters.RBW;
     double samplesPerAcquisition = samplesPerSpectrum*maxSpectraPerAcquisition;
 
     std::cout << "Trying to set acquisition parameters." << std::endl;
-    alazarCard.setAcquisitionParameters((U32)sampleRate, (U32)samplesPerAcquisition, maxSpectraPerAcquisition);
+    alazarCard.setAcquisitionParameters((U32)scanParams.dataParameters.sampleRate, (U32)samplesPerAcquisition, maxSpectraPerAcquisition);
+    scanParams.dataParameters.sampleRate = alazarCard.acquisitionParams.sampleRate; // Update the sample rate in case it was changed
     std::cout << "Acquisition parameters set. Collecting " << std::to_string(alazarCard.acquisitionParams.buffersPerAcquisition) << " buffers." << std::endl;
 }
 
@@ -117,7 +100,10 @@ void ScanRunner::initFFTW() {
  */
 void ScanRunner::initProcessor() {
     // Create data processor
-    dataProcessor.setFilterParams(alazarCard.acquisitionParams.sampleRate, poleNumber, cutoffFrequency, stopbandAttenuation);
+    dataProcessor.setFilterParams(scanParams.dataParameters.sampleRate, 
+                                  scanParams.filterParameters.poleNumber, 
+                                  scanParams.filterParameters.cutoffFrequency, 
+                                  scanParams.filterParameters.stopbandAttenuation);
     dataProcessor.loadSNR("../../../src/dataProcessing/visSmoothed.csv", "../../../src/dataProcessing/visFreq.csv");
 
 
@@ -168,7 +154,7 @@ void ScanRunner::acquireData() {
     std::thread acquisitionThread(&ATS::AcquireDataMultithreadedContinuous, &alazarCard, std::ref(sharedDataBasic), std::ref(syncFlags));
     std::thread FFTThread(FFTThread, fftwPlan, N, std::ref(sharedDataBasic), std::ref(syncFlags));
     std::thread magnitudeThread(magnitudeThread, N, std::ref(sharedDataBasic), std::ref(sharedDataProc), std::ref(syncFlags), std::ref(dataProcessor));
-    std::thread averagingThread(averagingThread, std::ref(sharedDataProc), std::ref(syncFlags), std::ref(dataProcessor), std::ref(trueCenterFreq), subSpectraAveragingNumber);
+    std::thread averagingThread(averagingThread, std::ref(sharedDataProc), std::ref(syncFlags), std::ref(dataProcessor), std::ref(scanParams.dataParameters.trueCenterFreq), scanParams.dataParameters.subSpectraAveragingNumber);
     std::thread processingThread(processingThread, std::ref(sharedDataProc), std::ref(savedData), std::ref(syncFlags), std::ref(dataProcessor), std::ref(bayesFactors));
     std::thread decisionMakingThread(decisionMakingThread, std::ref(sharedDataProc), std::ref(sharedSavedData), std::ref(syncFlags), std::ref(bayesFactors), std::ref(decisionAgent));
     #if SAVE_PROGRESS
@@ -271,7 +257,7 @@ void ScanRunner::unrolledAcquisition() {
     magnitudeThread.join();
 
     std::cout << "Launching averaging thread." << std::endl;
-    std::thread averagingThread(averagingThread, std::ref(sharedDataProc), std::ref(syncFlags), std::ref(dataProcessor), std::ref(trueCenterFreq), subSpectraAveragingNumber);
+    std::thread averagingThread(averagingThread, std::ref(sharedDataProc), std::ref(syncFlags), std::ref(dataProcessor), std::ref(scanParams.dataParameters.trueCenterFreq), scanParams.dataParameters.subSpectraAveragingNumber);
     averagingThread.join();
     
     std::cout << "Launching processing thread." << std::endl;
@@ -299,34 +285,34 @@ void ScanRunner::saveData(int dynamicFlag) {
     std::vector<double> freq(alazarCard.acquisitionParams.samplesPerBuffer);
     for (std::size_t i = 0; i < freq.size(); ++i) {
         freq[i] = (static_cast<double>(i)-static_cast<double>(alazarCard.acquisitionParams.samplesPerBuffer)/2)
-                    *alazarCard.acquisitionParams.sampleRate/alazarCard.acquisitionParams.samplesPerBuffer/1e6;
+                    *scanParams.dataParameters.sampleRate/alazarCard.acquisitionParams.samplesPerBuffer/1e6;
     }
 
-    saveVector(freq, "../../../plotting/" + savePath + "/freq.csv");
-    saveVector(outliers, "../../../plotting/" + savePath + "/outliers.csv");
+    saveVector(freq, "../../../plotting/" + scanParams.topLevelParameters.savePath + "/freq.csv");
+    saveVector(outliers, "../../../plotting/" + scanParams.topLevelParameters.savePath + "/outliers.csv");
 
     dataProcessor.updateBaseline();
-    saveVector(dataProcessor.currentBaseline, "../../../plotting/" + savePath + "/baseline.csv");
-    saveVector(dataProcessor.runningAverage, "../../../plotting/" + savePath + "/runningAverage.csv");
+    saveVector(dataProcessor.currentBaseline, "../../../plotting/" + scanParams.topLevelParameters.savePath + "/baseline.csv");
+    saveVector(dataProcessor.runningAverage, "../../../plotting/" + scanParams.topLevelParameters.savePath + "/runningAverage.csv");
 
-    saveSpectrum(savedData.rawSpectra[0], "../../../plotting/" + savePath + "/rawSpectrum.csv");
+    saveSpectrum(savedData.rawSpectra[0], "../../../plotting/" + scanParams.topLevelParameters.savePath + "/rawSpectrum.csv");
 
 
     Spectrum processedSpectrum, foo;
     std::tie(processedSpectrum, foo) = dataProcessor.rawToProcessed(savedData.rawSpectra[0]);
     trimSpectrum(processedSpectrum, 0.1);
-    saveSpectrum(processedSpectrum, "../../../plotting/" + savePath + "/processedSpectrum.csv");
+    saveSpectrum(processedSpectrum, "../../../plotting/" + scanParams.topLevelParameters.savePath + "/processedSpectrum.csv");
 
 
     dataProcessor.trimSNRtoMatch(processedSpectrum);
     Spectrum rescaledSpectrum = dataProcessor.processedToRescaled(processedSpectrum);
 
 
-    saveCombinedSpectrum(savedData.combinedSpectrum, "../../../plotting/" + savePath + "/combinedSpectrum.csv");
-    saveSpectrum(bayesFactors.exclusionLine, "../../../plotting/" + savePath + "/exclusionLine.csv");
+    saveCombinedSpectrum(savedData.combinedSpectrum, "../../../plotting/" + scanParams.topLevelParameters.savePath + "/combinedSpectrum.csv");
+    saveSpectrum(bayesFactors.exclusionLine, "../../../plotting/" + scanParams.topLevelParameters.savePath + "/exclusionLine.csv");
 
-    std::string exclusionLineFilename = "../../../plotting/" + exclusionPath + "/data/exclusionLine_";
-    std::string scanInfoFilename = "../../../plotting/" + exclusionPath + "/metrics/scanInfo_";
+    std::string exclusionLineFilename = "../../../plotting/" + scanParams.topLevelParameters.statePath + "/data/exclusionLine_";
+    std::string scanInfoFilename = "../../../plotting/" + scanParams.topLevelParameters.statePath + "/metrics/scanInfo_";
 
     if (dynamicFlag){
         exclusionLineFilename += "dynamic_";
@@ -355,7 +341,7 @@ void ScanRunner::refreshBaselineAndBadBins(int repeats, int subSpectra, int save
         std::vector<double> freq(alazarCard.acquisitionParams.samplesPerBuffer);
         for (std::size_t i = 0; i < freq.size(); ++i) {
             freq[i] = (static_cast<double>(i)-static_cast<double>(alazarCard.acquisitionParams.samplesPerBuffer)/2)
-                        *alazarCard.acquisitionParams.sampleRate/alazarCard.acquisitionParams.samplesPerBuffer/1e6;
+                        *scanParams.dataParameters.sampleRate/alazarCard.acquisitionParams.samplesPerBuffer/1e6;
         }
 
         saveVector(freq, "../../../plotting/baselineTests/baseline/freq.csv");
@@ -401,7 +387,7 @@ void ScanRunner::acquireProcCalibration(int repeats, int subSpectra, int savePlo
     std::vector<double> freq(alazarCard.acquisitionParams.samplesPerBuffer);
     for (std::size_t i = 0; i < freq.size(); ++i) {
         freq[i] = (static_cast<double>(i)-static_cast<double>(alazarCard.acquisitionParams.samplesPerBuffer)/2)
-                    *alazarCard.acquisitionParams.sampleRate/alazarCard.acquisitionParams.samplesPerBuffer/1e6;
+                    *scanParams.dataParameters.sampleRate/alazarCard.acquisitionParams.samplesPerBuffer/1e6;
     }
 
     dataProcessor.badBins = findOutliers(averageVectors(averagedRawData), 25, 5);
@@ -447,7 +433,7 @@ void ScanRunner::acquireProcCalibration(int repeats, int subSpectra, int savePlo
 void ScanRunner::step(double stepSize) {
     bayesFactors.step(stepSize);
 
-    trueCenterFreq += stepSize;
+    scanParams.dataParameters.trueCenterFreq += stepSize;
 }
 
 
