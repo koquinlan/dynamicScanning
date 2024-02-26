@@ -104,11 +104,11 @@ void ScanRunner::initProcessor() {
                                   scanParams.filterParameters.poleNumber, 
                                   scanParams.filterParameters.cutoffFrequency, 
                                   scanParams.filterParameters.stopbandAttenuation);
-    dataProcessor.loadSNR("../../../src/dataProcessing/visSmoothed.csv", "../../../src/dataProcessing/visFreq.csv");
+    dataProcessor.loadSNR(scanParams.topLevelParameters.statePath + "visSmoothed.csv", scanParams.topLevelParameters.statePath + "visFreq.csv");
 
 
     // Try to import bad bins if available
-    std::vector<double> badBins = readVector("badBins.csv");
+    std::vector<double> badBins = readVector(scanParams.topLevelParameters.statePath + "badBins.csv");
 
     if (!badBins.empty()) {
         dataProcessor.badBins.reserve(badBins.size());
@@ -120,7 +120,7 @@ void ScanRunner::initProcessor() {
 
 
     // Try to import baseline if available
-    dataProcessor.currentBaseline = readVector("baseline.csv");
+    dataProcessor.currentBaseline = readVector(scanParams.topLevelParameters.statePath + "baseline.csv");
 }
 
 
@@ -278,7 +278,7 @@ void ScanRunner::unrolledAcquisition() {
  * @brief Saves any data available to the scanRunner to csv files to be plotted later in python.
  * 
  */
-void ScanRunner::saveData(int dynamicFlag) {
+void ScanRunner::saveData() {
     // Save the data
     std::vector<int> outliers = findOutliers(dataProcessor.runningAverage, 50, 4);
 
@@ -314,7 +314,7 @@ void ScanRunner::saveData(int dynamicFlag) {
     std::string exclusionLineFilename = "../../../plotting/" + scanParams.topLevelParameters.statePath + "/data/exclusionLine_";
     std::string scanInfoFilename = "../../../plotting/" + scanParams.topLevelParameters.statePath + "/metrics/scanInfo_";
 
-    if (dynamicFlag){
+    if (scanParams.topLevelParameters.decisionMaking){
         exclusionLineFilename += "dynamic_";
         scanInfoFilename += "dynamic_";
     }
@@ -333,8 +333,8 @@ void ScanRunner::refreshBaselineAndBadBins(int repeats, int subSpectra, int save
     acquireProcCalibration(repeats, subSpectra, savePlots);
 
     // Cleanup and saving
-    saveVector(dataProcessor.currentBaseline, "baseline.csv");
-    saveVector(dataProcessor.badBins, "badBins.csv");
+    saveVector(dataProcessor.currentBaseline, scanParams.topLevelParameters.baselinePath + "baseline.csv");
+    saveVector(dataProcessor.badBins, scanParams.topLevelParameters.baselinePath + "badBins.csv");
 
 
     if (savePlots){

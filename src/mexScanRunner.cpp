@@ -12,38 +12,7 @@
 #include "mex.hpp"
 #include "mexAdapter.hpp"
 
-#include "utils/json.hpp"
-using json = nlohmann::json;
-
 #include "decs.hpp"
-
-struct TopLevelParameters {
-    bool decisionMaking;
-    std::string baselinePath;
-    std::string statePath;
-    std::string savePath;
-};
-
-struct DataParameters {
-    double maxIntegrationTime;
-    double sampleRate;
-    double RBW;
-    double trueCenterFreq;
-    int subSpectraAveragingNumber;
-};
-
-struct FilterParameters {
-    double cutoffFrequency;
-    int poleNumber;
-    double stopbandAttenuation;
-};
-
-struct ScanParameters {
-    TopLevelParameters topLevelParameters;
-    DataParameters dataParameters;
-    FilterParameters filterParameters;
-};
-
 
 /**
  * @brief
@@ -56,8 +25,15 @@ public:
         checkArguments(outputs, inputs);
 
         // Unpack scan parameters into struct
-        ScanParameters scanParameters = unpackScanParameters(inputs[0]);
+        ScanParameters scanParameters = readInput(inputs[0]);
 
+        // Begin scanning
+        ScanRunner scanRunner(scanParameters);
+        scanRunner.acquireData();
+        scanRunner.saveData();
+
+        
+        // Return a success or error code
         matlab::data::ArrayFactory factory;
         matlab::data::TypedArray<double> resultArray = factory.createArray<double>({1, 1}, {scanParameters.dataParameters.sampleRate});
 
@@ -65,26 +41,8 @@ public:
     }
 
 private:
-    ScanParameters unpackScanParameters(matlab::data::CharArray const& inputJson) {
-        ScanParameters scanParameters;
-        json inputParams = json::parse(inputJson);
-
-        scanParameters.topLevelParameters.decisionMaking = inputParams["topLevelParams"]["decisionMaking"];
-        scanParameters.topLevelParameters.baselinePath = inputParams["topLevelParams"]["baselinePath"];
-        scanParameters.topLevelParameters.statePath = inputParams["topLevelParams"]["statePath"];
-        scanParameters.topLevelParameters.savePath = inputParams["topLevelParams"]["savePath"];
-
-        scanParameters.dataParameters.maxIntegrationTime = inputParams["dataParams"]["maxIntegrationTime"];
-        scanParameters.dataParameters.sampleRate = inputParams["dataParams"]["sampleRate"];
-        scanParameters.dataParameters.RBW = inputParams["dataParams"]["RBW"];
-        scanParameters.dataParameters.trueCenterFreq = inputParams["dataParams"]["trueCenterFreq"];
-        scanParameters.dataParameters.subSpectraAveragingNumber = inputParams["dataParams"]["subSpectraAveragingNumber"];
-
-        scanParameters.filterParameters.cutoffFrequency = inputParams["filterParams"]["cutoffFrequency"];
-        scanParameters.filterParameters.poleNumber = inputParams["filterParams"]["poleNumber"];
-        scanParameters.filterParameters.stopbandAttenuation = inputParams["filterParams"]["stopbandAttenuation"];
-    
-        return scanParameters;
+    ScanParameters readInput(matlab::data::CharArray const& inputJson) {
+        return unpackScanParameters(json::parse(inputJson));
     }
 
 

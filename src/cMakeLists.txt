@@ -4,6 +4,7 @@ set(SOURCES
 
     instruments/ATS.cpp
 
+    util/mexUtils.cpp
     util/dataProcessingUtils.cpp
     util/fileIO.cpp
     util/IoBuffer.cpp
@@ -47,5 +48,4 @@ matlab_add_mex(
     SRC mexScanRunner.cpp ${SOURCES}
     LINK_TO ${LINKS}
 )
-
 target_include_directories(mexScanRunner PRIVATE ${INCLUDES})

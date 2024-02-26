@@ -79,6 +79,9 @@
 
 // Custom library includes
 #include <fftw3.h>
+#include "DspFilters/Dsp.h"
+#include "utils/json.hpp"
+using json = nlohmann::json;
 
 #include "AlazarError.h"
 #include "AlazarApi.h"
@@ -89,8 +92,6 @@
 
 // #include "matplotlibcpp.h"
 // namespace plt = matplotlibcpp;
-
-#include "DspFilters/Dsp.h"
 
 
 /*******************************************************************************
@@ -254,6 +255,9 @@ void saveVector(std::vector<int> data, std::string filename);
 void saveVector(std::vector<double> data, std::string filename);
 std::string getDateTimeString();
 void saveSpectraFromQueue(std::queue<Spectrum>& spectraQueue, std::string filename);
+
+// mexUtils.cpp
+ScanParameters unpackScanParameters(json const& inputParams);
 
 // multiThreading.cpp
 void FFTThread(fftw_plan plan, int N, SharedDataBasic& sharedData, SynchronizationFlags& syncFlags);
