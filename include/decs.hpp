@@ -105,6 +105,8 @@ struct TopLevelParameters {
     std::string baselinePath;
     std::string statePath;
     std::string savePath;
+    std::string visPath;
+    std::string wisdomPath;
 };
 
 struct DataParameters {

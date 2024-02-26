@@ -7,6 +7,8 @@ ScanParameters unpackScanParameters(json const& inputParams) {
     scanParameters.topLevelParameters.baselinePath = inputParams["topLevelParams"]["baselinePath"];
     scanParameters.topLevelParameters.statePath = inputParams["topLevelParams"]["statePath"];
     scanParameters.topLevelParameters.savePath = inputParams["topLevelParams"]["savePath"];
+    scanParameters.topLevelParameters.visPath = inputParams["topLevelParams"]["visPath"];
+    scanParameters.topLevelParameters.wisdomPath = inputParams["topLevelParams"]["wisdomPath"];
 
     scanParameters.dataParameters.maxIntegrationTime = inputParams["dataParams"]["maxIntegrationTime"];
     scanParameters.dataParameters.sampleRate = inputParams["dataParams"]["sampleRate"];
