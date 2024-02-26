@@ -49,3 +49,10 @@ matlab_add_mex(
     LINK_TO ${LINKS}
 )
 target_include_directories(mexScanRunner PRIVATE ${INCLUDES})
+
+matlab_add_mex(
+    NAME mexBaseline
+    SRC mexBaseline.cpp ${SOURCES}
+    LINK_TO ${LINKS}
+)
+target_include_directories(mexBaseline PRIVATE ${INCLUDES})
