@@ -48,9 +48,6 @@ public:
     ScanParameters scanParams;
 
 private:
-    // Misc variables
-    const char* wisdomFilePath;
-
     // Member classes
     ATS alazarCard;
     fftw_plan fftwPlan;

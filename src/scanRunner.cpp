@@ -38,7 +38,7 @@ ScanRunner::ScanRunner(ScanParameters scanParams) : alazarCard(1, 1), scanParams
  */
 ScanRunner::~ScanRunner() {
     // Save FFTW wisdom
-    fftw_export_wisdom_to_filename(wisdomFilePath);
+    fftw_export_wisdom_to_filename((scanParams.topLevelParameters.wisdomPath + "fftw_wisdom.txt").c_str());
 
     // Free FFTW memory
     fftw_destroy_plan(fftwPlan);
@@ -70,8 +70,7 @@ void ScanRunner::initAlazarCard() {
  */
 void ScanRunner::initFFTW() {
     // Try to import an FFTW plan if available
-    wisdomFilePath = "fftw_wisdom.txt";
-    if (fftw_import_wisdom_from_filename(wisdomFilePath) != 0) {
+    if (fftw_import_wisdom_from_filename((scanParams.topLevelParameters.wisdomPath + "fftw_wisdom.txt").c_str()) != 0) {
         std::cout << "Successfully imported FFTW wisdom from file." << std::endl;
     }
     else {
@@ -104,11 +103,11 @@ void ScanRunner::initProcessor() {
                                   scanParams.filterParameters.poleNumber, 
                                   scanParams.filterParameters.cutoffFrequency, 
                                   scanParams.filterParameters.stopbandAttenuation);
-    dataProcessor.loadSNR(scanParams.topLevelParameters.statePath + "visSmoothed.csv", scanParams.topLevelParameters.statePath + "visFreq.csv");
+    dataProcessor.loadSNR(scanParams.topLevelParameters.visPath + "visSmoothed.csv", scanParams.topLevelParameters.visPath + "visFreq.csv");
 
 
     // Try to import bad bins if available
-    std::vector<double> badBins = readVector(scanParams.topLevelParameters.statePath + "badBins.csv");
+    std::vector<double> badBins = readVector(scanParams.topLevelParameters.baselinePath + "badBins.csv");
 
     if (!badBins.empty()) {
         dataProcessor.badBins.reserve(badBins.size());
@@ -120,7 +119,7 @@ void ScanRunner::initProcessor() {
 
 
     // Try to import baseline if available
-    dataProcessor.currentBaseline = readVector(scanParams.topLevelParameters.statePath + "baseline.csv");
+    dataProcessor.currentBaseline = readVector(scanParams.topLevelParameters.baselinePath + "baseline.csv");
 }
 
 
@@ -206,7 +205,7 @@ void ScanRunner::acquireData() {
     #if SAVE_PROGRESS
     // savingThread.join();
 
-    std::string exclusionLineFilename = "../../../plotting/" + exclusionPath + "/scanProgress/exclusionLine_" + getDateTimeString() + ".csv";
+    std::string exclusionLineFilename = scanParams.topLevelParams.statePath + "scanProgress/exclusionLine_" + getDateTimeString() + ".csv";
     saveSpectraFromQueue(sharedSavedData.exclusionLineQueue, exclusionLineFilename);
     #endif
 
@@ -288,31 +287,31 @@ void ScanRunner::saveData() {
                     *scanParams.dataParameters.sampleRate/alazarCard.acquisitionParams.samplesPerBuffer/1e6;
     }
 
-    saveVector(freq, "../../../plotting/" + scanParams.topLevelParameters.savePath + "/freq.csv");
-    saveVector(outliers, "../../../plotting/" + scanParams.topLevelParameters.savePath + "/outliers.csv");
+    saveVector(freq, scanParams.topLevelParameters.savePath + "/freq.csv");
+    saveVector(outliers, scanParams.topLevelParameters.savePath + "/outliers.csv");
 
     dataProcessor.updateBaseline();
-    saveVector(dataProcessor.currentBaseline, "../../../plotting/" + scanParams.topLevelParameters.savePath + "/baseline.csv");
-    saveVector(dataProcessor.runningAverage, "../../../plotting/" + scanParams.topLevelParameters.savePath + "/runningAverage.csv");
+    saveVector(dataProcessor.currentBaseline, scanParams.topLevelParameters.savePath + "/baseline.csv");
+    saveVector(dataProcessor.runningAverage, scanParams.topLevelParameters.savePath + "/runningAverage.csv");
 
-    saveSpectrum(savedData.rawSpectra[0], "../../../plotting/" + scanParams.topLevelParameters.savePath + "/rawSpectrum.csv");
+    saveSpectrum(savedData.rawSpectra[0], scanParams.topLevelParameters.savePath + "/rawSpectrum.csv");
 
 
     Spectrum processedSpectrum, foo;
     std::tie(processedSpectrum, foo) = dataProcessor.rawToProcessed(savedData.rawSpectra[0]);
     trimSpectrum(processedSpectrum, 0.1);
-    saveSpectrum(processedSpectrum, "../../../plotting/" + scanParams.topLevelParameters.savePath + "/processedSpectrum.csv");
+    saveSpectrum(processedSpectrum, scanParams.topLevelParameters.savePath + "/processedSpectrum.csv");
 
 
     dataProcessor.trimSNRtoMatch(processedSpectrum);
     Spectrum rescaledSpectrum = dataProcessor.processedToRescaled(processedSpectrum);
 
 
-    saveCombinedSpectrum(savedData.combinedSpectrum, "../../../plotting/" + scanParams.topLevelParameters.savePath + "/combinedSpectrum.csv");
-    saveSpectrum(bayesFactors.exclusionLine, "../../../plotting/" + scanParams.topLevelParameters.savePath + "/exclusionLine.csv");
+    saveCombinedSpectrum(savedData.combinedSpectrum, scanParams.topLevelParameters.savePath + "/combinedSpectrum.csv");
+    saveSpectrum(bayesFactors.exclusionLine, scanParams.topLevelParameters.savePath + "/exclusionLine.csv");
 
-    std::string exclusionLineFilename = "../../../plotting/" + scanParams.topLevelParameters.statePath + "/data/exclusionLine_";
-    std::string scanInfoFilename = "../../../plotting/" + scanParams.topLevelParameters.statePath + "/metrics/scanInfo_";
+    std::string exclusionLineFilename = scanParams.topLevelParameters.statePath + "/data/exclusionLine_";
+    std::string scanInfoFilename = scanParams.topLevelParameters.statePath + "/metrics/scanInfo_";
 
     if (scanParams.topLevelParameters.decisionMaking){
         exclusionLineFilename += "dynamic_";

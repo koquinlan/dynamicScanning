@@ -49,3 +49,6 @@ __pycache__/
 # Matlab stuff
 *.asv
 *.mat
+
+# Scanning directory
+scanDir/
