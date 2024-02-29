@@ -29,6 +29,9 @@ public:
     ScanRunner(ScanParameters scanParams);
     ~ScanRunner();
 
+    void loadState();
+    void saveState();
+
     void setTarget(double targetCoupling);
 
     void acquireData();

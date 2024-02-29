@@ -136,6 +136,63 @@ void ScanRunner::initDecisionAgent(int decisionMaking){
 
 
 /**
+ * freqRes - frequency resolution in MHz
+ * startIndex - index of the frequency axis where the exclusion line starts
+ * cutoffIndex - index of the frequency axis where the exclusion line is cut off
+ * previousCenterFreq - the center frequency of the previous spectrum
+ * 
+ * exclusionLine - Spectrum object containing the exclusion line
+ * coeffSumA - vector of coefficients in the quadratic formula for the 90% excluded coupling strength
+ * coeffSumB - vector of coefficients in the quadratic formula for the 90% excluded coupling strength
+ * 
+ * steps:
+ *  1. Load the exclusionLine, coeffSumA, and coeffSumB from the previous scan
+ *  2. Load the freqRes, statIndex, and cutoffIndex from the previous scan using the json file
+ *  3. Determine the step size via previousCenterFreq - newCenterFreq
+ *  4. Call the step function with the step size
+ */
+void ScanRunner::loadState() {
+    // Load the exclusion line, coeffSumA, and coeffSumB from the previous scan
+    bayesFactors.exclusionLine = readSpectrum(scanParams.topLevelParameters.statePath + "exclusionLine.csv");
+    bayesFactors.coeffSumA = readVector(scanParams.topLevelParameters.statePath + "coeffSumA.csv");
+    bayesFactors.coeffSumB = readVector(scanParams.topLevelParameters.statePath + "coeffSumB.csv");
+
+    // Load the freqRes, statIndex, and cutoffIndex from the previous scan using the json file
+    std::string jsonFilename = scanParams.topLevelParameters.statePath + "scanInfo.json";
+    std::ifstream jsonFile(jsonFilename);
+    json scanInfo;
+    jsonFile >> scanInfo;
+
+    bayesFactors.freqRes = scanInfo["freqRes"];
+    bayesFactors.startIndex = scanInfo["startIndex"];
+    bayesFactors.cutoffIndex = scanInfo["cutoffIndex"];
+
+    // Determine the step size via previousCenterFreq - newCenterFreq
+    double stepSize = std::abs(scanParams.dataParameters.trueCenterFreq - scanInfo["previousCenterFreq"]);
+
+    // Call the step function with the step size
+    bayesFactors.step(stepSize);
+}
+
+void ScanRunner::saveState() {
+    // Save the exclusion line, coeffSumA, and coeffSumB
+    saveSpectrum(bayesFactors.exclusionLine, scanParams.topLevelParameters.statePath + "exclusionLine.csv");
+    saveVector(bayesFactors.coeffSumA, scanParams.topLevelParameters.statePath + "coeffSumA.csv");
+    saveVector(bayesFactors.coeffSumB, scanParams.topLevelParameters.statePath + "coeffSumB.csv");
+
+    // Save the freqRes, statIndex, and cutoffIndex to a json file
+    json scanInfo;
+    scanInfo["freqRes"] = bayesFactors.freqRes;
+    scanInfo["startIndex"] = bayesFactors.startIndex;
+    scanInfo["cutoffIndex"] = bayesFactors.cutoffIndex;
+    scanInfo["previousCenterFreq"] = scanParams.dataParameters.trueCenterFreq;
+
+    std::ofstream jsonFile(scanParams.topLevelParameters.statePath + "scanInfo.json");
+    jsonFile << scanInfo;
+}
+
+
+/**
  * @brief Runs a scan. This function assumes that the probes and frequency have been properly set and begins acquisition for a single data point.
  * 
  */
@@ -287,31 +344,31 @@ void ScanRunner::saveData() {
                     *scanParams.dataParameters.sampleRate/alazarCard.acquisitionParams.samplesPerBuffer/1e6;
     }
 
-    saveVector(freq, scanParams.topLevelParameters.savePath + "/freq.csv");
-    saveVector(outliers, scanParams.topLevelParameters.savePath + "/outliers.csv");
+    saveVector(freq, scanParams.topLevelParameters.savePath + "freq.csv");
+    saveVector(outliers, scanParams.topLevelParameters.savePath + "outliers.csv");
 
     dataProcessor.updateBaseline();
-    saveVector(dataProcessor.currentBaseline, scanParams.topLevelParameters.savePath + "/baseline.csv");
-    saveVector(dataProcessor.runningAverage, scanParams.topLevelParameters.savePath + "/runningAverage.csv");
+    saveVector(dataProcessor.currentBaseline, scanParams.topLevelParameters.savePath + "baseline.csv");
+    saveVector(dataProcessor.runningAverage, scanParams.topLevelParameters.savePath + "runningAverage.csv");
 
-    saveSpectrum(savedData.rawSpectra[0], scanParams.topLevelParameters.savePath + "/rawSpectrum.csv");
+    saveSpectrum(savedData.rawSpectra[0], scanParams.topLevelParameters.savePath + "rawSpectrum.csv");
 
 
     Spectrum processedSpectrum, foo;
     std::tie(processedSpectrum, foo) = dataProcessor.rawToProcessed(savedData.rawSpectra[0]);
     trimSpectrum(processedSpectrum, 0.1);
-    saveSpectrum(processedSpectrum, scanParams.topLevelParameters.savePath + "/processedSpectrum.csv");
+    saveSpectrum(processedSpectrum, scanParams.topLevelParameters.savePath + "processedSpectrum.csv");
 
 
     dataProcessor.trimSNRtoMatch(processedSpectrum);
     Spectrum rescaledSpectrum = dataProcessor.processedToRescaled(processedSpectrum);
 
 
-    saveCombinedSpectrum(savedData.combinedSpectrum, scanParams.topLevelParameters.savePath + "/combinedSpectrum.csv");
-    saveSpectrum(bayesFactors.exclusionLine, scanParams.topLevelParameters.savePath + "/exclusionLine.csv");
+    saveCombinedSpectrum(savedData.combinedSpectrum, scanParams.topLevelParameters.savePath + "combinedSpectrum.csv");
+    saveSpectrum(bayesFactors.exclusionLine, scanParams.topLevelParameters.savePath + "exclusionLine.csv");
 
-    std::string exclusionLineFilename = scanParams.topLevelParameters.statePath + "/data/exclusionLine_";
-    std::string scanInfoFilename = scanParams.topLevelParameters.statePath + "/metrics/scanInfo_";
+    std::string exclusionLineFilename = scanParams.topLevelParameters.savePath + "data/exclusionLine_";
+    std::string scanInfoFilename = scanParams.topLevelParameters.savePath + "metrics/scanInfo_";
 
     if (scanParams.topLevelParameters.decisionMaking){
         exclusionLineFilename += "dynamic_";

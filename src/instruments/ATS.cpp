@@ -337,7 +337,7 @@ void ATS::setAcquisitionParameters(U32 sampleRate, U32 samplesPerAcquisition, U3
         std::cout << "Sample rate adjusted from requsted " << std::to_string(acquisitionParams.sampleRate/1e6) << " MHz to " 
         << std::to_string(realSampleRate/1e6) << " MHz." << std::endl;
 
-        acquisitionParams.sampleRate = realSampleRate;
+        acquisitionParams.sampleRate = (U32) realSampleRate;
     }
 
     setInputParameters('a', "dc", acquisitionParams.inputRange, acquisitionParams.inputImpedance);
