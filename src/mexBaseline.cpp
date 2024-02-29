@@ -26,9 +26,12 @@ public:
 
         // Unpack scan parameters into struct
         ScanParameters scanParameters = readInput(inputs[0]);
+        matlab::data::CharArray const& baselineJson = inputs[1];
+        json baselineParams = json::parse(baselineJson);
 
-        // Begin scanning
+        // Acquire baseline data
         ScanRunner scanRunner(scanParameters);
+        scanRunner.refreshBaselineAndBadBins(baselineParams["repeats"], baselineParams["subSpectra"], baselineParams["savePlots"]);
 
 
         matlab::data::ArrayFactory factory;
@@ -44,9 +47,18 @@ private:
 
 
     void checkArguments(matlab::mex::ArgumentList outputs, matlab::mex::ArgumentList inputs) {
-        if (inputs.size() != 1 || inputs[0].getType() != matlab::data::ArrayType::CHAR) {
-            throw std::invalid_argument("Expected a single input of type char.");
+        if (inputs.size() != 2){
+            throw std::invalid_argument("Two inputs required.");
         }
+
+        if (inputs[0].getType() != matlab::data::ArrayType::CHAR) {
+            throw std::invalid_argument("Expected a first input of type char - json string.");
+        }
+
+        if (inputs[1].getType() != matlab::data::ArrayType::CHAR) {
+            throw std::invalid_argument("Expected a second input of type char - json string.");
+        }
+
         if (outputs.size() != 1) {
             throw std::invalid_argument("One output required.");
         }

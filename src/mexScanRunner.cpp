@@ -29,9 +29,17 @@ public:
 
         // Begin scanning
         ScanRunner scanRunner(scanParameters);
+
+        std::ifstream file(scanParameters.topLevelParameters.statePath + "scanInfo.json");
+        if (file.is_open()) {
+            file.close();
+            scanRunner.loadState();
+        }
+        else { file.close(); }
+        
         scanRunner.acquireData();
         scanRunner.saveData();
-
+        scanRunner.saveState();
         
         // Return a success or error code
         matlab::data::ArrayFactory factory;
