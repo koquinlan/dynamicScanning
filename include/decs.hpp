@@ -250,6 +250,8 @@ void trimSpectrum(Spectrum& spec, double cutPercentage);
 
 // fileIO.cpp
 std::vector<std::vector<double>> readCSV(std::string filename, int maxLines);
+Spectrum readSpectrum(std::string filename);
+CombinedSpectrum readCombinedSpectrum(std::string filename);
 std::vector<double> readVector(const std::string& filename);
 void saveCombinedSpectrum(CombinedSpectrum data, std::string filename);
 void saveSpectrum(Spectrum data, std::string filename);

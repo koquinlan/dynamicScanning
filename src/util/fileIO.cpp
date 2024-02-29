@@ -102,6 +102,76 @@ void saveVector(std::vector<int> data, std::string filename) {
 }
 
 
+
+Spectrum readSpectrum(std::string filename) {
+    Spectrum data;
+    std::ifstream file(filename);
+
+    if (!file.is_open()) {
+        std::cerr << "Error: Unable to open file " << filename << std::endl;
+        return data;
+    }
+
+    std::string line;
+    int lineNum = 0;
+    while (std::getline(file, line)) {
+        std::istringstream iss(line);
+        double value;
+        while (iss >> value) {
+            if (lineNum == 0) {
+                data.powers.push_back(value);
+            } else if (lineNum == 1) {
+                data.freqAxis.push_back(value);
+            }
+            char comma;
+            if (!(iss >> comma)) {
+                break; // No more characters to read on this line
+            }
+        }
+        lineNum++;
+    }
+
+    file.close();
+    return data;
+}
+
+
+
+CombinedSpectrum readCombinedSpectrum(std::string filename) {
+    CombinedSpectrum data;
+    std::ifstream file(filename);
+
+    if (!file.is_open()) {
+        std::cerr << "Error: Unable to open file " << filename << std::endl;
+        return data;
+    }
+
+    std::string line;
+    int lineNum = 0;
+    while (std::getline(file, line)) {
+        std::istringstream iss(line);
+        double value;
+        while (iss >> value) {
+            if (lineNum == 0) {
+                data.powers.push_back(value);
+            } else if (lineNum == 1) {
+                data.freqAxis.push_back(value);
+            } else if (lineNum == 2) {
+                data.sigmaCombined.push_back(value);
+            }
+            char comma;
+            if (!(iss >> comma)) {
+                break; // No more characters to read on this line
+            }
+        }
+        lineNum++;
+    }
+
+    file.close();
+    return data;
+}
+
+
 void saveSpectrum(Spectrum data, std::string filename) {
     std::ofstream dataFile(filename);
     if (dataFile.is_open()) {
