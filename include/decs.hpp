@@ -287,5 +287,6 @@ void setMetric(int metricCode, int val);
 void updateMetric(int metricCode, int val);
 std::vector<int> getMetric(int metricCode);
 void reportPerformance();
+json performanceToJson();
 
 #endif // DECS_H

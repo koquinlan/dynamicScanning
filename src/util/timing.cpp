@@ -96,3 +96,35 @@ void reportPerformance()
 
     fprintf(stdout, "*********************************\n\n");
 }
+
+
+
+// Serialize the timing and metric data into a JSON string
+json performanceToJson() {
+    json jsonPerf;
+
+    // Serialize timing data
+    json timingData;
+    
+    timingData["acquisition"] = times[TIMER_ACQUISITION];
+    timingData["fft"] = times[TIMER_FFT];
+    timingData["magnitude"] = times[TIMER_MAG];
+    timingData["averaging"] = times[TIMER_AVERAGE];
+    timingData["processing"] = times[TIMER_PROCESS];
+    timingData["decision"] = times[TIMER_DECISION];
+
+    jsonPerf["timers"] = timingData;
+
+
+    // Serialize metric data
+    json metricData;
+
+    metricData["acquiredSpectra"] = metrics[ACQUIRED_SPECTRA];
+    metricData["spectraAtDecision"] = metrics[SPECTRA_AT_DECISION];
+    metricData["spectrumAverageSize"] = metrics[SPECTRUM_AVERAGE_SIZE];
+
+    jsonPerf["metrics"] = metricData;
+
+
+    return jsonPerf;
+}

@@ -32,9 +32,15 @@ scanParams = struct(...
     )...
 );
 
+%% 
+
 
 foo = mexBaseline(jsonencode(scanParams), jsonencode(baselineParams));
 ans = mexScanRunner(jsonencode(scanParams));
 
+performance = jsondecode(ans)
+
+
+%% 
 
 clear all

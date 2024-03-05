@@ -41,11 +41,14 @@ public:
         scanRunner.saveData();
         scanRunner.saveState();
         
-        // Return a success or error code
-        matlab::data::ArrayFactory factory;
-        matlab::data::TypedArray<double> resultArray = factory.createArray<double>({1, 1}, {scanParameters.dataParameters.sampleRate});
 
-        outputs[0] = std::move(resultArray);
+        // Return performance data via JSON string
+        std::string jsonString = performanceToJson().dump();
+    
+        matlab::data::ArrayFactory factory;
+        matlab::data::CharArray resultString = factory.createCharArray(jsonString);
+        
+        outputs[0] = std::move(resultString);
     }
 
 private:
