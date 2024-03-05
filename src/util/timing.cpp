@@ -63,9 +63,7 @@ void reportPerformance()
     fprintf(stdout, "   AVERAGING:           %8.4g s\n", times[TIMER_AVERAGE]);
     fprintf(stdout, "   PROCESSING:          %8.4g s\n", times[TIMER_PROCESS]);
     fprintf(stdout, "   DECISION MAKING:     %8.4g s\n", times[TIMER_DECISION]);
-    #if SAVE_PROGRESS
     fprintf(stdout, "   DATA SAVING:         %8.4g s\n", times[TIMER_SAVE]);
-    #endif
 
     fprintf(stdout, "*********************************\n\n");
 
@@ -112,6 +110,7 @@ json performanceToJson() {
     timingData["averaging"] = times[TIMER_AVERAGE];
     timingData["processing"] = times[TIMER_PROCESS];
     timingData["decision"] = times[TIMER_DECISION];
+    timingData["save"] = times[TIMER_SAVE];
 
     jsonPerf["timers"] = timingData;
 

@@ -176,7 +176,7 @@ void magnitudeThread(int samplesPerSpectrum, SharedDataBasic& sharedData, Shared
 
 
 
-void averagingThread(SharedDataProcessing& sharedData, SynchronizationFlags& syncFlags, DataProcessor& dataProcessor, double trueCenterFreq, int subSpectraAveragingNumber = 20) {
+void averagingThread(SharedDataProcessing& sharedData, SharedDataSaving& savedData, SynchronizationFlags& syncFlags, DataProcessor& dataProcessor, double trueCenterFreq, int subSpectraAveragingNumber = 20) {
     try{
     int subSpectraAveraged = 0;
     int totalProcessed = 0;
@@ -225,6 +225,12 @@ void averagingThread(SharedDataProcessing& sharedData, SynchronizationFlags& syn
             sharedData.rawDataQueue.push(rawSpectrum);
         }
         sharedData.rawDataReadyCondition.notify_one();
+
+        {
+            std::lock_guard<std::mutex> lock(savedData.mutex);
+            savedData.averagedSpectrumQueue.push(rawSpectrum);
+        }
+        savedData.averagedSpectrumReadyCondition.notify_one();
         
         lock.lock();  // Reacquire lock before checking the data queue
         stopTimer(TIMER_AVERAGE);
@@ -241,6 +247,7 @@ void averagingThread(SharedDataProcessing& sharedData, SynchronizationFlags& syn
 
                 syncFlags.averagingComplete = true;
                 sharedData.rawDataReadyCondition.notify_one();
+                savedData.averagedSpectrumReadyCondition.notify_one();
                 break;  // Exit the processing thread
             }
 
@@ -248,6 +255,7 @@ void averagingThread(SharedDataProcessing& sharedData, SynchronizationFlags& syn
                 std::cout << "Averaging thread gracefully exiting due to error." << std::endl;
 
                 sharedData.rawDataReadyCondition.notify_one();
+                savedData.averagedSpectrumReadyCondition.notify_one();
                 break;
             }
         }
@@ -371,7 +379,7 @@ void processingThread(SharedDataProcessing& sharedData, SavedData& savedData, Sy
  * @param sharedData - Struct containing data shared between threads
  * @param syncFlags - Struct containing synchronization flags shared between threads
  */
-void decisionMakingThread(SharedDataProcessing& sharedData, SharedDataSaving& savedData, SynchronizationFlags& syncFlags, BayesFactors& bayesFactors, DecisionAgent& decisionAgent) {
+void decisionMakingThread(SharedDataProcessing& sharedData, SynchronizationFlags& syncFlags, BayesFactors& bayesFactors, DecisionAgent& decisionAgent) {
     try{
     setMetric(SPECTRA_AT_DECISION, -1);
     
@@ -476,29 +484,29 @@ void decisionMakingThread(SharedDataProcessing& sharedData, SharedDataSaving& sa
 
 
 
-void dataSavingThread(SharedDataSaving& savedData, SynchronizationFlags& syncFlags) {
+void dataSavingThread(SharedDataSaving& savedData, SynchronizationFlags& syncFlags, std::string savePath) {
     try{
     int buffersSaved = 0;
+    std::string dateTime = getDateTimeString();
 
     while (true) {
-        Spectrum exclusionLine;
+        Spectrum averagedSpectrum;
 
         // Check if processed data queue is empty
         std::unique_lock<std::mutex> lock(savedData.mutex);
-        savedData.exclusionLineReadyCondition.wait(lock, [&savedData]() {
-            return !savedData.exclusionLineQueue.empty();
+        savedData.averagedSpectrumReadyCondition.wait(lock, [&savedData]() {
+            return !savedData.averagedSpectrumQueue.empty();
         });
 
         // Process data if the data queue is not empty
         startTimer(TIMER_SAVE);
-        while (!savedData.exclusionLineQueue.empty()) {
-            exclusionLine = savedData.exclusionLineQueue.front();
-            savedData.exclusionLineQueue.pop();
+        while (!savedData.averagedSpectrumQueue.empty()) {
+            averagedSpectrum = savedData.averagedSpectrumQueue.front();
+            savedData.averagedSpectrumQueue.pop();
 
             lock.unlock();
-            std::string exclusionLineFilename = "../../../plotting/exclusionLineComparisons/scanProgress/exclusionLine_" + 
-                                                std::to_string(buffersSaved) + "_" + getDateTimeString() + ".csv";
-            saveSpectrum(exclusionLine, exclusionLineFilename);
+            std::string spectrumFilename = savePath + std::to_string(buffersSaved) + "_" + dateTime + ".csv";
+            saveSpectrum(averagedSpectrum, spectrumFilename);
             buffersSaved++;
             lock.lock();
         }
@@ -508,7 +516,7 @@ void dataSavingThread(SharedDataSaving& savedData, SynchronizationFlags& syncFla
         // Check if the acquisition is complete
         {
             std::lock_guard<std::mutex> lock(syncFlags.mutex);
-            if (savedData.exclusionLineQueue.empty() && syncFlags.decisionsComplete) {
+            if (savedData.averagedSpectrumQueue.empty() && syncFlags.decisionsComplete) {
                 std::cout<< "Saving thread exiting. Saved " << std::to_string(buffersSaved) << " spectra." << std::endl;
                 break;  // Exit the processing thread
             }

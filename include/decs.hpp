@@ -177,8 +177,8 @@ struct SharedDataProcessing {
 struct SharedDataSaving {
     std::mutex mutex;
 
-    std::queue<Spectrum> exclusionLineQueue;
-    std::condition_variable exclusionLineReadyCondition;
+    std::queue<Spectrum> averagedSpectrumQueue;
+    std::condition_variable averagedSpectrumReadyCondition;
 };
 
 
@@ -266,10 +266,10 @@ ScanParameters unpackScanParameters(json const& inputParams);
 // multiThreading.cpp
 void FFTThread(fftw_plan plan, int N, SharedDataBasic& sharedData, SynchronizationFlags& syncFlags);
 void magnitudeThread(int N, SharedDataBasic& sharedData, SharedDataProcessing& sharedDataProc, SynchronizationFlags& syncFlags, DataProcessor& dataProcessor);
-void averagingThread(SharedDataProcessing& sharedData, SynchronizationFlags& syncFlags, DataProcessor& dataProcessor, double trueCenterFreq, int subSpectraAveragingNumber);
+void averagingThread(SharedDataProcessing& sharedData, SharedDataSaving& savedData, SynchronizationFlags& syncFlags, DataProcessor& dataProcessor, double trueCenterFreq, int subSpectraAveragingNumber);
 void processingThread(SharedDataProcessing& sharedData, SavedData& savedData, SynchronizationFlags& syncFlags, DataProcessor& dataProcessor, BayesFactors& bayesFactors);
-void decisionMakingThread(SharedDataProcessing& sharedData, SharedDataSaving& savedData, SynchronizationFlags& syncFlags, BayesFactors& bayesFactors, DecisionAgent& decisionAgent);
-void dataSavingThread(SharedDataSaving& savedData, SynchronizationFlags& syncFlags);
+void decisionMakingThread(SharedDataProcessing& sharedData, SynchronizationFlags& syncFlags, BayesFactors& bayesFactors, DecisionAgent& decisionAgent);
+void dataSavingThread(SharedDataSaving& savedData, SynchronizationFlags& syncFlags, std::string savePath);
 void saveDataToHDF5(SharedDataBasic& sharedData, SynchronizationFlags& syncFlags);
 
 // tests.cpp

@@ -26,6 +26,7 @@ public:
 
         // Unpack scan parameters into struct
         ScanParameters scanParameters = readInput(inputs[0]);
+        bool fullSave = readBooleanInput(inputs[1]);
 
         // Begin scanning
         ScanRunner scanRunner(scanParameters);
@@ -38,7 +39,7 @@ public:
         else { file.close(); }
         
         scanRunner.acquireData();
-        scanRunner.saveData();
+        if (fullSave) { scanRunner.saveData(); }
         scanRunner.saveState();
         
 
@@ -57,6 +58,12 @@ private:
     }
 
 
+    bool readBooleanInput(matlab::data::Array const& input) {
+        matlab::data::TypedArray<bool> inputData = std::move(input);
+        return inputData[0];
+    }
+
+
     template<typename T>
     std::vector<T> convertToVector(matlab::data::Array const& input) {
         std::vector<T> output;
@@ -71,8 +78,14 @@ private:
 
 
     void checkArguments(matlab::mex::ArgumentList outputs, matlab::mex::ArgumentList inputs) {
-        if (inputs.size() != 1 || inputs[0].getType() != matlab::data::ArrayType::CHAR) {
-            throw std::invalid_argument("Expected a single input of type char.");
+        if (inputs.size() != 2) {
+            throw std::invalid_argument("Expected exactly two inputs - scan parameters and boolean flag for full save.");
+        }
+        if (inputs[0].getType() != matlab::data::ArrayType::CHAR) {
+            throw std::invalid_argument("First input must be of type char (JSON string).");
+        }
+        if (inputs[1].getType() != matlab::data::ArrayType::LOGICAL) {
+            throw std::invalid_argument("Second input must be a logical scalar (boolean).");
         }
         if (outputs.size() != 1) {
             throw std::invalid_argument("One output required.");

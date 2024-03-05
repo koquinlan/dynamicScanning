@@ -207,15 +207,14 @@ void ScanRunner::acquireData() {
     sharedDataBasic.samplesPerBuffer = alazarCard.acquisitionParams.samplesPerBuffer;
 
     // Begin the threads
-    std::thread acquisitionThread(&ATS::AcquireDataMultithreadedContinuous, &alazarCard, std::ref(sharedDataBasic), std::ref(syncFlags));
-    std::thread FFTThread(FFTThread, fftwPlan, N, std::ref(sharedDataBasic), std::ref(syncFlags));
-    std::thread magnitudeThread(magnitudeThread, N, std::ref(sharedDataBasic), std::ref(sharedDataProc), std::ref(syncFlags), std::ref(dataProcessor));
-    std::thread averagingThread(averagingThread, std::ref(sharedDataProc), std::ref(syncFlags), std::ref(dataProcessor), std::ref(scanParams.dataParameters.trueCenterFreq), scanParams.dataParameters.subSpectraAveragingNumber);
+    std::thread decisionMakingThread(decisionMakingThread, std::ref(sharedDataProc), std::ref(syncFlags), std::ref(bayesFactors), std::ref(decisionAgent));
     std::thread processingThread(processingThread, std::ref(sharedDataProc), std::ref(savedData), std::ref(syncFlags), std::ref(dataProcessor), std::ref(bayesFactors));
-    std::thread decisionMakingThread(decisionMakingThread, std::ref(sharedDataProc), std::ref(sharedSavedData), std::ref(syncFlags), std::ref(bayesFactors), std::ref(decisionAgent));
-    #if SAVE_PROGRESS
-    // std::thread savingThread(dataSavingThread, std::ref(sharedSavedData), std::ref(syncFlags));
-    #endif
+    std::thread savingThread(dataSavingThread, std::ref(sharedSavedData), std::ref(syncFlags), scanParams.topLevelParameters.savePath + "rawData/");
+    std::thread averagingThread(averagingThread, std::ref(sharedDataProc), std::ref(sharedSavedData), std::ref(syncFlags), std::ref(dataProcessor), std::ref(scanParams.dataParameters.trueCenterFreq), scanParams.dataParameters.subSpectraAveragingNumber);
+    std::thread magnitudeThread(magnitudeThread, N, std::ref(sharedDataBasic), std::ref(sharedDataProc), std::ref(syncFlags), std::ref(dataProcessor));
+    std::thread FFTThread(FFTThread, fftwPlan, N, std::ref(sharedDataBasic), std::ref(syncFlags));
+    std::thread acquisitionThread(&ATS::AcquireDataMultithreadedContinuous, &alazarCard, std::ref(sharedDataBasic), std::ref(syncFlags));
+
 
     // Wait for the threads to finish
     if (acquisitionThread.joinable()) { 
@@ -239,8 +238,23 @@ void ScanRunner::acquireData() {
     if (averagingThread.joinable()) { 
         averagingThread.join();
         std::cout << "Averaging thread joined." << std::endl;
+        {
+            std::lock_guard<std::mutex> lock(sharedDataProc.mutex);
+            sharedDataProc.rawDataReadyCondition.notify_one();
+        }
+        {
+            std::lock_guard<std::mutex> lock(sharedSavedData.mutex);
+            sharedSavedData.averagedSpectrumReadyCondition.notify_one();
+        }
     } 
     else { std::cerr << "Averaging thread is not joinable" << std::endl;}
+
+    if(savingThread.joinable()) {
+        savingThread.join();
+        std::cout << "Saving thread joined." << std::endl;
+    } else {
+        std::cerr << "Saving thread is not joinable" << std::endl;
+    }
 
     if(processingThread.joinable()) {
         processingThread.join();
@@ -258,13 +272,6 @@ void ScanRunner::acquireData() {
         std::cout << "Decision thread joined." << std::endl;
     } 
     else { std::cerr << "Decision making thread is not joinable" << std::endl;}
-    
-    #if SAVE_PROGRESS
-    // savingThread.join();
-
-    std::string exclusionLineFilename = scanParams.topLevelParams.statePath + "scanProgress/exclusionLine_" + getDateTimeString() + ".csv";
-    saveSpectraFromQueue(sharedSavedData.exclusionLineQueue, exclusionLineFilename);
-    #endif
 
 
     // Cleanup
@@ -286,43 +293,46 @@ void ScanRunner::acquireData() {
 }
 
 
-
+/**
+ * @brief DEPRECATED (need to match new thread structure).
+ * 
+ */
 void ScanRunner::unrolledAcquisition() {
     // Set up shared data
-    SharedDataBasic sharedDataBasic;
-    SharedDataProcessing sharedDataProc;
-    SharedDataSaving sharedSavedData;
-    SynchronizationFlags syncFlags;
+    // SharedDataBasic sharedDataBasic;
+    // SharedDataProcessing sharedDataProc;
+    // SharedDataSaving sharedSavedData;
+    // SynchronizationFlags syncFlags;
 
-    int N = (int)alazarCard.acquisitionParams.samplesPerBuffer;
-    sharedDataBasic.samplesPerBuffer = alazarCard.acquisitionParams.samplesPerBuffer;
+    // int N = (int)alazarCard.acquisitionParams.samplesPerBuffer;
+    // sharedDataBasic.samplesPerBuffer = alazarCard.acquisitionParams.samplesPerBuffer;
 
 
-    // Begin the threads
-    std::cout << "Launching acquisition thread." << std::endl;
-    std::queue<fftw_complex*> backupDataQueue;
-    std::thread acquisitionThread(&ATS::AcquireDataMultithreadedContinuous, &alazarCard, std::ref(sharedDataBasic), std::ref(syncFlags));
-    acquisitionThread.join();
+    // // Begin the threads
+    // std::cout << "Launching acquisition thread." << std::endl;
+    // std::queue<fftw_complex*> backupDataQueue;
+    // std::thread acquisitionThread(&ATS::AcquireDataMultithreadedContinuous, &alazarCard, std::ref(sharedDataBasic), std::ref(syncFlags));
+    // acquisitionThread.join();
 
-    std::cout << "Launching FFT thread." << std::endl;
-    std::thread FFTThread(FFTThread, fftwPlan, N, std::ref(sharedDataBasic), std::ref(syncFlags));
-    FFTThread.join();
+    // std::cout << "Launching FFT thread." << std::endl;
+    // std::thread FFTThread(FFTThread, fftwPlan, N, std::ref(sharedDataBasic), std::ref(syncFlags));
+    // FFTThread.join();
 
-    std::cout << "Launching magnitude thread." << std::endl;
-    std::thread magnitudeThread(magnitudeThread, N, std::ref(sharedDataBasic), std::ref(sharedDataProc), std::ref(syncFlags), std::ref(dataProcessor));
-    magnitudeThread.join();
+    // std::cout << "Launching magnitude thread." << std::endl;
+    // std::thread magnitudeThread(magnitudeThread, N, std::ref(sharedDataBasic), std::ref(sharedDataProc), std::ref(syncFlags), std::ref(dataProcessor));
+    // magnitudeThread.join();
 
-    std::cout << "Launching averaging thread." << std::endl;
-    std::thread averagingThread(averagingThread, std::ref(sharedDataProc), std::ref(syncFlags), std::ref(dataProcessor), std::ref(scanParams.dataParameters.trueCenterFreq), scanParams.dataParameters.subSpectraAveragingNumber);
-    averagingThread.join();
+    // std::cout << "Launching averaging thread." << std::endl;
+    // std::thread averagingThread(averagingThread, std::ref(sharedDataProc), std::ref(syncFlags), std::ref(dataProcessor), std::ref(scanParams.dataParameters.trueCenterFreq), scanParams.dataParameters.subSpectraAveragingNumber);
+    // averagingThread.join();
     
-    std::cout << "Launching processing thread." << std::endl;
-    std::thread processingThread(processingThread, std::ref(sharedDataProc), std::ref(savedData), std::ref(syncFlags), std::ref(dataProcessor), std::ref(bayesFactors));
-    processingThread.join();
+    // std::cout << "Launching processing thread." << std::endl;
+    // std::thread processingThread(processingThread, std::ref(sharedDataProc), std::ref(savedData), std::ref(syncFlags), std::ref(dataProcessor), std::ref(bayesFactors));
+    // processingThread.join();
     
-    std::cout << "Launching decision making thread." << std::endl;
-    std::thread decisionMakingThread(decisionMakingThread, std::ref(sharedDataProc), std::ref(sharedSavedData), std::ref(syncFlags), std::ref(bayesFactors), std::ref(decisionAgent));
-    decisionMakingThread.join();
+    // std::cout << "Launching decision making thread." << std::endl;
+    // std::thread decisionMakingThread(decisionMakingThread, std::ref(sharedDataProc), std::ref(sharedSavedData), std::ref(syncFlags), std::ref(bayesFactors), std::ref(decisionAgent));
+    // decisionMakingThread.join();
 
 
     // Cleanup
@@ -400,11 +410,11 @@ void ScanRunner::refreshBaselineAndBadBins(int repeats, int subSpectra, int save
                         *scanParams.dataParameters.sampleRate/alazarCard.acquisitionParams.samplesPerBuffer/1e6;
         }
 
-        saveVector(freq, "../../../plotting/baselineTests/baseline/freq.csv");
-        saveVector(dataProcessor.badBins, "../../../plotting/baselineTests/baseline/outliers.csv");
+        saveVector(freq, scanParams.topLevelParameters.baselinePath + "fullPlots/freq.csv");
+        saveVector(dataProcessor.badBins, scanParams.topLevelParameters.baselinePath + "fullPlots/outliers.csv");
 
-        saveVector(dataProcessor.currentBaseline, "../../../plotting/baselineTests/baseline/baseline.csv");
-        saveVector(dataProcessor.runningAverage, "../../../plotting/baselineTests/baseline/runningAverage.csv");
+        saveVector(dataProcessor.currentBaseline, scanParams.topLevelParameters.baselinePath + "fullPlots/baseline.csv");
+        saveVector(dataProcessor.runningAverage, scanParams.topLevelParameters.baselinePath + "fullPlots/runningAverage.csv");
     }
 
     dataProcessor.resetBaselining();
@@ -435,7 +445,7 @@ void ScanRunner::acquireProcCalibration(int repeats, int subSpectra, int savePlo
     }
     
     if(savePlots) {
-        saveVector(averagedRawData[0], "../../../plotting/baselineTests/baseline/rawData.csv");
+        saveVector(averagedRawData[0], scanParams.topLevelParameters.baselinePath + "fullPlots/rawData.csv");
     }
 
 
