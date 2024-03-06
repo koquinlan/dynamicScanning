@@ -226,11 +226,11 @@ void averagingThread(SharedDataProcessing& sharedData, SharedDataSaving& savedDa
         }
         sharedData.rawDataReadyCondition.notify_one();
 
-        {
-            std::lock_guard<std::mutex> lock(savedData.mutex);
-            savedData.averagedSpectrumQueue.push(rawSpectrum);
-        }
-        savedData.averagedSpectrumReadyCondition.notify_one();
+        // {
+        //     std::lock_guard<std::mutex> lock(savedData.mutex);
+        //     savedData.averagedSpectrumQueue.push(rawSpectrum);
+        // }
+        // savedData.averagedSpectrumReadyCondition.notify_one();
         
         lock.lock();  // Reacquire lock before checking the data queue
         stopTimer(TIMER_AVERAGE);
@@ -267,6 +267,61 @@ void averagingThread(SharedDataProcessing& sharedData, SharedDataSaving& savedDa
         syncFlags.errorFlag = true;
         syncFlags.errorMessage = "AveragingThread: " + std::string(e.what());
         std::cout << syncFlags.errorMessage << '\n';
+    }
+}
+
+
+
+void dataCollatingThread(SharedDataSaving& savedData, SynchronizationFlags& syncFlags, AveragedData& averagedData) {
+    try{
+    while (true) {
+        Spectrum averagedSpectrum;
+
+        // Check if processed data queue is empty
+        std::unique_lock<std::mutex> lock(savedData.mutex);
+        savedData.averagedSpectrumReadyCondition.wait(lock, [&savedData]() {
+            return !savedData.averagedSpectrumQueue.empty();
+        });
+
+        // Process data if the data queue is not empty
+        startTimer(TIMER_SAVE);
+        while (!savedData.averagedSpectrumQueue.empty()) {
+            averagedSpectrum = savedData.averagedSpectrumQueue.front();
+            savedData.averagedSpectrumQueue.pop();
+
+            std::cout << "Collating thread: " << std::to_string(averagedData.numSpectra) << std::endl;
+            lock.unlock();
+            averagedData.numSpectra++;
+
+            if (averagedData.collatedData.empty()) {
+                averagedData.collatedData = std::move(averagedSpectrum.freqAxis);
+                averagedData.spectrumLength = averagedSpectrum.freqAxis.size();
+            }
+
+            averagedData.collatedData.insert(averagedData.collatedData.end(), 
+                                std::make_move_iterator(averagedSpectrum.powers.begin()), 
+                                std::make_move_iterator(averagedSpectrum.powers.end())
+                            );
+            lock.lock();  // Lock again before checking the data queue
+            std::cout << "Collating thread: " << std::to_string(averagedData.numSpectra) << std::endl;
+        }
+        stopTimer(TIMER_SAVE);
+
+
+        // Check if the acquisition is complete
+        {
+            std::lock_guard<std::mutex> lock(syncFlags.mutex);
+            if (savedData.averagedSpectrumQueue.empty() && syncFlags.decisionsComplete) {
+                std::cout << "Saving thread exiting. Saved " << std::to_string(averagedData.numSpectra) << " spectra." << std::endl;
+                break;  // Exit the processing thread
+            }
+        }
+    }
+    }
+    catch(const std::exception& e)
+    {
+        std::cout << "Data saving thread exiting due to exception." << std::endl;
+        std::cout << e.what() << '\n';
     }
 }
 
@@ -479,53 +534,5 @@ void decisionMakingThread(SharedDataProcessing& sharedData, SynchronizationFlags
         syncFlags.errorFlag = true;
         syncFlags.errorMessage = "DecisionThread: " + std::string(e.what());
         std::cout << syncFlags.errorMessage << '\n';
-    }
-}
-
-
-
-void dataSavingThread(SharedDataSaving& savedData, SynchronizationFlags& syncFlags, std::string savePath) {
-    try{
-    int buffersSaved = 0;
-    std::string dateTime = getDateTimeString();
-
-    while (true) {
-        Spectrum averagedSpectrum;
-
-        // Check if processed data queue is empty
-        std::unique_lock<std::mutex> lock(savedData.mutex);
-        savedData.averagedSpectrumReadyCondition.wait(lock, [&savedData]() {
-            return !savedData.averagedSpectrumQueue.empty();
-        });
-
-        // Process data if the data queue is not empty
-        startTimer(TIMER_SAVE);
-        while (!savedData.averagedSpectrumQueue.empty()) {
-            averagedSpectrum = savedData.averagedSpectrumQueue.front();
-            savedData.averagedSpectrumQueue.pop();
-
-            lock.unlock();
-            std::string spectrumFilename = savePath + std::to_string(buffersSaved) + "_" + dateTime + ".csv";
-            saveSpectrum(averagedSpectrum, spectrumFilename);
-            buffersSaved++;
-            lock.lock();
-        }
-        stopTimer(TIMER_SAVE);
-
-
-        // Check if the acquisition is complete
-        {
-            std::lock_guard<std::mutex> lock(syncFlags.mutex);
-            if (savedData.averagedSpectrumQueue.empty() && syncFlags.decisionsComplete) {
-                std::cout<< "Saving thread exiting. Saved " << std::to_string(buffersSaved) << " spectra." << std::endl;
-                break;  // Exit the processing thread
-            }
-        }
-    }
-    }
-    catch(const std::exception& e)
-    {
-        std::cout << "Data saving thread exiting due to exception." << std::endl;
-        std::cout << e.what() << '\n';
     }
 }

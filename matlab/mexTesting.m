@@ -12,7 +12,7 @@ baselineParams = struct(...
 
 
 % Static Run Parameters
-integrationTimes = [20];
+integrationTimes = [5];
 stepSize = 0.1;
 numSteps = 2;
 targetCoupling = 3.4e-5;
@@ -58,9 +58,10 @@ for idx = 1:length(integrationTimes)
 
         % Run the scan
         tic
-        performances{idx, step} = jsondecode(mexScanRunner(jsonencode(scanParams), fullSave));
+        [perfString, rawData] = mexScanRunner(jsonencode(scanParams), fullSave);
         toc
-
+        
+        performances{idx, step} = jsondecode(perfString);
         scanParams.dataParams.trueCenterFreq = scanParams.dataParams.trueCenterFreq + stepSize;
     end
 end

@@ -34,7 +34,7 @@ public:
 
     void setTarget(double targetCoupling);
 
-    void acquireData();
+    AveragedData acquireData();
     void unrolledAcquisition();
     void step(double stepSize);
     void saveData();

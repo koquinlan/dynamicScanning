@@ -9,10 +9,10 @@
  * 
  */
 
+#include "decs.hpp"
+
 #include "mex.hpp"
 #include "mexAdapter.hpp"
-
-#include "decs.hpp"
 
 /**
  * @brief
@@ -21,6 +21,8 @@
 class MexFunction : public matlab::mex::Function {
 public:
     void operator()(matlab::mex::ArgumentList outputs, matlab::mex::ArgumentList inputs) {
+         matlab::data::ArrayFactory factory;
+
         // Confirm valid inputs
         checkArguments(outputs, inputs);
 
@@ -38,19 +40,35 @@ public:
         }
         else { file.close(); }
         
-        scanRunner.acquireData();
+        AveragedData averagedData = scanRunner.acquireData();
+   
+
+        startTimer(TIMER_SAVE);
+        matlab::data::TypedArray<double> rawData = factory.createArray<double>({1, 1}, {0.0});
+        
+        if (averagedData.numSpectra != 0) {
+            rawData = factory.createArray<std::vector<double>::iterator>(
+                {averagedData.numSpectra + 1, averagedData.spectrumLength}, 
+                averagedData.collatedData.begin(), 
+                averagedData.collatedData.end()
+                );
+        }
+        stopTimer(TIMER_SAVE);
+        
+
         if (fullSave) { scanRunner.saveData(); }
         scanRunner.saveState();
         
 
         // Return performance data via JSON string
         std::string jsonString = performanceToJson().dump();
-    
-        matlab::data::ArrayFactory factory;
         matlab::data::CharArray resultString = factory.createCharArray(jsonString);
         
         outputs[0] = std::move(resultString);
+        outputs[1] = std::move(rawData);
     }
+
+        
 
 private:
     ScanParameters readInput(matlab::data::CharArray const& inputJson) {
@@ -87,8 +105,8 @@ private:
         if (inputs[1].getType() != matlab::data::ArrayType::LOGICAL) {
             throw std::invalid_argument("Second input must be a logical scalar (boolean).");
         }
-        if (outputs.size() != 1) {
-            throw std::invalid_argument("One output required.");
+        if (outputs.size() != 2) {
+            throw std::invalid_argument("Two outputs required.");
         }
     }
 };

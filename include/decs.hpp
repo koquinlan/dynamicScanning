@@ -181,6 +181,12 @@ struct SharedDataSaving {
     std::condition_variable averagedSpectrumReadyCondition;
 };
 
+struct AveragedData {
+    std::vector<double> collatedData;
+    size_t numSpectra;
+    size_t spectrumLength;
+};
+
 
 // Struct for saving data
 struct SavedData{
@@ -269,7 +275,7 @@ void magnitudeThread(int N, SharedDataBasic& sharedData, SharedDataProcessing& s
 void averagingThread(SharedDataProcessing& sharedData, SharedDataSaving& savedData, SynchronizationFlags& syncFlags, DataProcessor& dataProcessor, double trueCenterFreq, int subSpectraAveragingNumber);
 void processingThread(SharedDataProcessing& sharedData, SavedData& savedData, SynchronizationFlags& syncFlags, DataProcessor& dataProcessor, BayesFactors& bayesFactors);
 void decisionMakingThread(SharedDataProcessing& sharedData, SynchronizationFlags& syncFlags, BayesFactors& bayesFactors, DecisionAgent& decisionAgent);
-void dataSavingThread(SharedDataSaving& savedData, SynchronizationFlags& syncFlags, std::string savePath);
+void dataCollatingThread(SharedDataSaving& savedData, SynchronizationFlags& syncFlags, AveragedData& averagedData);
 void saveDataToHDF5(SharedDataBasic& sharedData, SynchronizationFlags& syncFlags);
 
 // tests.cpp

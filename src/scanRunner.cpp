@@ -196,24 +196,25 @@ void ScanRunner::saveState() {
  * @brief Runs a scan. This function assumes that the probes and frequency have been properly set and begins acquisition for a single data point.
  * 
  */
-void ScanRunner::acquireData() {
+AveragedData ScanRunner::acquireData() {
     // Set up shared data
     SharedDataBasic sharedDataBasic;
     SharedDataProcessing sharedDataProc;
     SharedDataSaving sharedSavedData;
     SynchronizationFlags syncFlags;
+    AveragedData averagedData;
 
     int N = (int)alazarCard.acquisitionParams.samplesPerBuffer;
     sharedDataBasic.samplesPerBuffer = alazarCard.acquisitionParams.samplesPerBuffer;
 
     // Begin the threads
-    std::thread decisionMakingThread(decisionMakingThread, std::ref(sharedDataProc), std::ref(syncFlags), std::ref(bayesFactors), std::ref(decisionAgent));
-    std::thread processingThread(processingThread, std::ref(sharedDataProc), std::ref(savedData), std::ref(syncFlags), std::ref(dataProcessor), std::ref(bayesFactors));
-    std::thread savingThread(dataSavingThread, std::ref(sharedSavedData), std::ref(syncFlags), scanParams.topLevelParameters.savePath + "rawData/");
-    std::thread averagingThread(averagingThread, std::ref(sharedDataProc), std::ref(sharedSavedData), std::ref(syncFlags), std::ref(dataProcessor), std::ref(scanParams.dataParameters.trueCenterFreq), scanParams.dataParameters.subSpectraAveragingNumber);
-    std::thread magnitudeThread(magnitudeThread, N, std::ref(sharedDataBasic), std::ref(sharedDataProc), std::ref(syncFlags), std::ref(dataProcessor));
-    std::thread FFTThread(FFTThread, fftwPlan, N, std::ref(sharedDataBasic), std::ref(syncFlags));
     std::thread acquisitionThread(&ATS::AcquireDataMultithreadedContinuous, &alazarCard, std::ref(sharedDataBasic), std::ref(syncFlags));
+    std::thread FFTThread(FFTThread, fftwPlan, N, std::ref(sharedDataBasic), std::ref(syncFlags));
+    std::thread magnitudeThread(magnitudeThread, N, std::ref(sharedDataBasic), std::ref(sharedDataProc), std::ref(syncFlags), std::ref(dataProcessor));
+    std::thread averagingThread(averagingThread, std::ref(sharedDataProc), std::ref(sharedSavedData), std::ref(syncFlags), std::ref(dataProcessor), std::ref(scanParams.dataParameters.trueCenterFreq), scanParams.dataParameters.subSpectraAveragingNumber);
+    // std::thread collatingThread(dataCollatingThread, std::ref(sharedSavedData), std::ref(syncFlags), std::ref(averagedData));
+    std::thread processingThread(processingThread, std::ref(sharedDataProc), std::ref(savedData), std::ref(syncFlags), std::ref(dataProcessor), std::ref(bayesFactors));
+    std::thread decisionMakingThread(decisionMakingThread, std::ref(sharedDataProc), std::ref(syncFlags), std::ref(bayesFactors), std::ref(decisionAgent));
 
 
     // Wait for the threads to finish
@@ -249,12 +250,12 @@ void ScanRunner::acquireData() {
     } 
     else { std::cerr << "Averaging thread is not joinable" << std::endl;}
 
-    if(savingThread.joinable()) {
-        savingThread.join();
-        std::cout << "Saving thread joined." << std::endl;
-    } else {
-        std::cerr << "Saving thread is not joinable" << std::endl;
-    }
+    // if(collatingThread.joinable()) {
+    //     collatingThread.join();
+    //     std::cout << "Collating thread joined." << std::endl;
+    // } else {
+    //     std::cerr << "Collating thread not joinable" << std::endl;
+    // }
 
     if(processingThread.joinable()) {
         processingThread.join();
@@ -290,6 +291,8 @@ void ScanRunner::acquireData() {
             sharedDataBasic.backupDataQueue.pop();
         }
     }
+
+    return averagedData;
 }
 
 
