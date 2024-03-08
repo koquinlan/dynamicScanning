@@ -29,12 +29,12 @@ public:
     ScanRunner(ScanParameters scanParams);
     ~ScanRunner();
 
-    void loadState();
+    void loadStateAndStep();
     void saveState();
 
     void setTarget(double targetCoupling);
 
-    AveragedData acquireData();
+    void acquireData();
     void unrolledAcquisition();
     void step(double stepSize);
     void saveData();

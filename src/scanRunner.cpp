@@ -151,7 +151,7 @@ void ScanRunner::initDecisionAgent(int decisionMaking){
  *  3. Determine the step size via previousCenterFreq - newCenterFreq
  *  4. Call the step function with the step size
  */
-void ScanRunner::loadState() {
+void ScanRunner::loadStateAndStep() {
     // Load the exclusion line, coeffSumA, and coeffSumB from the previous scan
     bayesFactors.exclusionLine = readSpectrum(scanParams.topLevelParameters.statePath + "exclusionLine.csv");
     bayesFactors.coeffSumA = readVector(scanParams.topLevelParameters.statePath + "coeffSumA.csv");
@@ -167,11 +167,10 @@ void ScanRunner::loadState() {
     bayesFactors.startIndex = scanInfo["startIndex"];
     bayesFactors.cutoffIndex = scanInfo["cutoffIndex"];
 
-    // Determine the step size via previousCenterFreq - newCenterFreq
-    double stepSize = std::abs(scanParams.dataParameters.trueCenterFreq - scanInfo["previousCenterFreq"]);
-
     // Call the step function with the step size
-    bayesFactors.step(stepSize);
+    if (scanParams.dataParameters.stepSize != 0){
+        bayesFactors.step(scanParams.dataParameters.stepSize);
+    }   
 }
 
 void ScanRunner::saveState() {
@@ -196,149 +195,39 @@ void ScanRunner::saveState() {
  * @brief Runs a scan. This function assumes that the probes and frequency have been properly set and begins acquisition for a single data point.
  * 
  */
-AveragedData ScanRunner::acquireData() {
-    // Set up shared data
-    SharedDataBasic sharedDataBasic;
-    SharedDataProcessing sharedDataProc;
-    SharedDataSaving sharedSavedData;
-    SynchronizationFlags syncFlags;
-    AveragedData averagedData;
-
+void ScanRunner::acquireData() {
     int N = (int)alazarCard.acquisitionParams.samplesPerBuffer;
-    sharedDataBasic.samplesPerBuffer = alazarCard.acquisitionParams.samplesPerBuffer;
+
+    // Set up shared data
+    ThreadSafeQueue<fftw_complex*> rawQueue;
+    ThreadSafeQueue<fftw_complex*> fftQueue;
+    ThreadSafeQueue<std::vector<double>> magQueue;
+    ThreadSafeQueue<Spectrum> procQueue;
+    ThreadSafeQueue<CombinedSpectrum> decisionQueue;
+
+    std::atomic<bool> triggerEnd(false);
+
 
     // Begin the threads
-    std::thread acquisitionThread(&ATS::AcquireDataMultithreadedContinuous, &alazarCard, std::ref(sharedDataBasic), std::ref(syncFlags));
-    std::thread FFTThread(FFTThread, fftwPlan, N, std::ref(sharedDataBasic), std::ref(syncFlags));
-    std::thread magnitudeThread(magnitudeThread, N, std::ref(sharedDataBasic), std::ref(sharedDataProc), std::ref(syncFlags), std::ref(dataProcessor));
-    std::thread averagingThread(averagingThread, std::ref(sharedDataProc), std::ref(sharedSavedData), std::ref(syncFlags), std::ref(dataProcessor), std::ref(scanParams.dataParameters.trueCenterFreq), scanParams.dataParameters.subSpectraAveragingNumber);
-    // std::thread collatingThread(dataCollatingThread, std::ref(sharedSavedData), std::ref(syncFlags), std::ref(averagedData));
-    std::thread processingThread(processingThread, std::ref(sharedDataProc), std::ref(savedData), std::ref(syncFlags), std::ref(dataProcessor), std::ref(bayesFactors));
-    std::thread decisionMakingThread(decisionMakingThread, std::ref(sharedDataProc), std::ref(syncFlags), std::ref(bayesFactors), std::ref(decisionAgent));
+    std::thread acquisitionThread(&ATS::AcquireDataMultithreadedContinuous, &alazarCard, std::ref(rawQueue), std::ref(triggerEnd));
+    std::thread fftThread(fftThread, fftwPlan, N, std::ref(rawQueue), std::ref(fftQueue));
+    std::thread magnitudeThread(magnitudeThread, N, std::ref(dataProcessor), std::ref(fftQueue), std::ref(magQueue));
+    std::thread averagingThread(averagingThread, std::ref(dataProcessor), std::ref(scanParams.dataParameters.trueCenterFreq), std::ref(magQueue), std::ref(procQueue), scanParams.dataParameters.subSpectraAveragingNumber);
+    std::thread processingThread(processingThread, std::ref(dataProcessor), std::ref(procQueue), std::ref(decisionQueue));
+    std::thread decisionMakingThread(decisionMakingThread, std::ref(bayesFactors), std::ref(decisionAgent), std::ref(decisionQueue), std::ref(triggerEnd));
 
 
     // Wait for the threads to finish
-    if (acquisitionThread.joinable()) { 
-        acquisitionThread.join();
-        std::cout << "Acquisition thread joined." << std::endl;
-    } 
-    else { std::cerr << "Acquisition thread is not joinable" << std::endl;}
-
-    if (FFTThread.joinable()) { 
-        FFTThread.join();
-        std::cout << "FFT thread joined." << std::endl;
-    } 
-    else { std::cerr << "FFT thread is not joinable" << std::endl;}
-
-    if (magnitudeThread.joinable()) { 
-        magnitudeThread.join();
-        std::cout << "Magnitude thread joined." << std::endl;
-    } 
-    else { std::cerr << "Magnitude thread is not joinable" << std::endl;}
-
-    if (averagingThread.joinable()) { 
-        averagingThread.join();
-        std::cout << "Averaging thread joined." << std::endl;
-        {
-            std::lock_guard<std::mutex> lock(sharedDataProc.mutex);
-            sharedDataProc.rawDataReadyCondition.notify_one();
-        }
-        {
-            std::lock_guard<std::mutex> lock(sharedSavedData.mutex);
-            sharedSavedData.averagedSpectrumReadyCondition.notify_one();
-        }
-    } 
-    else { std::cerr << "Averaging thread is not joinable" << std::endl;}
-
-    // if(collatingThread.joinable()) {
-    //     collatingThread.join();
-    //     std::cout << "Collating thread joined." << std::endl;
-    // } else {
-    //     std::cerr << "Collating thread not joinable" << std::endl;
-    // }
-
-    if(processingThread.joinable()) {
-        processingThread.join();
-        std::cout << "Processing thread joined." << std::endl;
-        {
-            std::lock_guard<std::mutex> lock(sharedDataProc.mutex);
-            sharedDataProc.rescaledDataReadyCondition.notify_one();
-        }
-    } else {
-        std::cerr << "Processing thread is not joinable" << std::endl;
-    }
-
-    if (decisionMakingThread.joinable()) { 
-        decisionMakingThread.join();
-        std::cout << "Decision thread joined." << std::endl;
-    } 
-    else { std::cerr << "Decision making thread is not joinable" << std::endl;}
+    acquisitionThread.join();
+    fftThread.join();
+    magnitudeThread.join();
+    averagingThread.join();
+    processingThread.join();
+    decisionMakingThread.join();
 
 
     // Cleanup
     reportPerformance();
-
-
-    // Error recovery for when the threads don't finish properly
-    if (syncFlags.errorFlag) {
-        std::cout << "Error flag set. Recovering..." << std::endl;
-    }
-    else {
-        std::cout << "Emptying backupDataQueue" << std::endl;
-        while (!sharedDataBasic.backupDataQueue.empty()) {
-            fftw_complex* data = sharedDataBasic.backupDataQueue.front();
-            fftw_free(data);  // Free the memory
-            sharedDataBasic.backupDataQueue.pop();
-        }
-    }
-
-    return averagedData;
-}
-
-
-/**
- * @brief DEPRECATED (need to match new thread structure).
- * 
- */
-void ScanRunner::unrolledAcquisition() {
-    // Set up shared data
-    // SharedDataBasic sharedDataBasic;
-    // SharedDataProcessing sharedDataProc;
-    // SharedDataSaving sharedSavedData;
-    // SynchronizationFlags syncFlags;
-
-    // int N = (int)alazarCard.acquisitionParams.samplesPerBuffer;
-    // sharedDataBasic.samplesPerBuffer = alazarCard.acquisitionParams.samplesPerBuffer;
-
-
-    // // Begin the threads
-    // std::cout << "Launching acquisition thread." << std::endl;
-    // std::queue<fftw_complex*> backupDataQueue;
-    // std::thread acquisitionThread(&ATS::AcquireDataMultithreadedContinuous, &alazarCard, std::ref(sharedDataBasic), std::ref(syncFlags));
-    // acquisitionThread.join();
-
-    // std::cout << "Launching FFT thread." << std::endl;
-    // std::thread FFTThread(FFTThread, fftwPlan, N, std::ref(sharedDataBasic), std::ref(syncFlags));
-    // FFTThread.join();
-
-    // std::cout << "Launching magnitude thread." << std::endl;
-    // std::thread magnitudeThread(magnitudeThread, N, std::ref(sharedDataBasic), std::ref(sharedDataProc), std::ref(syncFlags), std::ref(dataProcessor));
-    // magnitudeThread.join();
-
-    // std::cout << "Launching averaging thread." << std::endl;
-    // std::thread averagingThread(averagingThread, std::ref(sharedDataProc), std::ref(syncFlags), std::ref(dataProcessor), std::ref(scanParams.dataParameters.trueCenterFreq), scanParams.dataParameters.subSpectraAveragingNumber);
-    // averagingThread.join();
-    
-    // std::cout << "Launching processing thread." << std::endl;
-    // std::thread processingThread(processingThread, std::ref(sharedDataProc), std::ref(savedData), std::ref(syncFlags), std::ref(dataProcessor), std::ref(bayesFactors));
-    // processingThread.join();
-    
-    // std::cout << "Launching decision making thread." << std::endl;
-    // std::thread decisionMakingThread(decisionMakingThread, std::ref(sharedDataProc), std::ref(sharedSavedData), std::ref(syncFlags), std::ref(bayesFactors), std::ref(decisionAgent));
-    // decisionMakingThread.join();
-
-
-    // Cleanup
 }
 
 
@@ -364,20 +253,20 @@ void ScanRunner::saveData() {
     saveVector(dataProcessor.currentBaseline, scanParams.topLevelParameters.savePath + "baseline.csv");
     saveVector(dataProcessor.runningAverage, scanParams.topLevelParameters.savePath + "runningAverage.csv");
 
-    saveSpectrum(savedData.rawSpectra[0], scanParams.topLevelParameters.savePath + "rawSpectrum.csv");
+    // saveSpectrum(savedData.rawSpectra[0], scanParams.topLevelParameters.savePath + "rawSpectrum.csv");
 
 
-    Spectrum processedSpectrum, foo;
-    std::tie(processedSpectrum, foo) = dataProcessor.rawToProcessed(savedData.rawSpectra[0]);
-    trimSpectrum(processedSpectrum, 0.1);
-    saveSpectrum(processedSpectrum, scanParams.topLevelParameters.savePath + "processedSpectrum.csv");
+    // Spectrum processedSpectrum, foo;
+    // std::tie(processedSpectrum, foo) = dataProcessor.rawToProcessed(savedData.rawSpectra[0]);
+    // trimSpectrum(processedSpectrum, 0.1);
+    // saveSpectrum(processedSpectrum, scanParams.topLevelParameters.savePath + "processedSpectrum.csv");
 
 
-    dataProcessor.trimSNRtoMatch(processedSpectrum);
-    Spectrum rescaledSpectrum = dataProcessor.processedToRescaled(processedSpectrum);
+    // dataProcessor.trimSNRtoMatch(processedSpectrum);
+    // Spectrum rescaledSpectrum = dataProcessor.processedToRescaled(processedSpectrum);
 
 
-    saveCombinedSpectrum(savedData.combinedSpectrum, scanParams.topLevelParameters.savePath + "combinedSpectrum.csv");
+    // saveCombinedSpectrum(savedData.combinedSpectrum, scanParams.topLevelParameters.savePath + "combinedSpectrum.csv");
     saveSpectrum(bayesFactors.exclusionLine, scanParams.topLevelParameters.savePath + "exclusionLine.csv");
 
     std::string exclusionLineFilename = scanParams.topLevelParameters.savePath + "data/exclusionLine_";

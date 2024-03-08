@@ -56,6 +56,7 @@
 #include <cmath>
 #include <algorithm>
 #include <numeric>
+#include <windows.h>
 
 #include <iostream>
 #include <fstream>
@@ -75,6 +76,8 @@
 #include <thread>
 #include <condition_variable>
 #include <mutex>
+#include <memory>
+#include <atomic>
 
 
 // Custom library includes
@@ -229,6 +232,8 @@ struct SynchronizationFlags {
  ******************************************************************************/
 
 // Class includes
+#include "utils/multiThreading.hpp"
+
 #include "instruments/ATS.hpp"
 
 #include "dataProcessing/bayes.hpp"
@@ -270,13 +275,11 @@ void saveSpectraFromQueue(std::queue<Spectrum>& spectraQueue, std::string filena
 ScanParameters unpackScanParameters(json const& inputParams);
 
 // multiThreading.cpp
-void FFTThread(fftw_plan plan, int N, SharedDataBasic& sharedData, SynchronizationFlags& syncFlags);
-void magnitudeThread(int N, SharedDataBasic& sharedData, SharedDataProcessing& sharedDataProc, SynchronizationFlags& syncFlags, DataProcessor& dataProcessor);
-void averagingThread(SharedDataProcessing& sharedData, SharedDataSaving& savedData, SynchronizationFlags& syncFlags, DataProcessor& dataProcessor, double trueCenterFreq, int subSpectraAveragingNumber);
-void processingThread(SharedDataProcessing& sharedData, SavedData& savedData, SynchronizationFlags& syncFlags, DataProcessor& dataProcessor, BayesFactors& bayesFactors);
-void decisionMakingThread(SharedDataProcessing& sharedData, SynchronizationFlags& syncFlags, BayesFactors& bayesFactors, DecisionAgent& decisionAgent);
-void dataCollatingThread(SharedDataSaving& savedData, SynchronizationFlags& syncFlags, AveragedData& averagedData);
-void saveDataToHDF5(SharedDataBasic& sharedData, SynchronizationFlags& syncFlags);
+void fftThread(fftw_plan plan, int samplesPerSpectrum, ThreadSafeQueue<fftw_complex*>& inputQueue, ThreadSafeQueue<fftw_complex*>& outputQueue);
+void magnitudeThread(int samplesPerSpectrum, DataProcessor& dataProcessor, ThreadSafeQueue<fftw_complex*>& inputQueue, ThreadSafeQueue<std::vector<double>>& outputQueue);
+void averagingThread(DataProcessor& dataProcessor, double trueCenterFreq, ThreadSafeQueue<std::vector<double>>& inputQueue, ThreadSafeQueue<Spectrum>& outputQueue, int subSpectraAveragingNumber);
+void processingThread(DataProcessor& dataProcessor, ThreadSafeQueue<Spectrum>& inputQueue, ThreadSafeQueue<CombinedSpectrum>& outputQueue);
+void decisionMakingThread(BayesFactors& bayesFactors, DecisionAgent& decisionAgent, ThreadSafeQueue<CombinedSpectrum>& inputQueue, std::atomic<bool>& triggerEnd);
 
 // tests.cpp
 void printAvailableResources();

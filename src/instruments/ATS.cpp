@@ -671,8 +671,7 @@ fftw_complex* processDataFFT(fftw_complex* sampleData, fftw_plan plan, int N) {
  * @param sharedData - Struct containing the shared data between threads. This function will write to dataQueue and signal dataReadyCondition
  * @param syncFlags - Struct containing the synchronization flags between threads. This function will read the pauseDataCollection flag
  */
-void ATS::AcquireDataMultithreadedContinuous(SharedDataBasic& sharedData, SynchronizationFlags& syncFlags) {
-    try{
+void ATS::AcquireDataMultithreadedContinuous(ThreadSafeQueue<fftw_complex*>& outputQueue, std::atomic<bool>& triggerEnd) {
     // Set basic flags
     U32 channelMask = CHANNEL_A | CHANNEL_B;
     U32 admaFlags = ADMA_TRIGGERED_STREAMING | ADMA_EXTERNAL_STARTCAPTURE;         // Start acquisition when AlazarStartCapture is called
@@ -748,15 +747,10 @@ void ATS::AcquireDataMultithreadedContinuous(SharedDataBasic& sharedData, Synchr
 
         // Main acquisition logic     
 		while (buffersCompleted < acquisitionParams.buffersPerAcquisition) {
-            // Acquire a mutex lock and check if the pause flag has been set
-            {
-                std::lock_guard<std::mutex> lock(syncFlags.mutex);
-                if (syncFlags.pauseDataCollection) {
-                    std::cout << "Received pause signal" << std::endl;
-                    break;
-                }
+            // Signal if this is the last buffer to be acquired
+            if (buffersCompleted == acquisitionParams.buffersPerAcquisition - 1) {
+                triggerEnd = true;
             }
-
 
             // Send a software trigger to begin acquisition (technically should be unecessary but won't hurt anything)
             retCode = AlazarForceTrigger(boardHandle);
@@ -797,23 +791,17 @@ void ATS::AcquireDataMultithreadedContinuous(SharedDataBasic& sharedData, Synchr
                         complexOutput[i][1] *= -1;
                     }
                 }
-
-                fftw_complex* backupComplexOutput = reinterpret_cast<fftw_complex*>(fftw_malloc(sizeof(fftw_complex) * acquisitionParams.samplesPerBuffer));
-                std::memcpy(backupComplexOutput, complexOutput, sizeof(fftw_complex) * acquisitionParams.samplesPerBuffer);
-
-                // Push the data to the shared data queue and notify the processing thread that data is ready
-                {
-                    std::lock_guard<std::mutex> lock(sharedData.mutex);
-                    sharedData.dataQueue.push(complexOutput);
-                    sharedData.backupDataQueue.push(backupComplexOutput);
-                }
-                sharedData.dataReadyCondition.notify_one();
-
-                complexOutput = nullptr;
-                backupComplexOutput = nullptr;
-
+                
                 buffersCompleted++;
 				bytesTransferred += acquisitionParams.bytesPerBuffer;	
+
+                if (triggerEnd.load()) {
+                    outputQueue.pushFinal(complexOutput);
+                    break;
+                }
+                else {
+                    outputQueue.push(complexOutput);
+                }
 
                 // std::cout << "Acquired " << buffersCompleted << " buffers." << std::endl;
 
@@ -914,12 +902,10 @@ void ATS::AcquireDataMultithreadedContinuous(SharedDataBasic& sharedData, Synchr
 		printf("Transferred %I64d bytes (%.4g bytes per sec)\n", bytesTransferred, bytesPerSec);
         #endif
 	}
-
-
-    // Signal the end of data acquisition if the decision making didn't stop it
-    {
-        std::lock_guard<std::mutex> lock(syncFlags.mutex);
-        syncFlags.acquisitionComplete = true;
+    // Signal end of acquisition if it hasn't already been (this is an unexpected exit)
+    if (!triggerEnd.load()) {
+        triggerEnd = true;
+        outputQueue.pushFinal(nullptr);
     }
 
 
@@ -938,11 +924,4 @@ void ATS::AcquireDataMultithreadedContinuous(SharedDataBasic& sharedData, Synchr
 	}
 
     return;
-
-    }
-    catch(const std::exception& e)
-    {
-        std::cout << "Acquisition thread exiting due to exception." << std::endl;
-        std::cerr << e.what() << '\n';
-    }
 }
