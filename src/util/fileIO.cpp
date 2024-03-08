@@ -271,3 +271,36 @@ void saveSpectraFromQueue(std::queue<Spectrum>& spectraQueue, std::string filena
         std::cerr << "Unable to open file " << filename << " to save data." << std::endl;
     }
 }
+
+
+
+bool deleteAllFilesInFolder(const std::string& folderPath) {
+    WIN32_FIND_DATA findFileData;
+    HANDLE hFind = INVALID_HANDLE_VALUE;
+
+    // Add a wildcard to search for all files in the directory
+    std::string folderSearchPath = folderPath + "\\*";
+    hFind = FindFirstFile(folderSearchPath.c_str(), &findFileData);
+
+    if (hFind == INVALID_HANDLE_VALUE) {
+        std::cerr << "FindFirstFile failed. Error: " << GetLastError() << std::endl;
+        return false;
+    }
+
+    do {
+        // Skip directories, "." and ".."
+        if (!(findFileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) {
+            std::string filePath = folderPath + "\\" + findFileData.cFileName;
+            if (!DeleteFile(filePath.c_str())) {
+                std::cerr << "Failed to delete file: " << filePath << ". Error: " << GetLastError() << std::endl;
+                // Optionally, continue trying to delete other files even if one fails
+            }
+        }
+        // If you also want to delete directories, you would add an else branch here
+        // to handle directory deletion (recursively calling this function).
+
+    } while (FindNextFile(hFind, &findFileData) != 0);
+
+    FindClose(hFind);
+    return true;
+}

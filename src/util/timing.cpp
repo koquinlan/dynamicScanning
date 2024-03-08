@@ -39,6 +39,13 @@ void resetTimers()
     }
 }
 
+void resetMetrics()
+{
+    for (int n = 0; n < NUM_METRICS; n++) {
+        metrics[n].clear();
+    }
+}
+
 
 void setMetric(int metricCode, int val) {
     metrics[metricCode].push_back(val);

@@ -117,6 +117,7 @@ struct DataParameters {
     double sampleRate;
     double RBW;
     double trueCenterFreq;
+    double stepSize;
     int subSpectraAveragingNumber;
 };
 
@@ -270,6 +271,7 @@ void saveVector(std::vector<int> data, std::string filename);
 void saveVector(std::vector<double> data, std::string filename);
 std::string getDateTimeString();
 void saveSpectraFromQueue(std::queue<Spectrum>& spectraQueue, std::string filename);
+bool deleteAllFilesInFolder(const std::string& folderPath);
 
 // mexUtils.cpp
 ScanParameters unpackScanParameters(json const& inputParams);
@@ -292,6 +294,7 @@ double getTime(int timerCode);
 void startTimer(int timerCode);
 void stopTimer(int timerCode);
 void resetTimers();
+void resetMetrics();
 void setMetric(int metricCode, int val);
 void updateMetric(int metricCode, int val);
 std::vector<int> getMetric(int metricCode);
