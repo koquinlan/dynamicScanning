@@ -43,6 +43,10 @@ set(LINKS
     # ${HDF5_LIBRARIES}
 )
 
+add_executable(cpp_test ${SOURCES} cppTesting.cpp)
+target_include_directories(cpp_test PRIVATE ${INCLUDES})
+target_link_libraries(cpp_test PRIVATE ${LINKS})
+
 matlab_add_mex(
     NAME mexScanRunner
     SRC mexScanRunner.cpp ${SOURCES}

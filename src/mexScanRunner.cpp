@@ -39,22 +39,8 @@ public:
             scanRunner.loadState();
         }
         else { file.close(); }
-        
-        AveragedData averagedData = scanRunner.acquireData();
-   
-
-        startTimer(TIMER_SAVE);
-        matlab::data::TypedArray<double> rawData = factory.createArray<double>({1, 1}, {0.0});
-        
-        if (averagedData.numSpectra != 0) {
-            rawData = factory.createArray<std::vector<double>::iterator>(
-                {averagedData.numSpectra + 1, averagedData.spectrumLength}, 
-                averagedData.collatedData.begin(), 
-                averagedData.collatedData.end()
-                );
-        }
-        stopTimer(TIMER_SAVE);
-        
+    
+        scanRunner.acquireData();
 
         if (fullSave) { scanRunner.saveData(); }
         scanRunner.saveState();
@@ -65,7 +51,6 @@ public:
         matlab::data::CharArray resultString = factory.createCharArray(jsonString);
         
         outputs[0] = std::move(resultString);
-        outputs[1] = std::move(rawData);
     }
 
         
@@ -105,8 +90,8 @@ private:
         if (inputs[1].getType() != matlab::data::ArrayType::LOGICAL) {
             throw std::invalid_argument("Second input must be a logical scalar (boolean).");
         }
-        if (outputs.size() != 2) {
-            throw std::invalid_argument("Two outputs required.");
+        if (outputs.size() != 1) {
+            throw std::invalid_argument("One output required.");
         }
     }
 };

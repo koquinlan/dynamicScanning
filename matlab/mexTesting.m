@@ -12,9 +12,9 @@ baselineParams = struct(...
 
 
 % Static Run Parameters
-integrationTimes = [5];
+integrationTimes = [18, 19, 20, 21, 22];
 stepSize = 0.1;
-numSteps = 2;
+numSteps = 351;
 targetCoupling = 3.4e-5;
 
 scanParams = struct(...
@@ -30,8 +30,8 @@ scanParams = struct(...
         'maxIntegrationTime', 7.5, ... % This will get changed based on which scan we're on   
         'sampleRate', 32e6, ...
         'RBW', 100, ...
-        'trueCenterFreq', 1, ...
-        'subSpectraAveragingNumber', 15 ...
+        'trueCenterFreq', 5, ...
+        'subSpectraAveragingNumber', 20 ...
     ), ...
     'filterParams', struct(...
         'cutoffFrequency', 10e3, ...
@@ -47,6 +47,7 @@ baselinePerf = jsondecode(mexBaseline(jsonencode(scanParams), jsonencode(baselin
 fprintf('Baselining Complete')
 %% Scan Logic
 fprintf('Beginning Scans\n')
+delete(scanParams.topLevelParams.statePath + '*')
 
 performances = cell(length(integrationTimes), numSteps);
 
@@ -58,12 +59,14 @@ for idx = 1:length(integrationTimes)
 
         % Run the scan
         tic
-        [perfString, rawData] = mexScanRunner(jsonencode(scanParams), fullSave);
+        perfString = mexScanRunner(jsonencode(scanParams), fullSave);
         toc
         
         performances{idx, step} = jsondecode(perfString);
         scanParams.dataParams.trueCenterFreq = scanParams.dataParams.trueCenterFreq + stepSize;
     end
+
+    delete(scanParams.topLevelParams.statePath + '*')
 end
 
 fprintf('Scans Complete\n')
