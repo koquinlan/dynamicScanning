@@ -304,3 +304,11 @@ bool deleteAllFilesInFolder(const std::string& folderPath) {
     FindClose(hFind);
     return true;
 }
+
+
+
+std::string formatWithPrecision(double value, int precision) {
+    std::stringstream stream;
+    stream << std::fixed << std::setprecision(precision) << value;
+    return stream.str();
+}

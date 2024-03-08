@@ -272,6 +272,7 @@ void saveVector(std::vector<double> data, std::string filename);
 std::string getDateTimeString();
 void saveSpectraFromQueue(std::queue<Spectrum>& spectraQueue, std::string filename);
 bool deleteAllFilesInFolder(const std::string& folderPath);
+std::string formatWithPrecision(double value, int precision);
 
 // mexUtils.cpp
 ScanParameters unpackScanParameters(json const& inputParams);

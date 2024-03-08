@@ -36,7 +36,7 @@ public:
         std::ifstream file(scanParameters.topLevelParameters.statePath + "scanInfo.json");
         if (file.is_open()) {
             file.close();
-            scanRunner.loadState();
+            scanRunner.loadStateAndStep();
         }
         else { file.close(); }
     

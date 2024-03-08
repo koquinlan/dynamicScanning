@@ -30,7 +30,7 @@ public:
     ~ScanRunner();
 
     void loadStateAndStep();
-    void saveState();
+    void saveState(int precision=9);
 
     void setTarget(double targetCoupling);
 
