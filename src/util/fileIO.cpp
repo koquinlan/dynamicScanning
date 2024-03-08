@@ -307,8 +307,8 @@ bool deleteAllFilesInFolder(const std::string& folderPath) {
 
 
 
-std::string formatWithPrecision(double value, int precision) {
+double formatWithPrecision(double value, int precision) {
     std::stringstream stream;
     stream << std::fixed << std::setprecision(precision) << value;
-    return stream.str();
+    return std::stod(stream.str());
 }
