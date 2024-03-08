@@ -52,3 +52,6 @@ __pycache__/
 
 # Scanning directory
 scanDir/
+
+# Doxygen
+generated-docs/
