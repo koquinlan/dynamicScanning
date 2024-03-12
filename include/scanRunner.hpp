@@ -65,7 +65,7 @@ private:
     void initAlazarCard();
     void initFFTW();
     void initProcessor();
-    void initDecisionAgent(int decisionMaking);
+    void initDecisionAgent();
 
     void acquireProcCalibration(int repeats = 3, int subSpectra = 32, int savePlots = 0);
 };

@@ -27,7 +27,7 @@ ScanRunner::ScanRunner(ScanParameters scanParams) : alazarCard(1, 1), scanParams
     initAlazarCard();
     initFFTW();
     initProcessor();
-    initDecisionAgent(scanParams.topLevelParameters.decisionMaking);
+    initDecisionAgent();
 }
 
 
@@ -128,10 +128,12 @@ void ScanRunner::initProcessor() {
  * @brief 
  * 
  */
-void ScanRunner::initDecisionAgent(int decisionMaking){
+void ScanRunner::initDecisionAgent(){
     decisionAgent.SNR = dataProcessor.SNR;
+    decisionAgent.targetCoupling = scanParams.topLevelParameters.targetCoupling;
+    decisionAgent.minSpectra = (int)(scanParams.dataParameters.minIntegrationTime*scanParams.dataParameters.RBW/scanParams.dataParameters.subSpectraAveragingNumber);
 
-    if (!decisionMaking){ decisionAgent.toggleDecisionMaking(false); }
+    if (!scanParams.topLevelParameters.decisionMaking){ decisionAgent.toggleDecisionMaking(false); }
 }
 
 

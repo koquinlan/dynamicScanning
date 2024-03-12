@@ -105,6 +105,7 @@ using json = nlohmann::json;
 // Structs for scanning parameters
 struct TopLevelParameters {
     bool decisionMaking;
+    double targetCoupling;
     std::string baselinePath;
     std::string statePath;
     std::string savePath;
@@ -114,6 +115,7 @@ struct TopLevelParameters {
 
 struct DataParameters {
     double maxIntegrationTime;
+    double minIntegrationTime;
     double sampleRate;
     double RBW;
     double trueCenterFreq;

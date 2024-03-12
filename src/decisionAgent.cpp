@@ -100,7 +100,7 @@ void DecisionAgent::setPoints(){
 
 
 int DecisionAgent::getDecision(std::vector<double> activeExclusionLine, int numShots){
-    if (decisionMaking && (numShots > minShots)){
+    if (decisionMaking && (numShots > (minSpectra - 3))){ // 3 spectra to account for decision delay
         return (checkScore(activeExclusionLine) <= threshold);
     } else {
         return 0;
@@ -122,6 +122,15 @@ double DecisionAgent::checkScore(std::vector<double> activeExclusionLine){
 
 
 
-void DecisionAgent::toggleDecisionMaking(int decisionMaking) {
+void DecisionAgent::toggleDecisionMaking(bool decisionMaking) {
     this->decisionMaking = decisionMaking;
+}
+
+
+
+void DecisionAgent::saveState(std::string statePath) {
+    saveVector(trimmedSNR.powers, statePath + "trimmedSNR.csv");
+    
+    saveVector(points, statePath + "points.csv");
+    saveVector(inProgressTargets, statePath + "inProgressTargets.csv");
 }

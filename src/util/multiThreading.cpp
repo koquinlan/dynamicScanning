@@ -133,7 +133,7 @@ void processingThread(DataProcessor& dataProcessor, ThreadSafeQueue<Spectrum>& i
 void decisionMakingThread(BayesFactors& bayesFactors, DecisionAgent& decisionAgent, ThreadSafeQueue<CombinedSpectrum>& inputQueue, std::atomic<bool>& triggerEnd) {
     setMetric(SPECTRA_AT_DECISION, -1);
     
-    int buffersDecided = 0;
+    int spectraDecided = 0;
 
     while (true) {
         std::shared_ptr<CombinedSpectrum> rebinnedSpectrumPointer = inputQueue.waitAndPop();
@@ -150,10 +150,11 @@ void decisionMakingThread(BayesFactors& bayesFactors, DecisionAgent& decisionAge
         bayesFactors.updateExclusionLine(rebinnedSpectrum);
 
         if (!triggerEnd.load()){
-            std::vector<double> activeWindow(bayesFactors.exclusionLine.powers.end() - decisionAgent.trimmedSNR.powers.size(), bayesFactors.exclusionLine.powers.end());
-            int decision = decisionAgent.getDecision(activeWindow, buffersDecided);
+            spectraDecided++;
 
-            buffersDecided++;
+            std::vector<double> activeWindow(bayesFactors.exclusionLine.powers.end() - decisionAgent.trimmedSNR.powers.size(), bayesFactors.exclusionLine.powers.end());
+            int decision = decisionAgent.getDecision(activeWindow, spectraDecided);
+
 
             if (decision) {
                 triggerEnd = true;
@@ -163,7 +164,7 @@ void decisionMakingThread(BayesFactors& bayesFactors, DecisionAgent& decisionAge
 
 
         if (inputQueue.isInputComplete() && inputQueue.empty()) {
-            updateMetric(SPECTRA_AT_DECISION, buffersDecided);
+            updateMetric(SPECTRA_AT_DECISION, spectraDecided);
             break;
         }
     }

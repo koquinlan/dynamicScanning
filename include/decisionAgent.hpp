@@ -22,7 +22,7 @@ public:
     std::vector<double> inProgressTargets, points;
 
     double threshold = 0;
-    int minShots = 0;
+    int minSpectra;
 
 
     void resizeSNRtoMatch(Spectrum spectrum);
@@ -33,10 +33,12 @@ public:
     double checkScore(std::vector<double> activeExclusionLine);
     void setPoints();
 
-    void toggleDecisionMaking(int decisionMaking);
+    void toggleDecisionMaking(bool decisionMaking);
+
+    void saveState(std::string statePath);
 
 private:
-    int decisionMaking = 1;
+    bool decisionMaking = true;
 };
 
 #endif // DECISION_H
