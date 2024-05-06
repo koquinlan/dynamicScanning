@@ -175,7 +175,7 @@ void ScanRunner::loadStateAndStep() {
     }   
 }
 
-void ScanRunner::saveState(int precision) {
+void ScanRunner::saveState(std::string prefix, int precision) {
     // Save the exclusion line, coeffSumA, and coeffSumB
     saveSpectrum(bayesFactors.exclusionLine, scanParams.topLevelParameters.statePath + "exclusionLine.csv");
     saveVector(bayesFactors.coeffSumA, scanParams.topLevelParameters.statePath + "coeffSumA.csv");
@@ -188,7 +188,7 @@ void ScanRunner::saveState(int precision) {
     scanInfo["cutoffIndex"] = bayesFactors.cutoffIndex;
     scanInfo["previousCenterFreq"] = formatWithPrecision(scanParams.dataParameters.trueCenterFreq, precision);
 
-    std::ofstream jsonFile(scanParams.topLevelParameters.statePath + "scanInfo.json");
+    std::ofstream jsonFile(scanParams.topLevelParameters.statePath + prefix + "scanInfo.json");
     jsonFile << scanInfo;
 }
 

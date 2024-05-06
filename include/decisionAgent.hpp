@@ -21,7 +21,7 @@ public:
     double targetCoupling;
     std::vector<double> inProgressTargets, points;
 
-    double threshold = 0;
+    double threshold = 1.5;
     int minSpectra;
 
 

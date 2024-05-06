@@ -77,24 +77,28 @@ void DecisionAgent::setPoints(){
     }
 
     int j = (int)trimmedSNR.powers.size()-1;
-    while(cumSum/SNRsum < 0.3){
+    while(cumSum/SNRsum < 0.4){
         cumSum += trimmedSNR.powers[j]*trimmedSNR.powers[j];
         points[j] = 0;
         j--;
     }
 
-
-    double norm = trimmedSNR.powers[j]*trimmedSNR.powers[j];
-    while(cumSum/SNRsum < 0.7){
+    while(cumSum/SNRsum < 0.85){
         cumSum += trimmedSNR.powers[j]*trimmedSNR.powers[j];
 
-        points[j] = points[j+1] + trimmedSNR.powers[j]*trimmedSNR.powers[j]/norm;
+        points[j] = cumSum/SNRsum;
         j--;
     }
 
     while(j >= 0){
         points[j]=0;
         j--;
+    }
+
+    // Normalize point to the max value
+    double maxPoint = *std::max_element(points.begin(), points.end());
+    for (std::size_t i=0; i<points.size(); i++){
+        points[i] = points[i]/maxPoint;
     }
 }
 
