@@ -11,10 +11,10 @@ endif()
 
 # Set the path to the ATS library and include directory
 set(ALAZAR_LIBRARY ${CMAKE_CURRENT_SOURCE_DIR}/libs/AtsApi.lib)
-set(ALAZAR_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include/ALAZAR) # Replace with the actual path to the VISA include directory
+set(ALAZAR_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include/ALAZAR)
 
 # Set compiler flags
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}") # /O2 /openmp:experimental") # /Qvec-report:2")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 message(STATUS "Compiler flags set to: ${CMAKE_CXX_FLAGS}")
 
 # Find various external libraries to link against
@@ -27,10 +27,6 @@ set(FFTW3_DIR $ENV{LIBS}/fftw3)
 
 set(FFTW3_LIBRARIES ${FFTW3_DIR}/lib/libfftw3-3.lib ${FFTW3_DIR}/lib/libfftw3f-3.lib ${FFTW3_DIR}/lib/libfftw3l-3.lib)
 set(FFTW3_INCLUDE_DIR ${FFTW3_DIR}/include)
-
-# Set the path to the HDF5 library installation
-set(CMAKE_PREFIX_PATH $ENV{LIBS}/HDF5)
-find_package(HDF5 REQUIRED COMPONENTS CXX)
 
 # Find Matlab
 find_package(Matlab REQUIRED)

@@ -32,6 +32,7 @@
 
 # Cmake Stuff
 build*/
+out*/
 
 # Raw Data
 *.csv
@@ -39,6 +40,7 @@ build*/
 
 # VS code stuff
 .vscode/*
+.vs/*
 
 # Python cache files
 __pycache__/
